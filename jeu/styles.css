@@ -115,6 +115,10 @@ body {
 .brand i { color: var(--orange); }
 .brand.small { font-size: .85rem; letter-spacing: .12em; color: var(--txt-2); }
 
+.start-top { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.back-link { text-decoration: none; transition: color .15s ease; }
+a.back-link:hover { color: var(--orange); }
+
 .start-title { font-size: clamp(2rem, 5.2vw, 3.5rem); font-weight: 900; line-height: 1.12; margin: 30px 0 18px; }
 .start-sub { color: var(--txt-2); font-size: 1.03rem; line-height: 1.75; max-width: 720px; }
 

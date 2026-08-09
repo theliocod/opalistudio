@@ -199,6 +199,28 @@ section:first-of-type {
   color: var(--primary-red);
 }
 
+/* Lien vers le jeu EMPIRE */
+.nav-link-game {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 14px;
+  border: 1px solid var(--border-medium);
+  border-radius: 999px;
+  color: var(--accent-orange);
+  transition: all var(--transition-fast);
+}
+
+.nav-link-game i {
+  font-size: var(--font-size-sm);
+}
+
+.nav-link-game:hover {
+  color: var(--text-white);
+  background: linear-gradient(135deg, var(--primary-red), var(--accent-orange));
+  border-color: transparent;
+}
+
 .nav-toggle {
   display: none;
   flex-direction: column;
