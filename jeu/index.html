@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMPIRE — Le jeu de l'entrepreneur</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<!-- ================= ÉCRAN DE DÉPART ================= -->
+<div id="screen-start" class="screen">
+  <div class="start-wrap">
+    <div class="brand">
+      <i class="fas fa-gem"></i>
+      <span>EMPIRE</span>
+    </div>
+    <h1 class="start-title">Tu as <span class="accent">18 ans</span>, un peu d'argent<br>et 47 ans devant toi.</h1>
+    <p class="start-sub">
+      Chaque mois, tu choisis quoi faire de ton temps : travailler, te former, créer,
+      vendre, te reposer, aimer. Tu montes des entreprises, tu recrutes, tu lèves des fonds,
+      tu revends — ou tu déposes le bilan. À 65 ans, on fait les comptes. Pas seulement en euros.
+    </p>
+
+    <div class="start-field">
+      <label for="player-name">Ton prénom</label>
+      <input type="text" id="player-name" class="input" placeholder="Alex" maxlength="20">
+    </div>
+
+    <h2 class="start-h2">D'où tu pars</h2>
+    <div id="origins" class="origins"></div>
+
+    <div class="start-actions">
+      <button id="start-btn" class="btn btn-primary btn-lg" disabled>
+        Commencer ma vie <i class="fas fa-arrow-right"></i>
+      </button>
+      <button id="continue-btn" class="btn btn-ghost btn-lg hidden">
+        <i class="fas fa-rotate-left"></i> Reprendre ma partie
+      </button>
+    </div>
+
+    <div class="start-rules">
+      <div><i class="fas fa-hourglass-half"></i><b>1 tour = 1 mois</b><span>3 blocs de temps à dépenser chaque mois.</span></div>
+      <div><i class="fas fa-bolt"></i><b>Énergie</b><span>Tout coûte de l'énergie. À zéro, tu casses.</span></div>
+      <div><i class="fas fa-rocket"></i><b>Entreprises</b><span>Clients, qualité, pub, recrutement, trésorerie.</span></div>
+      <div><i class="fas fa-heart"></i><b>Ta vie</b><span>L'argent n'est qu'une des lignes du bilan final.</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ÉCRAN DE JEU ================= -->
+<div id="screen-game" class="screen hidden">
+  <header id="hdr" class="hdr"></header>
+  <nav id="tabs" class="tabs"></nav>
+  <main id="tab-content" class="content"></main>
+  <footer class="footer">
+    <div class="brand small"><i class="fas fa-gem"></i> EMPIRE</div>
+    <button id="reset-btn" class="btn btn-ghost btn-sm"><i class="fas fa-trash"></i> Nouvelle vie</button>
+  </footer>
+</div>
+
+<!-- ================= ÉCRAN DE FIN ================= -->
+<div id="screen-end" class="screen hidden">
+  <div id="end-content" class="end-wrap"></div>
+</div>
+
+<!-- ================= MODALE & TOAST ================= -->
+<div id="modal" class="modal hidden"></div>
+<div id="toast" class="toast"></div>
+
+<script src="data.js"></script>
+<script src="game.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
