@@ -500,6 +500,133 @@ const EVENTS = [
     ]
   },
 
+
+  /* ===================== LA CONCURRENCE ===================== */
+
+  {
+    id: 'rival_debauche', title: "Un concurrent débauche chez toi",
+    text: null,
+    dynamic: s => {
+      const c = s.companies.find(x => x.staff.length > 1 && (x.rivals || []).length);
+      if (!c) return null;
+      const e = bestStaff(c);
+      const r = pick(c.rivals.filter(x => x.aggression > 0.4)) || pick(c.rivals);
+      return { text: `${r.name} a approché ${e.name} avec une offre nettement supérieure. Ils savent exactement qui compte chez toi.`, ref: { e, c, r } };
+    },
+    cond: s => s.companies.some(c => c.staff.length > 1 && (c.rivals || []).some(r => r.aggression > 0.35)),
+    choices: [
+      {
+        label: "S'aligner sur leur offre", custom: (s, ref) => {
+          ref.e.salary = Math.round(ref.e.salary * 1.35);
+          ref.e.morale = clamp(ref.e.morale + 20, 0, 100);
+          addLog(s, `${ref.e.name} reste, à ${fmt(ref.e.salary)}. ${ref.r.name} devra chercher ailleurs.`, 'warn');
+        }
+      },
+      {
+        label: "Le laisser partir chez eux", custom: (s, ref) => {
+          ref.c.staff = ref.c.staff.filter(x => x !== ref.e);
+          ref.r.quality = Math.round(clamp(ref.r.quality + 3, 0, 99));
+          ref.r.aggression = clamp(ref.r.aggression + 0.1, 0, 1.4);
+          addLog(s, `${ref.e.name} rejoint ${ref.r.name}, qui en ressort renforcé.`, 'bad');
+        }
+      },
+      {
+        label: "Débaucher chez eux en retour", custom: (s, ref) => {
+          const cost = Math.round(ref.e.salary * 6);
+          if (s.money < cost) return addLog(s, "Tu n'as pas les moyens de cette guerre.", 'warn');
+          s.money -= cost;
+          const cand = makeCandidate(pick(ROLES).id, clamp(ref.r.quality / 100, 0.3, 0.95));
+          cand.revealed = true;
+          ref.c.applicants.push(cand);
+          ref.r.grudge = clamp(ref.r.grudge + 0.4, 0, 1);
+          ref.r.quality = Math.round(clamp(ref.r.quality - 2, 10, 99));
+          addLog(s, `Tu débauches ${cand.name} chez ${ref.r.name}. La guerre est déclarée.`, 'good');
+        }
+      }
+    ]
+  },
+  {
+    id: 'rival_offre', title: "Un concurrent veut te racheter",
+    text: null,
+    dynamic: s => {
+      const c = s.companies.find(x => (x.rivals || []).some(r => r.clients > x.clients * 2) && valuation(x) > 80000);
+      if (!c) return null;
+      const r = c.rivals.filter(x => x.clients > c.clients * 2).sort((a, b) => b.clients - a.clients)[0];
+      const price = Math.round(valuation(c) * rand(1.1, 1.45) * c.equity);
+      return { text: `${r.name} te propose ${fmt(price)} pour racheter ${c.name}. Leur directeur a été clair : « Soit vous vendez maintenant, soit on prend vos clients un par un. »`, ref: { c, r, price } };
+    },
+    cond: s => s.companies.some(c => (c.rivals || []).some(r => r.clients > c.clients * 2) && valuation(c) > 80000),
+    choices: [
+      {
+        label: "Vendre et encaisser", custom: (s, ref) => {
+          s.money += ref.price;
+          s.exits.push({ name: ref.c.name, price: ref.price, day: s.day });
+          s.companies = s.companies.filter(x => x !== ref.c);
+          s.plan = s.plan.filter(p => !(p.act === 'biz' && p.ref === ref.c.uid));
+          addLog(s, `Tu vends ${ref.c.name} à ${ref.r.name} pour ${fmt(ref.price)}.`, 'good');
+        }
+      },
+      {
+        label: "Refuser et tenir bon", custom: (s, ref) => {
+          ref.r.aggression = clamp(ref.r.aggression + 0.3, 0, 1.4);
+          ref.r.grudge = 1;
+          s.reputation = clamp(s.reputation + 3, 0, 100);
+          addLog(s, `Tu refuses. ${ref.r.name} passe à l'offensive sur ton marché.`, 'warn');
+        }
+      },
+      {
+        label: "Négocier une valorisation plus haute", custom: (s, ref) => {
+          if (s.skills.finance > 55 || s.skills.social > 65) {
+            const better = Math.round(ref.price * 1.4);
+            s.money += better;
+            s.exits.push({ name: ref.c.name, price: better, day: s.day });
+            s.companies = s.companies.filter(x => x !== ref.c);
+            s.plan = s.plan.filter(p => !(p.act === 'biz' && p.ref === ref.c.uid));
+            addLog(s, `Tu tiens la négociation : ${fmt(better)} au lieu de ${fmt(ref.price)}.`, 'good');
+          } else {
+            ref.r.aggression = clamp(ref.r.aggression + 0.2, 0, 1.4);
+            addLog(s, `Ils retirent leur offre, agacés par ta gourmandise.`, 'bad');
+          }
+        }
+      }
+    ]
+  },
+  {
+    id: 'rival_guerre', title: "Guerre des prix",
+    text: null,
+    dynamic: s => {
+      const c = s.companies.find(x => (x.rivals || []).some(r => r.grudge > 0.5));
+      if (!c) return null;
+      const r = c.rivals.filter(x => x.grudge > 0.5).sort((a, b) => b.grudge - a.grudge)[0];
+      return { text: `${r.name} casse ses prix de 20 % sur tout son catalogue. C'est clairement dirigé contre toi.`, ref: { c, r } };
+    },
+    cond: s => s.companies.some(c => (c.rivals || []).some(r => r.grudge > 0.5)),
+    choices: [
+      {
+        label: "S'aligner sur leurs prix", custom: (s, ref) => {
+          ref.r.price = clamp(ref.r.price * 0.8, 0.5, 1.8);
+          ref.c.price = clamp(ref.c.price * 0.85, 0.6, 1.6);
+          addLog(s, `${ref.c.name} : prix baissés pour tenir. Ta marge en prend un coup.`, 'warn');
+        }
+      },
+      {
+        label: "Tenir tes prix et investir dans le produit", custom: (s, ref) => {
+          ref.r.price = clamp(ref.r.price * 0.8, 0.5, 1.8);
+          ref.c.cash -= Math.round(projectedRevenue(ref.c) * 0.4);
+          ref.c.quality = clamp(ref.c.quality + 12, 0, 100);
+          addLog(s, `${ref.c.name} : tu refuses la guerre des prix et tu montes en gamme.`, 'info');
+        }
+      },
+      {
+        label: "Les laisser s'épuiser", custom: (s, ref) => {
+          ref.r.price = clamp(ref.r.price * 0.8, 0.5, 1.8);
+          ref.r.strength *= 0.88;
+          addLog(s, `Tu ne bouges pas. Vendre à perte finira par leur coûter cher.`, 'info');
+        }
+      }
+    ]
+  },
+
   /* ===================== ACQUISITION & PRODUIT ===================== */
 
   {

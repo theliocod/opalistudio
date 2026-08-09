@@ -597,7 +597,8 @@ function renderCompanyCard(c) {
     ${open ? `
     <div class="company-body">
       <div class="subtabs">
-        ${[['pilotage', 'Pilotage', 'fa-sliders'], ['equipe', `Équipe (${c.staff.length})`, 'fa-users'],
+        ${[['pilotage', 'Pilotage', 'fa-sliders'], ['marche', `Marché (${(c.rivals || []).length})`, 'fa-chess'],
+           ['equipe', `Équipe (${c.staff.length})`, 'fa-users'],
            ['recrutement', `Recrutement${c.applicants.length ? ` (${c.applicants.length})` : ''}`, 'fa-user-plus'],
            ['capital', 'Capital', 'fa-scale-balanced']].map(([id, label, icon]) => `
           <button class="subtab ${BIZ_TAB === id ? 'active' : ''}" data-act="biztab" data-id="${id}">
@@ -605,6 +606,7 @@ function renderCompanyCard(c) {
           </button>`).join('')}
       </div>
       ${BIZ_TAB === 'pilotage' ? renderPilotage(c)
+        : BIZ_TAB === 'marche' ? renderMarche(c)
         : BIZ_TAB === 'equipe' ? renderEquipe(c)
         : BIZ_TAB === 'recrutement' ? renderRecrutement(c)
         : renderCapital(c)}
@@ -620,6 +622,7 @@ function companyAlerts(c) {
   if (c.staff.some(e => e.morale < 30)) a.push('Moral au plus bas dans l\'équipe');
   if (c.applicants.some(x => x.revealed && x.skill > 70)) a.push('Un très bon candidat attend');
   if (c.blocked) a.push('Un canal est bloqué');
+  if (marketPressure(c) > 0.72) a.push('La concurrence prend le dessus');
   return a;
 }
 
@@ -765,6 +768,88 @@ function renderPilotage(c) {
                data-act="pay" data-id="${c.uid}">
         <span class="row-sub">Payer au-dessus du marché coûte cher mais fait tenir le moral et évite les départs.</span>
       </label>
+    </div>
+  </div>`;
+}
+
+
+function renderMarche(c) {
+  const t = getType(c);
+  const total = marketSize(c);
+  const pressure = marketPressure(c);
+  const mine = c.clients / total;
+  const rivals = (c.rivals || []).slice().sort((a, b) => b.clients - a.clients);
+  const free = Math.max(0, 1 - occupiedShare(c));
+  const tough = toughestRival(c);
+
+  return `
+  <div class="company-cols">
+    <div>
+      <h4>Partage du marché</h4>
+      <p class="row-sub">${num(total)} clients existent sur ce marché. Voici comment ils se répartissent.</p>
+      <div class="share-bar">
+        <div class="share-me" style="width:${(mine * 100).toFixed(1)}%" title="Toi : ${num(c.clients)}"></div>
+        ${rivals.map((r, i) => `
+          <div class="share-rival" style="width:${(r.clients / total * 100).toFixed(1)}%;opacity:${0.85 - i * 0.13}"
+               title="${r.name} : ${num(r.clients)}"></div>`).join('')}
+        <div class="share-free" style="width:${(free * 100).toFixed(1)}%" title="Libre"></div>
+      </div>
+      <div class="share-legend">
+        <span><i class="me"></i> Toi ${(mine * 100).toFixed(1)}%</span>
+        <span><i class="rv"></i> Concurrents ${((occupiedShare(c) - mine) * 100).toFixed(1)}%</span>
+        <span><i class="fr"></i> Libre ${(free * 100).toFixed(1)}%</span>
+      </div>
+
+      <div class="metric" style="margin-top:16px"><span>Pression concurrentielle</span>
+        <b class="${pressure > 0.7 ? 'neg' : pressure > 0.45 ? 'warn' : 'pos'}">${Math.round(pressure * 100)}%</b></div>
+      ${bar(pressure * 100, 100, pressure > 0.7 ? 'health' : 'energy')}
+      <p class="row-sub">
+        ${pressure > 0.7
+          ? "Tes concurrents sont plus forts que toi. Tu acquiers moins et tu perds plus de clients qu'en marché calme. Améliore ton produit, ajuste ton prix, ou rachètes-en un."
+          : pressure > 0.45
+          ? "Marché disputé. Chaque point de qualité et chaque euro de prix comptent."
+          : "Tu domines ce marché. Profites-en pour monter tes prix ou prendre les derniers points de part."}
+      </p>
+      ${tough ? `<p class="row-sub"><b>Le plus dangereux :</b> ${tough.name}${tough.known ? ` (${rivalKind(tough).name.toLowerCase()})` : ''}.</p>` : ''}
+    </div>
+
+    <div>
+      <h4>Les autres acteurs</h4>
+      ${rivals.length ? rivals.map(r => {
+        const k = rivalKind(r);
+        const price = Math.round(r.price * 100);
+        const value = rivalValue(c, r);
+        return `
+        <div class="rival ${r.aggression > 0.7 ? 'hot' : ''}">
+          <div class="rival-head">
+            <b><i class="fas ${r.known ? k.icon : 'fa-circle-question'}"></i> ${r.name}</b>
+            <span class="chip">${(r.clients / total * 100).toFixed(1)}% du marché</span>
+          </div>
+          ${r.known ? `
+            <div class="row-sub">${k.name} — ${k.desc}</div>
+            <div class="req">
+              <span class="chip ${r.quality > c.quality ? 'ko' : 'ok'}">Qualité ${r.quality}</span>
+              <span class="chip ${price < c.price * 100 ? 'ko' : 'ok'}">Prix ${price}%</span>
+              <span class="chip ${r.aggression > 0.6 ? 'ko' : ''}">Agressivité ${Math.round(r.aggression * 100)}%</span>
+              <span class="chip">${num(r.clients)} clients</span>
+            </div>`
+          : `<div class="row-sub">Tu ne sais presque rien d'eux. Une étude de marché te dirait comment ils se battent.</div>`}
+          <div class="btn-row">
+            ${!r.known ? `<button class="btn btn-sm" data-act="scout" data-id="${c.uid}" data-rid="${r.id}">
+              <i class="fas fa-magnifying-glass"></i> Étudier (${fmt(t.fixedCost * 1.5)})</button>` : ''}
+            <button class="btn btn-sm" data-act="attackRival" data-id="${c.uid}" data-rid="${r.id}">
+              <i class="fas fa-bullhorn"></i> Campagne contre eux (${fmt(projectedRevenue(c) * 0.25 + t.fixedCost * 2)})</button>
+            ${(() => {
+              const price = value * (1.15 - S.skills.finance / 500);
+              const ok = S.money + c.cash >= price;
+              const ratio = r.clients / Math.max(1, c.clients);
+              return `<button class="btn btn-sm btn-primary" data-act="buyRival" data-id="${c.uid}" data-rid="${r.id}" ${ok ? '' : 'disabled'}>
+                <i class="fas fa-handshake"></i> ${ok ? `Racheter (${fmt(price)})` : `Hors de portée (${fmt(price)})`}</button>
+                ${ratio > 3 ? `<span class="row-sub">${ratio.toFixed(0)}× ta taille</span>` : ''}`;
+            })()}
+          </div>
+        </div>`;
+      }).join('') : '<div class="empty-inline"><i class="fas fa-flag"></i> Tu es seul sur ce marché.</div>'}
     </div>
   </div>`;
 }
@@ -1241,6 +1326,17 @@ function handleAction(act, d) {
     case 'sell': {
       const c = S.companies.find(x => x.uid === id);
       confirmBox(`Vendre ${c.name} ?`, `Tu récupères ${fmtFull((valuation(c) + c.cash) * c.equity)}.`, () => sellCompany(id));
+      break;
+    }
+
+    case 'scout': scoutRival(id, d.rid); break;
+    case 'attackRival': attackRival(id, d.rid); break;
+    case 'buyRival': {
+      const c = S.companies.find(x => x.uid === id);
+      const r = c.rivals.find(x => x.id === d.rid);
+      confirmBox(`Racheter ${r.name} ?`,
+        `Tu paieras ${fmtFull(rivalValue(c, r) * (1.15 - S.skills.finance / 500))}. Une partie de leurs clients partira pendant la fusion.`,
+        () => buyRival(id, d.rid));
       break;
     }
 

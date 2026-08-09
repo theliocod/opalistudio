@@ -89,7 +89,8 @@ function createCompany(type, name) {
     growth: 0,
     revenueAgo: 0,
     blocked: null,
-    channelBoost: null
+    channelBoost: null,
+    rivals: []
   };
 }
 
@@ -382,7 +383,8 @@ function dailyAcquisition(c) {
     * S.marketMood
     * (c.hype || 1)
     * rampFactor(c)
-    * (1 - marketShare(c))
+    * (1 - occupiedShare(c))
+    * clamp(1 - (marketPressure(c) - 0.5) * 0.9, 0.45, 1.45)
     * rand(0.9, 1.1);
 
   // Une entreprise n'absorbe pas une croissance illimitée : recruter, livrer,
@@ -443,7 +445,8 @@ function dailyChurn(c) {
   const cap = capacity(c);
   if (c.clients > cap) churn += ((c.clients - cap) / Math.max(1, c.clients)) * 0.5;
   if (S.rivals) churn *= 1 + S.rivals * 0.04;
-  return clamp(churn, 0.005, 0.75) / DAYS_PER_MONTH;
+  churn *= clamp(1 + (marketPressure(c) - 0.5) * 0.7, 0.7, 1.45);
+  return clamp(churn, 0.005, 0.8) / DAYS_PER_MONTH;
 }
 
 function payrollMonthly(c) {
@@ -671,6 +674,7 @@ function foundCompany(typeId, name) {
   if (!spendEnergy(10)) return;
   S.money -= cost;
   const c = createCompany(t, name && name.trim() ? name.trim() : t.name);
+  seedRivals(c);
   c.cash = Math.round(cost * 0.4);
   c.budgets.paid = Math.round(t.fixedCost * 0.35);
   c.budgets.organic = Math.round(t.fixedCost * 0.15);
@@ -1060,6 +1064,7 @@ function tick() {
 
     tickStaff(c);
     tickRecruiting(c);
+    tickRivals(c);
 
     // trésorerie négative
     if (c.cash < 0) {

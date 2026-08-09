@@ -943,3 +943,27 @@ body.no-scroll { overflow: hidden; }
 .stack-legend em { font-style: normal; color: var(--txt-3); }
 
 @media (max-width: 700px) { .fin-top { grid-template-columns: repeat(2, 1fr); } }
+
+/* ---------------- Marché et concurrents ---------------- */
+.share-bar {
+  display: flex; height: 22px; border-radius: 7px; overflow: hidden;
+  border: 1px solid var(--line); background: var(--bg-2); margin: 10px 0 9px;
+}
+.share-me { background: linear-gradient(90deg, var(--red), var(--orange)); }
+.share-rival { background: #5a6a86; border-left: 1px solid rgba(0,0,0,.35); }
+.share-free { background: repeating-linear-gradient(45deg, #1c2536, #1c2536 5px, #222d43 5px, #222d43 10px); }
+.share-legend { display: flex; gap: 16px; font-size: .73rem; color: var(--txt-2); font-weight: 600; }
+.share-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; }
+.share-legend i.me { background: var(--orange); }
+.share-legend i.rv { background: #5a6a86; }
+.share-legend i.fr { background: #222d43; }
+
+.rival {
+  padding: 13px; margin-bottom: 9px; background: var(--card-2);
+  border: 1px solid var(--line-soft); border-radius: var(--radius-sm);
+}
+.rival.hot { border-color: rgba(239, 68, 68, .4); background: rgba(239, 68, 68, .06); }
+.rival-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.rival-head b { font-size: .9rem; }
+.rival-head b i { color: var(--orange); margin-right: 7px; }
+.rival .btn-row { margin-top: 10px; margin-bottom: 0; }
