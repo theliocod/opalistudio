@@ -1,22 +1,20 @@
 /* =========================================================
    EMPIRE — Interface
-   Rendu des écrans, onglets et interactions.
    ========================================================= */
 
 let TAB = 'vie';
 let BIZ_OPEN = null;
+let BIZ_TAB = 'pilotage';
 
 const $ = sel => document.querySelector(sel);
 const $$ = sel => Array.from(document.querySelectorAll(sel));
 
-/* ------------------ Modale ------------------ */
 function closeModal() {
   const m = $('#modal');
   m.classList.add('hidden');
   m.innerHTML = '';
 }
 
-/* ------------------ Toast ------------------ */
 let toastTimer = null;
 function toast(msg) {
   const el = $('#toast');
@@ -26,7 +24,16 @@ function toast(msg) {
   toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
 }
 
-/* ------------------ Écran de départ ------------------ */
+function skillIcon(k) {
+  return { business: 'fa-chess-king', marketing: 'fa-bullhorn', tech: 'fa-code', social: 'fa-comments', finance: 'fa-chart-pie' }[k];
+}
+
+function bar(value, max, cls) {
+  const pct = clamp((value / max) * 100, 0, 100);
+  return `<div class="bar"><div class="bar-fill ${cls}" style="width:${pct}%"></div></div>`;
+}
+
+/* ================= Écran de départ ================= */
 
 function renderStart() {
   $('#screen-start').classList.remove('hidden');
@@ -55,18 +62,10 @@ function renderStart() {
     $('#start-btn').dataset.origin = b.dataset.origin;
   }));
 
-  const hasSave = !!localStorage.getItem(SAVE_KEY);
-  $('#continue-btn').classList.toggle('hidden', !hasSave);
+  $('#continue-btn').classList.toggle('hidden', !localStorage.getItem(SAVE_KEY));
 }
 
-function skillName(k) {
-  return { business: 'Business', marketing: 'Marketing', tech: 'Tech', social: 'Social', finance: 'Finance' }[k];
-}
-function skillIcon(k) {
-  return { business: 'fa-chess-king', marketing: 'fa-bullhorn', tech: 'fa-code', social: 'fa-comments', finance: 'fa-chart-pie' }[k];
-}
-
-/* ------------------ Rendu principal ------------------ */
+/* ================= Rendu principal ================= */
 
 function render() {
   if (!S) return renderStart();
@@ -79,19 +78,18 @@ function render() {
   renderHeader();
   renderTabs();
 
-  const map = { vie: renderVie, carriere: renderCarriere, business: renderBusiness, patrimoine: renderPatrimoine, journal: renderJournal };
+  const map = {
+    vie: renderVie, carriere: renderCarriere, business: renderBusiness,
+    reseau: renderReseau, patrimoine: renderPatrimoine, journal: renderJournal
+  };
   $('#tab-content').innerHTML = map[TAB]();
-  bindTabEvents();
+  bindEvents();
   save();
-}
-
-function bar(value, max, cls) {
-  const pct = clamp((value / max) * 100, 0, 100);
-  return `<div class="bar"><div class="bar-fill ${cls}" style="width:${pct}%"></div></div>`;
 }
 
 function renderHeader() {
   const nw = netWorth(S);
+  const profit = monthlyBusinessProfit(S);
   $('#hdr').innerHTML = `
     <div class="hdr-left">
       <div class="hdr-name">${S.name}</div>
@@ -103,8 +101,12 @@ function renderHeader() {
         <span class="stat-value ${S.money < 0 ? 'neg' : ''}">${fmt(S.money)}</span>
       </div>
       <div class="stat">
-        <span class="stat-label"><i class="fas fa-gem"></i> Patrimoine net</span>
+        <span class="stat-label"><i class="fas fa-gem"></i> Patrimoine</span>
         <span class="stat-value ${nw < 0 ? 'neg' : 'accent'}">${fmt(nw)}</span>
+      </div>
+      <div class="stat">
+        <span class="stat-label"><i class="fas fa-arrow-trend-up"></i> Profit / mois</span>
+        <span class="stat-value ${profit > 0 ? 'pos' : 'muted'}">${profit > 0 ? fmt(profit) : '—'}</span>
       </div>
       <div class="stat">
         <span class="stat-label"><i class="fas fa-bolt"></i> Énergie</span>
@@ -124,81 +126,123 @@ function renderHeader() {
       </div>
     </div>
     <div class="hdr-actions">
-      <div class="ap">
-        <span>Temps disponible</span>
-        <div class="ap-dots">${Array.from({ length: CONFIG.actionsPerMonth }, (_, i) =>
-          `<i class="fas fa-circle ${i < S.actions ? 'on' : ''}"></i>`).join('')}</div>
-      </div>
-      <button class="btn btn-primary btn-next" data-act="endmonth">
-        Mois suivant <i class="fas fa-arrow-right"></i>
-      </button>
+      <button class="btn btn-sm" data-act="advance" data-days="1">+1 jour</button>
+      <button class="btn btn-sm" data-act="advance" data-days="7">+1 sem.</button>
+      <button class="btn btn-primary" data-act="advance" data-days="30">+1 mois <i class="fas fa-forward"></i></button>
     </div>`;
 }
 
 function renderTabs() {
+  const staff = S.companies.reduce((a, c) => a + c.staff.length, 0);
+  const applicants = S.companies.reduce((a, c) => a + c.applicants.length, 0);
   const tabs = [
-    ['vie', 'Vie', 'fa-user'],
-    ['carriere', 'Carrière', 'fa-briefcase'],
-    ['business', 'Entreprises', 'fa-rocket'],
-    ['patrimoine', 'Patrimoine', 'fa-chart-line'],
-    ['journal', 'Journal', 'fa-book-open']
+    ['vie', 'Vie & planning', 'fa-calendar-day', 0],
+    ['carriere', 'Carrière', 'fa-briefcase', 0],
+    ['business', 'Entreprises', 'fa-rocket', S.companies.length],
+    ['reseau', 'Réseau', 'fa-address-book', S.contacts.length],
+    ['patrimoine', 'Patrimoine', 'fa-chart-line', 0],
+    ['journal', 'Journal', 'fa-book-open', 0]
   ];
-  $('#tabs').innerHTML = tabs.map(([id, label, icon]) => `
+  $('#tabs').innerHTML = tabs.map(([id, label, icon, badge]) => `
     <button class="tab ${TAB === id ? 'active' : ''}" data-tab="${id}">
       <i class="fas ${icon}"></i> ${label}
-      ${id === 'business' && S.companies.length ? `<span class="badge">${S.companies.length}</span>` : ''}
+      ${badge ? `<span class="badge">${badge}</span>` : ''}
+      ${id === 'business' && applicants ? `<span class="badge badge-alt">${applicants}</span>` : ''}
     </button>`).join('');
 }
 
-/* ------------------ Onglet VIE ------------------ */
+/* ================= Onglet VIE / PLANNING ================= */
+
+const PLAN_ACTS = {
+  job: { name: "Emploi salarié", icon: 'fa-briefcase', color: '#60a5fa' },
+  biz: { name: "Entreprise", icon: 'fa-rocket', color: '#f97316' },
+  study: { name: "Formation", icon: 'fa-graduation-cap', color: '#a78bfa' },
+  sport: { name: "Sport", icon: 'fa-dumbbell', color: '#22c55e' },
+  social: { name: "Vie sociale", icon: 'fa-champagne-glasses', color: '#f472b6' },
+  network: { name: "Réseautage", icon: 'fa-users-line', color: '#facc15' }
+};
 
 function renderVie() {
   const h = housing(S);
-  const life = totalLifeCost(S);
-  const salary = S.job ? S.job.salary : 0;
-  const bizProfit = monthlyBusinessProfit(S);
+  const total = plannedHours();
+  const max = maxHours();
+  const free = max - total;
+
+  const rows = [];
+  if (S.job) rows.push(planRow('job', undefined, `${S.job.name} — ${S.job.hours}h attendues`, ''));
+  S.companies.forEach(c => {
+    const e = planEntry('biz', c.uid);
+    rows.push(planRow('biz', c.uid, c.name, `
+      <div class="role-picker">
+        ${FOUNDER_ROLES.map(r => `
+          <button class="role-btn ${e && e.role === r.id ? 'on' : ''}" data-act="planrole" data-id="${c.uid}" data-role="${r.id}" title="${r.desc}">
+            <i class="fas ${r.icon}"></i> ${r.name}
+          </button>`).join('')}
+      </div>`));
+  });
+  if (S.training) {
+    const t = TRAININGS.find(x => x.id === S.training.id);
+    const pct = Math.round((S.training.progress / t.days) * 100);
+    rows.push(planRow('study', undefined, `${t.name} — ${pct}% fait`, ''));
+  }
+  ['sport', 'social', 'network'].forEach(a => rows.push(planRow(a, undefined, PLAN_ACTS[a].name, '')));
 
   return `
   <div class="cols">
    <div class="col">
     <section class="card">
-      <h2><i class="fas fa-hand-pointer"></i> Actions du mois</h2>
-      <p class="muted">Chaque mois te donne ${CONFIG.actionsPerMonth} blocs de temps. Ce que tu en fais décide de ta vie.</p>
-      <div class="actions">
-        ${actionBtn('rest', 'fa-couch', 'Se reposer', '+26 énergie, +4 moral', '1 bloc')}
-        ${actionBtn('sport', 'fa-dumbbell', 'Faire du sport', '+7 santé, énergie max +1', '1 bloc · 8 énergie')}
-        ${actionBtn('fun', 'fa-champagne-glasses', 'Sortir, voir des gens', '+11 moral', '1 bloc · argent')}
-        ${actionBtn('network', 'fa-users-line', 'Réseauter', '+social, +réputation, opportunités', '1 bloc · 12 énergie')}
-        ${actionBtn('vacation', 'fa-umbrella-beach', 'Partir en vacances', 'énergie au max, +22 moral', '2 blocs · 2 500 €')}
-        ${S.job ? actionBtn('overtime', 'fa-clock', 'Heures supplémentaires', `+${fmt(salary * 0.35)} ce mois`, '1 bloc · 18 énergie') : ''}
+      <h2><i class="fas fa-calendar-day"></i> Ton emploi du temps</h2>
+      <p class="muted">Ce que tu fais chaque jour, jusqu'à ce que tu en décides autrement.
+      Au-delà de ${CONFIG.baseHours}h par jour, ta santé et ton énergie encaissent.</p>
+
+      <div class="plan-total">
+        <div class="plan-gauge">
+          ${S.plan.filter(p => p.hours > 0 && PLAN_ACTS[p.act]).map(p => `
+            <div class="plan-seg" style="width:${(p.hours / max) * 100}%;background:${PLAN_ACTS[p.act].color}"
+                 title="${PLAN_ACTS[p.act].name} : ${p.hours}h"></div>`).join('')}
+          <div class="plan-seg free" style="width:${(Math.max(0, free) / max) * 100}%"></div>
+        </div>
+        <div class="plan-legend">
+          <b class="${total > CONFIG.baseHours ? 'warn' : ''}">${total}h travaillées</b>
+          <span>${free}h de récupération · maximum ${max}h</span>
+        </div>
       </div>
+
+      <div class="plan-rows">${rows.join('')}</div>
     </section>
 
     <section class="card">
       <h2><i class="fas fa-scale-balanced"></i> Budget mensuel</h2>
       <table class="table">
-        <tr><td>Salaire</td><td class="right ${salary ? 'pos' : 'muted'}">${salary ? '+' + fmt(salary) : '—'}</td></tr>
-        <tr><td>Dividendes potentiels</td><td class="right ${bizProfit ? 'pos' : 'muted'}">${bizProfit ? '+' + fmt(bizProfit) : '—'}</td></tr>
+        <tr><td>Salaire</td><td class="right ${S.job ? 'pos' : 'muted'}">${S.job ? '+' + fmt(S.job.salary) : '—'}</td></tr>
+        <tr><td>Profit de tes entreprises</td><td class="right ${monthlyBusinessProfit(S) ? 'pos' : 'muted'}">${monthlyBusinessProfit(S) ? '+' + fmt(monthlyBusinessProfit(S)) : '—'}</td></tr>
         <tr><td>Logement — ${h.name}</td><td class="right neg">-${fmt(h.cost)}</td></tr>
-        ${S.lifeCost ? `<tr><td>Charges de vie supplémentaires</td><td class="right neg">-${fmt(S.lifeCost)}</td></tr>` : ''}
-        ${S.debt ? `<tr><td>Dette (${fmt(S.debt)}) — intérêts + remboursement</td><td class="right neg">-${fmt(S.debt * CONFIG.debtInterest + Math.max(200, S.debt * 0.012))}</td></tr>` : ''}
-        <tr class="total"><td>Reste à vivre estimé</td><td class="right ${salary - life >= 0 ? 'pos' : 'neg'}">${fmt(salary - life - (S.debt ? S.debt * CONFIG.debtInterest + Math.max(200, S.debt * 0.012) : 0))}</td></tr>
+        ${S.lifeCost ? `<tr><td>Charges supplémentaires</td><td class="right neg">-${fmt(S.lifeCost)}</td></tr>` : ''}
+        ${S.debt ? `<tr><td>Dette (${fmt(S.debt)})</td><td class="right neg">-${fmt(S.debt * CONFIG.debtInterest * 30 + Math.max(200, S.debt * 0.012))}</td></tr>` : ''}
       </table>
     </section>
 
     <section class="card">
       <h2><i class="fas fa-brain"></i> Compétences</h2>
+      <p class="muted">Plafonds : autoformation ${SKILL_CAPS.auto}, formations payantes ${SKILL_CAPS.paid},
+      expérience de terrain ${SKILL_CAPS.field}. Au-delà, seul un mentor de ton réseau peut te faire progresser.</p>
       <div class="skills">
         ${Object.entries(S.skills).map(([k, v]) => `
           <div class="skill">
-            <div class="skill-top"><span><i class="fas ${skillIcon(k)}"></i> ${skillName(k)}</span><b>${Math.round(v)}</b></div>
-            ${bar(v, 100, 'skill-' + k)}
+            <div class="skill-top"><span><i class="fas ${skillIcon(k)}"></i> ${skillName(k)}</span><b>${v.toFixed(1)}</b></div>
+            <div class="bar bar-caps">
+              <div class="bar-fill skill-${k}" style="width:${v}%"></div>
+              <span class="cap-mark" style="left:${SKILL_CAPS.auto}%"></span>
+              <span class="cap-mark" style="left:${SKILL_CAPS.paid}%"></span>
+              <span class="cap-mark" style="left:${SKILL_CAPS.field}%"></span>
+            </div>
+            <div class="skill-use">${SKILL_USE[k]}</div>
           </div>`).join('')}
       </div>
       ${S.flags.length ? `<div class="flags">${S.flags.map(f => `<span class="chip">${flagLabel(f)}</span>`).join('')}</div>` : ''}
     </section>
-
    </div>
+
    <div class="col">
     <section class="card">
       <h2><i class="fas fa-house"></i> Logement</h2>
@@ -207,7 +251,7 @@ function renderVie() {
           <div class="row ${x.id === S.housingId ? 'row-active' : ''}">
             <div class="row-main">
               <div class="row-title"><i class="fas ${x.icon}"></i> ${x.name}</div>
-              <div class="row-sub">${x.desc} · +${x.energy} énergie/mois · moral ${x.happy >= 0 ? '+' : ''}${x.happy}</div>
+              <div class="row-sub">${x.desc} · récupération ×${x.rest} · moral ${x.happy >= 0 ? '+' : ''}${x.happy}</div>
             </div>
             <div class="row-side">
               <span class="price">${fmt(x.cost)}/mois</span>
@@ -232,6 +276,33 @@ function renderVie() {
   </div>`;
 }
 
+const SKILL_USE = {
+  business: "Charges fixes, taille d'équipe gérable, accès aux gros modèles.",
+  marketing: "Rendement de chaque euro de publicité et de contenu.",
+  tech: "Qualité du produit, coûts variables, modèles techniques.",
+  social: "Vente directe, recrutement, négociation, réseau.",
+  finance: "Impôts, coût de la dette, valorisation à la revente."
+};
+
+function planRow(act, ref, label, extra) {
+  const e = planEntry(act, ref);
+  const hours = e ? e.hours : 0;
+  const a = PLAN_ACTS[act];
+  return `
+    <div class="plan-row ${hours ? 'on' : ''}">
+      <div class="plan-ico" style="color:${a.color}"><i class="fas ${a.icon}"></i></div>
+      <div class="plan-main">
+        <b>${label}</b>
+        ${extra}
+      </div>
+      <div class="plan-hours">
+        <button class="hbtn" data-act="hours" data-a="${act}" data-id="${ref || ''}" data-delta="-1">−</button>
+        <span>${hours}h</span>
+        <button class="hbtn" data-act="hours" data-a="${act}" data-id="${ref || ''}" data-delta="1">+</button>
+      </div>
+    </div>`;
+}
+
 function flagLabel(f) {
   return {
     resilient: 'Résilient', safetynet: 'Filet familial', connected: 'Bien connecté',
@@ -240,31 +311,61 @@ function flagLabel(f) {
   }[f] || f;
 }
 
-function actionBtn(act, icon, label, effect, cost) {
-  return `<button class="action" data-act="${act}">
-    <i class="fas ${icon}"></i>
-    <div><b>${label}</b><span>${effect}</span></div>
-    <em>${cost}</em>
-  </button>`;
-}
-
-/* ------------------ Onglet CARRIÈRE ------------------ */
+/* ================= Onglet CARRIÈRE ================= */
 
 function renderCarriere() {
   return `
-  <div class="grid">
+  <div class="cols">
+   <div class="col">
     <section class="card">
       <h2><i class="fas fa-id-badge"></i> Situation professionnelle</h2>
       ${S.job ? `
         <div class="job-current">
           <div class="job-title"><i class="fas fa-briefcase"></i> ${S.job.name}</div>
           <div class="job-salary">${fmt(S.job.salary)} net / mois</div>
-          <div class="row-sub">Ancienneté : ${S.jobMonths} mois · ${S.job.energy} énergie consommée chaque mois</div>
+          <div class="row-sub">Ancienneté : ${Math.floor(S.jobDays / 30)} mois · ${S.job.hours}h par jour attendues
+          ${S.jobWarnings > 15 ? ' · <b class="neg">ton implication est jugée insuffisante</b>' : ''}</div>
           <button class="btn btn-ghost btn-sm" data-act="quitJob">Démissionner</button>
-        </div>` : `
-        <p class="muted">Tu es sans emploi. Aucun salaire ne tombe, mais tout ton temps t'appartient.</p>`}
+        </div>` : `<p class="muted">Tu es sans emploi. Aucun salaire ne tombe, mais tout ton temps t'appartient.</p>`}
     </section>
 
+    <section class="card">
+      <h2><i class="fas fa-graduation-cap"></i> Se former</h2>
+      ${S.training ? (() => {
+        const t = TRAININGS.find(x => x.id === S.training.id);
+        const pct = clamp((S.training.progress / t.days) * 100, 0, 100);
+        return `<div class="training-current">
+          <b>${t.name}</b>
+          ${bar(pct, 100, 'skill-business')}
+          <div class="row-sub">${Math.round(pct)}% — avance quand tu lui alloues des heures dans ton planning.</div>
+        </div>`;
+      })() : '<p class="muted">Aucune formation en cours.</p>'}
+      <div class="list">
+        ${TRAININGS.map(t => {
+          const ok = !t.req || Object.entries(t.req).every(([k, v]) => S.skills[k] >= v);
+          const capLabel = { auto: 'autoformation', paid: 'formation', field: 'terrain' }[t.source];
+          return `
+          <div class="row ${ok ? '' : 'row-locked'}">
+            <div class="row-main">
+              <div class="row-title"><i class="fas ${t.icon}"></i> ${t.name}</div>
+              <div class="row-sub">${t.desc}</div>
+              <div class="req">
+                ${Object.entries(t.gain).map(([k, v]) => `<span class="chip ok">+${v} ${skillName(k)}</span>`).join('')}
+                <span class="chip">${t.days} jours · plafond ${capLabel} ${SKILL_CAPS[t.source]}</span>
+                ${t.req ? Object.entries(t.req).map(([k, v]) => `<span class="chip ${S.skills[k] >= v ? 'ok' : 'ko'}">Requis ${skillName(k)} ${v}</span>`).join('') : ''}
+              </div>
+            </div>
+            <div class="row-side">
+              <span class="price">${t.cost ? fmt(t.cost) : 'Gratuit'}</span>
+              <button class="btn btn-sm" data-act="train" data-id="${t.id}" ${ok && !S.training ? '' : 'disabled'}>Commencer</button>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </section>
+   </div>
+
+   <div class="col">
     <section class="card">
       <h2><i class="fas fa-magnifying-glass"></i> Offres d'emploi</h2>
       <div class="list">
@@ -275,8 +376,11 @@ function renderCarriere() {
             <div class="row-main">
               <div class="row-title"><i class="fas ${j.icon}"></i> ${j.name}</div>
               <div class="row-sub">${j.desc}</div>
-              <div class="req">${Object.entries(j.req || {}).map(([k, v]) =>
-                `<span class="chip ${S.skills[k] >= v ? 'ok' : 'ko'}">${skillName(k)} ${v}</span>`).join('') || '<span class="chip ok">Aucun prérequis</span>'}</div>
+              <div class="req">
+                <span class="chip">${j.hours}h / jour</span>
+                ${Object.entries(j.req || {}).map(([k, v]) =>
+                  `<span class="chip ${S.skills[k] >= v ? 'ok' : 'ko'}">${skillName(k)} ${v}</span>`).join('')}
+              </div>
             </div>
             <div class="row-side">
               <span class="price">${fmt(j.salary)}/mois</span>
@@ -286,34 +390,61 @@ function renderCarriere() {
         }).join('')}
       </div>
     </section>
+   </div>
+  </div>`;
+}
 
+/* ================= Onglet RÉSEAU ================= */
+
+function renderReseau() {
+  const net = planEntry('network');
+  return `
+  <div class="grid">
     <section class="card wide">
-      <h2><i class="fas fa-graduation-cap"></i> Se former</h2>
-      <p class="muted">Tes compétences déterminent les emplois accessibles, les entreprises que tu peux lancer et leur croissance.</p>
-      <div class="list">
-        ${TRAININGS.map(t => {
-          const ok = !t.req || Object.entries(t.req).every(([k, v]) => S.skills[k] >= v);
+      <h2><i class="fas fa-address-book"></i> Ton réseau</h2>
+      <p class="muted">
+        Alloue des heures au réseautage dans ton planning pour rencontrer de nouvelles personnes
+        (${net ? `${net.hours}h/jour actuellement` : 'aucune heure allouée'}).
+        Un contact de haut niveau est la seule façon de dépasser ${SKILL_CAPS.field} dans une compétence —
+        et il faut entretenir la relation pour ça.
+      </p>
+      ${S.contacts.length ? `
+      <div class="contacts">
+        ${S.contacts.slice().sort((a, b) => b.relation - a.relation).map(k => {
+          const kind = contactKind(k);
+          const cool = S.day - k.lastSeen < 20;
           return `
-          <div class="row ${ok ? '' : 'row-locked'}">
-            <div class="row-main">
-              <div class="row-title"><i class="fas ${t.icon}"></i> ${t.name}</div>
-              <div class="row-sub">${t.desc}</div>
-              <div class="req">${Object.entries(t.gain).map(([k, v]) => `<span class="chip ok">+${v} ${skillName(k)}</span>`).join('')}
-              ${t.req ? Object.entries(t.req).map(([k, v]) => `<span class="chip ${S.skills[k] >= v ? 'ok' : 'ko'}">Requis : ${skillName(k)} ${v}</span>`).join('') : ''}</div>
+          <div class="contact">
+            <div class="contact-head">
+              <i class="fas ${kind.icon}"></i>
+              <div>
+                <b>${k.name}</b>
+                <span class="row-sub">${kind.name} · niveau ${k.level}</span>
+              </div>
             </div>
-            <div class="row-side">
-              <span class="price">${t.cost ? fmt(t.cost) : 'Gratuit'}</span>
-              <span class="row-sub">${t.time} bloc${t.time > 1 ? 's' : ''} · ${t.energy} énergie</span>
-              <button class="btn btn-sm" data-act="train" data-id="${t.id}" ${ok ? '' : 'disabled'}>Suivre</button>
+            <p class="row-sub">${kind.desc}</p>
+            <div class="metric"><span>Relation</span><b>${Math.round(k.relation)}/100</b></div>
+            ${bar(k.relation, 100, 'rep')}
+            <div class="req">
+              ${kind.skills.map(s => `<span class="chip ${k.relation >= 30 ? 'ok' : ''}">${skillName(s)} jusqu'à ${k.level - 4}</span>`).join('')}
+              ${k.favors ? `<span class="chip">${k.favors} service${k.favors > 1 ? 's' : ''} rendu${k.favors > 1 ? 's' : ''}</span>` : ''}
+            </div>
+            <div class="btn-row">
+              <button class="btn btn-sm" data-act="meet" data-id="${k.id}" ${cool ? 'disabled' : ''}>
+                <i class="fas fa-mug-hot"></i> ${cool ? 'Vu récemment' : 'Passer du temps'}
+              </button>
+              <button class="btn btn-sm btn-ghost" data-act="favor" data-id="${k.id}" ${k.relation >= 45 ? '' : 'disabled'}>
+                <i class="fas fa-hand-holding-heart"></i> Demander un service
+              </button>
             </div>
           </div>`;
         }).join('')}
-      </div>
+      </div>` : `<div class="empty-inline"><i class="fas fa-user-plus"></i> Tu ne connais encore personne. Mets des heures sur « Réseautage ».</div>`}
     </section>
   </div>`;
 }
 
-/* ------------------ Onglet ENTREPRISES ------------------ */
+/* ================= Onglet ENTREPRISES ================= */
 
 function renderBusiness() {
   return `
@@ -321,14 +452,12 @@ function renderBusiness() {
     ${S.companies.length ? `
     <section class="card wide">
       <h2><i class="fas fa-sitemap"></i> Tes entreprises</h2>
-      <div class="companies">
-        ${S.companies.map(renderCompanyCard).join('')}
-      </div>
+      <div class="companies">${S.companies.map(renderCompanyCard).join('')}</div>
     </section>` : `
     <section class="card wide empty">
       <i class="fas fa-lightbulb"></i>
       <h2>Tu n'as encore rien créé</h2>
-      <p class="muted">Un salaire te fait vivre. Une entreprise te rend libre. Choisis ton terrain ci-dessous.</p>
+      <p class="muted">Un salaire te fait vivre. Une entreprise te rend libre.</p>
     </section>`}
 
     <section class="card wide">
@@ -345,8 +474,9 @@ function renderBusiness() {
             <p class="row-sub">${t.desc}</p>
             <div class="biz-meta">
               <span><i class="fas fa-coins"></i> ${fmt(cost)}</span>
+              <span><i class="fas fa-hourglass-half"></i> ${t.ramp} j de démarrage</span>
               <span><i class="fas fa-arrow-trend-up"></i> x${t.multiple} à la revente</span>
-              <span><i class="fas fa-triangle-exclamation"></i> risque ${Math.round(t.risk * 100)}%</span>
+              <span><i class="fas fa-users"></i> marché ${num(t.market)}</span>
             </div>
             <div class="req">${Object.entries(t.req || {}).map(([k, v]) =>
               `<span class="chip ${S.skills[k] >= v ? 'ok' : 'ko'}">${skillName(k)} ${v}</span>`).join('') || '<span class="chip ok">Accessible à tous</span>'}</div>
@@ -362,15 +492,11 @@ function renderBusiness() {
 
 function renderCompanyCard(c) {
   const t = getType(c);
-  const cap = capacity(c);
+  const open = BIZ_OPEN === c.uid;
   const rev = projectedRevenue(c);
-  const cost = projectedCosts(c);
   const profit = projectedProfit(c);
   const val = valuation(c);
-  const share = Math.round(marketShare(c) * 100);
-  const upCost = Math.round(t.upgradeCost * Math.pow(1.55, c.level - 1));
-  const open = BIZ_OPEN === c.uid;
-  const load = cap ? Math.round((c.clients / cap) * 100) : 0;
+  const alerts = companyAlerts(c);
 
   return `
   <div class="company ${open ? 'open' : ''}">
@@ -378,11 +504,12 @@ function renderCompanyCard(c) {
       <div class="company-id">
         <i class="fas ${t.icon}"></i>
         <div>
-          <h3>${c.name}</h3>
-          <span class="row-sub">${t.name} · niveau ${c.level} · ${Math.round(c.equity * 100)}% détenus${c.partner ? ' · associé' : ''}</span>
+          <h3>${c.name} ${alerts.length ? `<span class="alert-dot" title="${alerts.join(' · ')}">${alerts.length}</span>` : ''}</h3>
+          <span class="row-sub">${t.name} · niveau ${c.level} · ${Math.round(c.equity * 100)}% détenus · ${c.staff.length} salarié${c.staff.length > 1 ? 's' : ''}</span>
         </div>
       </div>
       <div class="company-kpis">
+        <div class="kpi"><span>Clients</span><b>${num(c.clients)}</b></div>
         <div class="kpi"><span>CA / mois</span><b>${fmt(rev)}</b></div>
         <div class="kpi"><span>Profit</span><b class="${profit >= 0 ? 'pos' : 'neg'}">${fmt(profit)}</b></div>
         <div class="kpi"><span>Trésorerie</span><b class="${c.cash < 0 ? 'neg' : ''}">${fmt(c.cash)}</b></div>
@@ -390,78 +517,294 @@ function renderCompanyCard(c) {
         <i class="fas fa-chevron-${open ? 'up' : 'down'} chev"></i>
       </div>
     </div>
-
     ${open ? `
     <div class="company-body">
-      <div class="company-cols">
-        <div>
-          <h4>Indicateurs</h4>
-          <div class="metric"><span>Clients</span><b>${Math.round(c.clients).toLocaleString('fr-FR')}</b></div>
-          <div class="metric"><span>Capacité</span><b>${Math.round(cap).toLocaleString('fr-FR')}</b></div>
-          <div class="metric"><span>Charge</span><b class="${load > 100 ? 'neg' : load > 85 ? 'warn' : 'pos'}">${load}%</b></div>
-          ${bar(Math.min(load, 130), 130, load > 100 ? 'health' : 'energy')}
-          <div class="metric" style="margin-top:12px"><span>Qualité produit</span><b>${Math.round(c.quality)}/100</b></div>
-          ${bar(c.quality, 100, 'happy')}
-          <div class="metric" style="margin-top:12px"><span>Part de marché</span><b class="${share > 70 ? 'warn' : ''}">${share}%</b></div>
-          ${bar(share, 100, 'rep')}
-          ${share > 65 ? '<p class="row-sub">Le marché sature : la croissance va ralentir. Pense à diversifier.</p>' : ''}
-          <div class="metric" style="margin-top:12px"><span>Salariés</span><b>${c.employees}</b></div>
-          <div class="metric"><span>Masse salariale</span><b>${fmt(payroll(c))}</b></div>
-          <div class="metric"><span>Charges fixes</span><b>${fmt(t.fixedCost * c.level)}</b></div>
-          <div class="metric"><span>Budget publicitaire</span><b>${fmt(c.marketing)}</b></div>
-          <div class="metric"><span>Âge</span><b>${c.monthsAlive} mois</b></div>
-        </div>
-
-        <div>
-          <h4>Piloter</h4>
-          <label class="field">
-            <span>Budget publicitaire mensuel : <b>${fmt(c.marketing)}</b></span>
-            <input type="range" min="0" max="${Math.max(20000, Math.round(rev * 1.5) || 20000)}" step="100"
-                   value="${c.marketing}" data-act="marketing" data-id="${c.uid}">
-            <span class="row-sub">Plus de budget = plus de clients acquis, mais rendement décroissant.</span>
-          </label>
-
-          <div class="btn-row">
-            <button class="btn btn-sm" data-act="focus" data-id="${c.uid}" ${c.focus ? 'disabled' : ''}>
-              <i class="fas fa-fire"></i> S'y consacrer <em>1 bloc</em>
-            </button>
-            <button class="btn btn-sm" data-act="improve" data-id="${c.uid}" ${c.improved ? 'disabled' : ''}>
-              <i class="fas fa-wrench"></i> Améliorer le produit <em>1 bloc</em>
-            </button>
-            <button class="btn btn-sm" data-act="prospect" data-id="${c.uid}">
-              <i class="fas fa-phone-volume"></i> Prospecter <em>1 bloc</em>
-            </button>
-          </div>
-
-          <div class="btn-row">
-            <button class="btn btn-sm" data-act="hire" data-id="${c.uid}">
-              <i class="fas fa-user-plus"></i> Recruter (${fmt(t.empSalary * c.salaryMod * 1.5)})
-            </button>
-            <button class="btn btn-sm btn-ghost" data-act="fire" data-id="${c.uid}" ${c.employees ? '' : 'disabled'}>
-              <i class="fas fa-user-minus"></i> Licencier
-            </button>
-            <button class="btn btn-sm" data-act="upgrade" data-id="${c.uid}">
-              <i class="fas fa-arrow-up"></i> Niveau ${c.level + 1} (${fmt(upCost)})
-            </button>
-          </div>
-
-          <h4 style="margin-top:18px">Trésorerie & capital</h4>
-          <div class="btn-row">
-            <button class="btn btn-sm" data-act="dividend" data-id="${c.uid}"><i class="fas fa-hand-holding-dollar"></i> Sortir des dividendes</button>
-            <button class="btn btn-sm btn-ghost" data-act="inject" data-id="${c.uid}"><i class="fas fa-syringe"></i> Injecter du cash</button>
-          </div>
-          <div class="btn-row">
-            <button class="btn btn-sm" data-act="raise" data-id="${c.uid}"><i class="fas fa-seedling"></i> Lever des fonds (-18%)</button>
-            <button class="btn btn-sm btn-danger" data-act="sell" data-id="${c.uid}"><i class="fas fa-file-signature"></i> Vendre (${fmt((val + c.cash) * c.equity)})</button>
-          </div>
-          ${c.negMonths ? `<p class="alert"><i class="fas fa-triangle-exclamation"></i> Trésorerie négative depuis ${c.negMonths} mois. Dépôt de bilan à 3 mois.</p>` : ''}
-        </div>
+      <div class="subtabs">
+        ${[['pilotage', 'Pilotage', 'fa-sliders'], ['equipe', `Équipe (${c.staff.length})`, 'fa-users'],
+           ['recrutement', `Recrutement${c.applicants.length ? ` (${c.applicants.length})` : ''}`, 'fa-user-plus'],
+           ['capital', 'Capital', 'fa-scale-balanced']].map(([id, label, icon]) => `
+          <button class="subtab ${BIZ_TAB === id ? 'active' : ''}" data-act="biztab" data-id="${id}">
+            <i class="fas ${icon}"></i> ${label}
+          </button>`).join('')}
       </div>
+      ${BIZ_TAB === 'pilotage' ? renderPilotage(c)
+        : BIZ_TAB === 'equipe' ? renderEquipe(c)
+        : BIZ_TAB === 'recrutement' ? renderRecrutement(c)
+        : renderCapital(c)}
     </div>` : ''}
   </div>`;
 }
 
-/* ------------------ Onglet PATRIMOINE ------------------ */
+function companyAlerts(c) {
+  const a = [];
+  if (c.cash < 0) a.push(`Trésorerie négative depuis ${c.negDays} jours`);
+  if (c.clients > capacity(c) * 0.95) a.push('Capacité saturée');
+  if (c.staff.length > spanOfControl(c)) a.push('Équipe trop grande pour être encadrée');
+  if (c.staff.some(e => e.morale < 30)) a.push('Moral au plus bas dans l\'équipe');
+  if (c.applicants.some(x => x.revealed && x.skill > 70)) a.push('Un très bon candidat attend');
+  if (c.blocked) a.push('Un canal est bloqué');
+  return a;
+}
+
+function renderPilotage(c) {
+  const t = getType(c);
+  const cap = capacity(c);
+  const load = cap ? Math.round((c.clients / cap) * 100) : 0;
+  const share = Math.round(marketShare(c) * 100);
+  const churnM = dailyChurn(c) * DAYS_PER_MONTH * 100;
+  const acqM = dailyAcquisition(c) * DAYS_PER_MONTH;
+  const upCost = Math.round(t.upgradeCost * Math.pow(1.55, c.level - 1));
+  const alerts = companyAlerts(c);
+
+  return `
+  <div class="company-cols">
+    <div>
+      <h4>Indicateurs</h4>
+      <div class="metric"><span>Clients</span><b>${num(c.clients)}</b></div>
+      <div class="metric"><span>Acquisition estimée</span><b class="pos">+${acqM.toFixed(1)} / mois</b></div>
+      <div class="metric"><span>Churn</span><b class="${churnM > 20 ? 'neg' : ''}">-${churnM.toFixed(1)}% / mois</b></div>
+      <div class="metric"><span>Capacité</span><b>${num(cap)}</b></div>
+      <div class="metric"><span>Charge</span><b class="${load > 100 ? 'neg' : load > 85 ? 'warn' : 'pos'}">${load}%</b></div>
+      ${bar(Math.min(load, 130), 130, load > 100 ? 'health' : 'energy')}
+      <div class="metric" style="margin-top:12px"><span>Qualité produit</span><b>${c.quality.toFixed(0)}/100</b></div>
+      ${bar(c.quality, 100, 'happy')}
+      <div class="metric" style="margin-top:12px"><span>Part de marché</span><b class="${share > 70 ? 'warn' : ''}">${share}%</b></div>
+      ${bar(share, 100, 'rep')}
+      <div class="metric" style="margin-top:12px"><span>Démarrage</span><b>${Math.round(rampFactor(c) * 100)}%</b></div>
+      <div class="metric"><span>Masse salariale</span><b>${fmt(payrollMonthly(c))}</b></div>
+      <div class="metric"><span>Charges fixes</span><b>${fmt(t.fixedCost * c.level)}</b></div>
+      <div class="metric"><span>Budget acquisition</span><b>${fmt(adSpendMonthly(c))}</b></div>
+      <div class="metric"><span>Âge</span><b>${Math.floor(c.days / 30)} mois</b></div>
+      <button class="btn btn-sm" data-act="upgrade" data-id="${c.uid}" style="margin-top:12px">
+        <i class="fas fa-arrow-up"></i> Niveau ${c.level + 1} — capacité +${num(t.capPerLevel)} (${fmt(upCost)})
+      </button>
+      ${alerts.length ? `<div class="alert"><i class="fas fa-triangle-exclamation"></i> ${alerts.join('<br>')}</div>` : ''}
+    </div>
+
+    <div>
+      <h4>Canaux d'acquisition</h4>
+      ${(() => {
+        const burn = projectedCosts(c) - projectedRevenue(c);
+        const months = burn > 0 ? c.cash / burn : null;
+        return `<div class="burn ${months !== null && months < 3 ? 'burn-bad' : ''}">
+          <span>Dépenses totales <b>${fmt(projectedCosts(c))}/mois</b> pour <b>${fmt(projectedRevenue(c))}</b> de recettes</span>
+          ${burn > 0
+            ? `<span class="${months < 3 ? 'neg' : 'warn'}">Tu brûles ${fmt(burn)}/mois — ${months < 0.1 ? 'trésorerie déjà vide' : `${months.toFixed(1)} mois d'autonomie`}</span>`
+            : `<span class="pos">L'affaire s'autofinance</span>`}
+        </div>`;
+      })()}
+      <p class="row-sub">Chaque canal sature séparément : répartir coûte moins cher que tout mettre au même endroit.
+      Ton niveau en ${skillName('marketing')} et en ${skillName('social')} change directement leur rendement.</p>
+      ${CHANNELS.map(ch => {
+        const blocked = c.blocked && c.blocked.channel === ch.id;
+        const eff = channelEfficiency(c, ch);
+        const out = channelOutput(c, ch);
+        const maxB = Math.max(t.fixedCost * 4, Math.round(c.cash * 0.6), Math.round(projectedRevenue(c) * 0.7));
+        return `
+        <label class="field ${blocked ? 'blocked' : ''}">
+          <span class="field-head">
+            <b><i class="fas ${ch.icon}"></i> ${ch.name}</b>
+            <em class="budget-label" data-for="${c.uid}-${ch.id}">${fmt(c.budgets[ch.id] || 0)}/mois</em>
+          </span>
+          <input type="range" min="0" max="${maxB}" step="50" value="${c.budgets[ch.id] || 0}"
+                 data-act="budget" data-id="${c.uid}" data-ch="${ch.id}" ${blocked ? 'disabled' : ''}>
+          <span class="row-sub">
+            ${blocked ? `<b class="neg">Canal bloqué encore ${c.blocked.days} jours.</b>` :
+            `Efficacité ×${eff.toFixed(2)} · rendement actuel ${out.toFixed(2)} · ${ch.desc}`}
+          </span>
+        </label>`;
+      }).join('')}
+
+      <h4 style="margin-top:18px">Autres leviers</h4>
+      <label class="field">
+        <span class="field-head"><b><i class="fas fa-tag"></i> Niveau de prix</b>
+        <em class="budget-label" data-for="${c.uid}-price">${Math.round(c.price * 100)}% du prix marché</em></span>
+        <input type="range" min="60" max="160" step="5" value="${Math.round(c.price * 100)}"
+               data-act="price" data-id="${c.uid}">
+        <span class="row-sub">Monter les prix augmente la marge et fait fuir une partie des clients.</span>
+      </label>
+      <label class="field">
+        <span class="field-head"><b><i class="fas fa-flask"></i> Budget R&D / produit</b>
+        <em class="budget-label" data-for="${c.uid}-rd">${fmt(c.rd)}/mois</em></span>
+        <input type="range" min="0" max="${Math.max(Math.round(t.fixedCost * 2), Math.round(projectedRevenue(c) * 0.4))}" step="50" value="${c.rd}"
+               data-act="rd" data-id="${c.uid}">
+        <span class="row-sub">Fait monter la qualité, qui retient les clients et justifie les prix.</span>
+      </label>
+      <label class="field">
+        <span class="field-head"><b><i class="fas fa-headset"></i> Budget support client</b>
+        <em class="budget-label" data-for="${c.uid}-support">${fmt(c.support)}/mois</em></span>
+        <input type="range" min="0" max="${Math.max(Math.round(t.fixedCost), Math.round(projectedRevenue(c) * 0.3))}" step="50" value="${c.support}"
+               data-act="support" data-id="${c.uid}">
+        <span class="row-sub">Réduit le churn, surtout quand tu as beaucoup de clients.</span>
+      </label>
+      <label class="field">
+        <span class="field-head"><b><i class="fas fa-hand-holding-dollar"></i> Politique salariale</b>
+        <em class="budget-label" data-for="${c.uid}-pay">${Math.round(c.payMod * 100)}% du marché</em></span>
+        <input type="range" min="80" max="140" step="5" value="${Math.round(c.payMod * 100)}"
+               data-act="pay" data-id="${c.uid}">
+        <span class="row-sub">Payer au-dessus du marché coûte cher mais fait tenir le moral et évite les départs.</span>
+      </label>
+    </div>
+  </div>`;
+}
+
+function renderEquipe(c) {
+  const span = spanOfControl(c);
+  const over = c.staff.length - span;
+  return `
+  <div class="team">
+    <div class="team-head">
+      <div>
+        <h4>Encadrement</h4>
+        <div class="metric"><span>Personnes gérables</span><b>${span.toFixed(1)}</b></div>
+        <div class="metric"><span>Effectif actuel</span><b class="${over > 0 ? 'neg' : 'pos'}">${c.staff.length}</b></div>
+        <p class="row-sub">${over > 0
+          ? `Tu as ${Math.ceil(over)} personne(s) de trop à encadrer : performance et moral en souffrent. Recrute un manager, ou passe en rôle « Direction & équipe ».`
+          : "L'équipe est correctement encadrée."}</p>
+      </div>
+      <div>
+        <h4>Contribution par pôle</h4>
+        ${ROLES.map(r => {
+          const f = roleForce(c, r.id);
+          if (!f && !c.staff.some(e => e.role === r.id)) return '';
+          return `<div class="metric"><span><i class="fas ${r.icon}"></i> ${r.name}</span><b>${f.toFixed(2)}</b></div>`;
+        }).join('') || '<p class="row-sub">Aucun salarié pour l\'instant.</p>'}
+      </div>
+    </div>
+
+    ${c.staff.length ? `
+    <div class="staff-list">
+      ${c.staff.slice().sort((a, b) => b.skill - a.skill).map(e => {
+        const r = getRole(e.role), tr = getTrait(e.trait);
+        const fair = marketSalary(e.role, e.skill) * S.wageIndex;
+        const under = e.salary < fair * 0.92;
+        return `
+        <div class="staff ${e.morale < 30 ? 'staff-risk' : ''}">
+          <div class="staff-main">
+            <div class="staff-name">
+              <i class="fas ${r.icon}"></i>
+              <b>${e.name}</b>
+              <span class="chip">${r.name}</span>
+              <span class="chip ${tr.good ? 'ok' : 'ko'}" title="${tr.desc}">${tr.name}</span>
+              ${e.equity ? `<span class="chip ok">${Math.round(e.equity * 100)}% du capital</span>` : ''}
+              ${e.variable ? '<span class="chip">Variable</span>' : ''}
+            </div>
+            <div class="staff-bars">
+              <div class="staff-bar">
+                <span>Niveau ${Math.round(e.skill)}</span>${bar(e.skill, 100, 'skill-business')}
+              </div>
+              <div class="staff-bar">
+                <span>Moral ${Math.round(e.morale)}</span>${bar(e.morale, 100, e.morale < 35 ? 'health' : 'happy')}
+              </div>
+            </div>
+            <div class="row-sub">
+              ${fmt(e.salary)}/mois ${under ? `<b class="neg">— sous le marché (${fmt(fair)})</b>` : ''}
+              · ${Math.floor(e.days / 30)} mois d'ancienneté
+              · contribution ${staffPerf(c, e).toFixed(2)}
+            </div>
+          </div>
+          <div class="staff-actions">
+            <button class="btn btn-sm" data-act="raiseSalary" data-id="${c.uid}" data-sid="${e.id}">+12% de salaire</button>
+            <button class="btn btn-sm btn-danger" data-act="fireStaff" data-id="${c.uid}" data-sid="${e.id}">Licencier</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : '<div class="empty-inline"><i class="fas fa-user-plus"></i> Aucun salarié. Ouvre un poste dans l\'onglet Recrutement.</div>'}
+  </div>`;
+}
+
+function renderRecrutement(c) {
+  return `
+  <div class="company-cols">
+    <div>
+      <h4>Postes ouverts</h4>
+      <p class="row-sub">Plus tu proposes un salaire élevé, plus les candidatures sont nombreuses et de bon niveau.
+      Le salaire de référence dépend du poste et du niveau visé.</p>
+      ${ROLES.map(r => {
+        const o = c.openings[r.id];
+        const ref = Math.round(marketSalary(r.id, 50) * S.wageIndex);
+        return `
+        <div class="opening ${o ? 'on' : ''}">
+          <div class="opening-head">
+            <b><i class="fas ${r.icon}"></i> ${r.name}</b>
+            <span class="row-sub">${r.desc}</span>
+          </div>
+          ${o ? `
+            <label class="field">
+              <span class="field-head"><em class="budget-label" data-for="${c.uid}-op-${r.id}">${fmt(o.salary)}/mois proposés</em>
+              <em>marché : ${fmt(ref)}</em></span>
+              <input type="range" min="${Math.round(ref * 0.5)}" max="${Math.round(ref * 2.2)}" step="50" value="${o.salary}"
+                     data-act="opening" data-id="${c.uid}" data-role="${r.id}">
+            </label>
+            <div class="btn-row">
+              <button class="btn btn-sm btn-ghost" data-act="closePos" data-id="${c.uid}" data-role="${r.id}">Fermer le poste</button>
+              <button class="btn btn-sm" data-act="headhunt" data-id="${c.uid}" data-role="${r.id}">
+                <i class="fas fa-user-tie"></i> Cabinet (${fmt(r.salary * 3 * S.wageIndex)})
+              </button>
+            </div>` : `
+            <button class="btn btn-sm" data-act="openPos" data-id="${c.uid}" data-role="${r.id}">Ouvrir le poste</button>`}
+        </div>`;
+      }).join('')}
+    </div>
+
+    <div>
+      <h4>Candidatures ${c.applicants.length ? `(${c.applicants.length})` : ''}</h4>
+      ${c.applicants.length ? c.applicants.map(a => {
+        const r = getRole(a.role), tr = getTrait(a.trait);
+        const hint = candidateHint(a);
+        return `
+        <div class="applicant">
+          <div class="applicant-main">
+            <b><i class="fas ${r.icon}"></i> ${a.name}</b>
+            <span class="row-sub">${r.name} · demande ${fmt(a.ask)}/mois</span>
+            <div class="req">
+              ${a.revealed
+                ? `<span class="chip ok">Niveau ${a.skill}</span><span class="chip ${tr.good ? 'ok' : 'ko'}" title="${tr.desc}">${tr.name}</span>`
+                : `<span class="chip ${hint.cls}">${hint.label}</span><span class="chip">Non évalué</span>`}
+              ${a.waited > 30 ? '<span class="chip ko">Impatient</span>' : ''}
+            </div>
+          </div>
+          <div class="btn-row">
+            ${!a.revealed ? `<button class="btn btn-sm" data-act="interview" data-id="${c.uid}" data-sid="${a.id}"><i class="fas fa-clipboard-question"></i> Entretien</button>` : ''}
+            <button class="btn btn-sm btn-ghost" data-act="negotiate" data-id="${c.uid}" data-sid="${a.id}" ${a.negotiated ? 'disabled' : ''}>Négocier</button>
+            <button class="btn btn-sm btn-primary" data-act="hire" data-id="${c.uid}" data-sid="${a.id}">Embaucher</button>
+          </div>
+        </div>`;
+      }).join('') : '<div class="empty-inline"><i class="fas fa-inbox"></i> Aucune candidature. Ouvre un poste et laisse passer quelques jours.</div>'}
+    </div>
+  </div>`;
+}
+
+function renderCapital(c) {
+  const val = valuation(c);
+  return `
+  <div class="company-cols">
+    <div>
+      <h4>Structure</h4>
+      <div class="metric"><span>Ta part</span><b>${Math.round(c.equity * 100)}%</b></div>
+      ${c.staff.filter(e => e.equity).map(e => `<div class="metric"><span>${e.name}</span><b>${Math.round(e.equity * 100)}%</b></div>`).join('')}
+      ${c.equity + c.staff.reduce((a, e) => a + (e.equity || 0), 0) < 0.999
+        ? `<div class="metric"><span>Investisseurs</span><b>${Math.round((1 - c.equity - c.staff.reduce((a, e) => a + (e.equity || 0), 0)) * 100)}%</b></div>` : ''}
+      <div class="metric"><span>Valorisation</span><b class="accent">${fmt(val)}</b></div>
+      <div class="metric"><span>Trésorerie</span><b class="${c.cash < 0 ? 'neg' : ''}">${fmt(c.cash)}</b></div>
+      ${c.board ? '<p class="row-sub">Un investisseur siège à ton conseil.</p>' : ''}
+    </div>
+    <div>
+      <h4>Opérations</h4>
+      <div class="btn-row">
+        <button class="btn btn-sm" data-act="dividend" data-id="${c.uid}"><i class="fas fa-hand-holding-dollar"></i> Sortir des dividendes</button>
+        <button class="btn btn-sm btn-ghost" data-act="inject" data-id="${c.uid}"><i class="fas fa-syringe"></i> Injecter du cash</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn btn-sm" data-act="raise" data-id="${c.uid}"><i class="fas fa-seedling"></i> Lever des fonds (-18%)</button>
+        <button class="btn btn-sm btn-danger" data-act="sell" data-id="${c.uid}"><i class="fas fa-file-signature"></i> Vendre (${fmt((val + c.cash) * c.equity)})</button>
+      </div>
+      <p class="row-sub">Ton niveau en finance améliore la valorisation, réduit la fiscalité des dividendes et le coût de ta dette.</p>
+    </div>
+  </div>`;
+}
+
+/* ================= Onglet PATRIMOINE ================= */
 
 function renderPatrimoine() {
   const pv = portfolioValue(S);
@@ -476,30 +819,27 @@ function renderPatrimoine() {
       <div class="bignum ${nw < 0 ? 'neg' : 'accent'}">${fmtFull(nw)}</div>
       <table class="table">
         <tr><td>Liquidités</td><td class="right">${fmt(S.money)}</td></tr>
-        <tr><td>Entreprises (valorisation)</td><td class="right">${fmt(compVal)}</td></tr>
+        <tr><td>Entreprises</td><td class="right">${fmt(compVal)}</td></tr>
         <tr><td>Placements</td><td class="right">${fmt(pv)}</td></tr>
         <tr><td>Dettes</td><td class="right neg">${S.debt ? '-' + fmt(S.debt) : '0 €'}</td></tr>
       </table>
-      ${S.exits.length ? `<h4 style="margin-top:16px">Reventes réalisées</h4>
+      ${S.exits.length ? `<h4 style="margin-top:16px">Reventes</h4>
         <ul class="exits">${S.exits.map(e => `<li>${e.name} — <b class="pos">${fmt(e.price)}</b></li>`).join('')}</ul>` : ''}
       ${renderSparkline()}
     </section>
 
     <section class="card">
       <h2><i class="fas fa-building-columns"></i> Banque</h2>
-      <p class="muted">Plafond d'endettement estimé : <b>${fmt(maxDebt)}</b></p>
+      <p class="muted">Plafond d'endettement : <b>${fmt(maxDebt)}</b></p>
       <div class="btn-row">
         ${[10000, 50000, 200000, 1000000].map(a => `
-          <button class="btn btn-sm" data-act="borrow" data-amount="${a}" ${S.debt + a <= maxDebt ? '' : 'disabled'}>
-            Emprunter ${fmt(a)}
-          </button>`).join('')}
+          <button class="btn btn-sm" data-act="borrow" data-amount="${a}" ${S.debt + a <= maxDebt ? '' : 'disabled'}>Emprunter ${fmt(a)}</button>`).join('')}
       </div>
       <div class="btn-row">
         <button class="btn btn-sm btn-ghost" data-act="repay" data-amount="5000" ${S.debt ? '' : 'disabled'}>Rembourser 5 k€</button>
         <button class="btn btn-sm btn-ghost" data-act="repay" data-amount="50000" ${S.debt ? '' : 'disabled'}>Rembourser 50 k€</button>
         <button class="btn btn-sm btn-ghost" data-act="repayAll" ${S.debt ? '' : 'disabled'}>Tout rembourser</button>
       </div>
-      <p class="row-sub">Taux : ${(CONFIG.debtInterest * 1200).toFixed(1)}% par an. La dette se rembourse automatiquement chaque mois.</p>
     </section>
 
     <section class="card wide">
@@ -516,7 +856,7 @@ function renderPatrimoine() {
               <div class="row-sub">${a.desc}</div>
               <div class="req">
                 <span class="chip">Cours : ${S.prices[a.id].toFixed(1)}</span>
-                <span class="chip ${perf >= 0 ? 'ok' : 'ko'}">${perf >= 0 ? '+' : ''}${perf.toFixed(1)}% depuis le départ</span>
+                <span class="chip ${perf >= 0 ? 'ok' : 'ko'}">${perf >= 0 ? '+' : ''}${perf.toFixed(1)}%</span>
                 ${value > 1 ? `<span class="chip ok">Tu détiens ${fmt(value)}</span>` : ''}
               </div>
             </div>
@@ -540,7 +880,7 @@ function renderPatrimoine() {
 
 function renderSparkline() {
   if (!S.history || S.history.length < 3) return '';
-  const pts = S.history.slice(-120);
+  const pts = S.history.slice(-160);
   const max = Math.max(...pts.map(p => p.nw), 1);
   const min = Math.min(...pts.map(p => p.nw), 0);
   const w = 100, hgt = 34;
@@ -551,10 +891,10 @@ function renderSparkline() {
   }).join(' ');
   return `<svg class="spark" viewBox="0 0 ${w} ${hgt}" preserveAspectRatio="none">
     <path d="${d}" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>
-    <p class="row-sub">Évolution de ton patrimoine sur ${pts.length} mois</p>`;
+    <p class="row-sub">Patrimoine sur ${Math.round(pts.length)} mois</p>`;
 }
 
-/* ------------------ Onglet JOURNAL ------------------ */
+/* ================= Onglet JOURNAL ================= */
 
 function renderJournal() {
   return `
@@ -564,7 +904,7 @@ function renderJournal() {
       <div class="log">
         ${S.log.map(l => `
           <div class="log-line log-${l.type}">
-            <span class="log-date">${MONTH_NAMES[l.month % 12].slice(0, 4)}. ${l.age} ans</span>
+            <span class="log-date">${MONTH_NAMES[l.month].slice(0, 4)}. ${l.age} ans</span>
             <span>${l.text}</span>
           </div>`).join('')}
       </div>
@@ -572,7 +912,7 @@ function renderJournal() {
   </div>`;
 }
 
-/* ------------------ Événements (modale) ------------------ */
+/* ================= Modales ================= */
 
 function showEvent(evt) {
   PENDING = evt;
@@ -580,9 +920,9 @@ function showEvent(evt) {
   const m = $('#modal');
   m.innerHTML = `
     <div class="modal-box event">
-      <div class="modal-tag"><i class="fas fa-bolt"></i> Événement</div>
+      <div class="modal-tag"><i class="fas fa-bolt"></i> ${dateLabel(S)}</div>
       <h2>${evt.title}</h2>
-      <p>${evt.text}</p>
+      <p>${evt._text || evt.text}</p>
       <div class="modal-choices">
         ${evt.choices.map((c, i) => `<button class="btn btn-choice" data-choice="${i}">${c.label}</button>`).join('')}
       </div>
@@ -598,8 +938,7 @@ function askNumber(title, hint, cb, defaultValue = '') {
   const m = $('#modal');
   m.innerHTML = `
     <div class="modal-box">
-      <h2>${title}</h2>
-      <p class="muted">${hint}</p>
+      <h2>${title}</h2><p class="muted">${hint}</p>
       <input type="number" id="ask-input" class="input" value="${defaultValue}" placeholder="Montant en €">
       <div class="modal-choices">
         <button class="btn btn-primary" id="ask-ok">Valider</button>
@@ -607,9 +946,8 @@ function askNumber(title, hint, cb, defaultValue = '') {
       </div>
     </div>`;
   m.classList.remove('hidden');
-  const close = () => closeModal();
-  $('#ask-ok').addEventListener('click', () => { const v = parseFloat($('#ask-input').value); close(); if (!isNaN(v)) cb(v); });
-  $('#ask-cancel').addEventListener('click', close);
+  $('#ask-ok').addEventListener('click', () => { const v = parseFloat($('#ask-input').value); closeModal(); if (!isNaN(v)) cb(v); });
+  $('#ask-cancel').addEventListener('click', closeModal);
   $('#ask-input').focus();
   $('#ask-input').addEventListener('keydown', e => { if (e.key === 'Enter') $('#ask-ok').click(); });
 }
@@ -618,8 +956,7 @@ function askText(title, hint, cb, defaultValue = '') {
   const m = $('#modal');
   m.innerHTML = `
     <div class="modal-box">
-      <h2>${title}</h2>
-      <p class="muted">${hint}</p>
+      <h2>${title}</h2><p class="muted">${hint}</p>
       <input type="text" id="ask-input" class="input" value="${defaultValue}" maxlength="28">
       <div class="modal-choices">
         <button class="btn btn-primary" id="ask-ok">Valider</button>
@@ -627,14 +964,28 @@ function askText(title, hint, cb, defaultValue = '') {
       </div>
     </div>`;
   m.classList.remove('hidden');
-  const close = () => closeModal();
-  $('#ask-ok').addEventListener('click', () => { const v = $('#ask-input').value; close(); cb(v); });
-  $('#ask-cancel').addEventListener('click', close);
+  $('#ask-ok').addEventListener('click', () => { const v = $('#ask-input').value; closeModal(); cb(v); });
+  $('#ask-cancel').addEventListener('click', closeModal);
   $('#ask-input').focus();
   $('#ask-input').addEventListener('keydown', e => { if (e.key === 'Enter') $('#ask-ok').click(); });
 }
 
-/* ------------------ Fin de partie ------------------ */
+function confirmBox(title, text, cb) {
+  const m = $('#modal');
+  m.innerHTML = `
+    <div class="modal-box">
+      <h2>${title}</h2><p>${text}</p>
+      <div class="modal-choices">
+        <button class="btn btn-danger" id="cf-ok">Confirmer</button>
+        <button class="btn btn-ghost" id="cf-no">Annuler</button>
+      </div>
+    </div>`;
+  m.classList.remove('hidden');
+  $('#cf-ok').addEventListener('click', () => { closeModal(); cb(); });
+  $('#cf-no').addEventListener('click', closeModal);
+}
+
+/* ================= Fin de partie ================= */
 
 function renderGameOver() {
   $('#screen-game').classList.add('hidden');
@@ -642,11 +993,13 @@ function renderGameOver() {
   $('#screen-end').classList.remove('hidden');
 
   const nw = netWorth(S);
-  const score = Math.round(nw / 1000 + S.happiness * 400 + S.health * 200 + S.goals.length * 5000 + S.exits.length * 8000);
+  const staff = S.companies.reduce((a, c) => a + c.staff.length, 0);
+  const score = Math.round(nw / 1000 + S.happiness * 400 + S.health * 200 + S.goals.length * 5000
+    + S.exits.length * 8000 + staff * 1200 + S.contacts.length * 800);
   let rank = 'Salarié discret';
   if (score > 20000) rank = 'Indépendant accompli';
   if (score > 60000) rank = 'Entrepreneur reconnu';
-  if (score > 150000) rank = 'Bâtisseur d\'entreprises';
+  if (score > 150000) rank = "Bâtisseur d'entreprises";
   if (score > 400000) rank = 'Magnat';
   if (score > 800000) rank = 'Légende';
 
@@ -656,8 +1009,10 @@ function renderGameOver() {
     <p class="end-reason">${S.overReason}</p>
     <div class="end-stats">
       <div><span>Patrimoine final</span><b class="accent">${fmtFull(nw)}</b></div>
-      <div><span>Entreprises créées</span><b>${S.companies.length + S.exits.length}</b></div>
+      <div><span>Entreprises</span><b>${S.companies.length + S.exits.length}</b></div>
       <div><span>Reventes</span><b>${S.exits.length}</b></div>
+      <div><span>Salariés</span><b>${staff}</b></div>
+      <div><span>Réseau</span><b>${S.contacts.length}</b></div>
       <div><span>Moral</span><b>${Math.round(S.happiness)}/100</b></div>
       <div><span>Santé</span><b>${Math.round(S.health)}/100</b></div>
       <div><span>Objectifs</span><b>${S.goals.length}/${GOALS.length}</b></div>
@@ -667,123 +1022,137 @@ function renderGameOver() {
       ${GOALS.filter(g => S.goals.includes(g.id)).map(g => `<span class="chip ok">${g.name}</span>`).join('') || '<span class="muted">Aucun objectif atteint.</span>'}
     </div>
     <button class="btn btn-primary" id="restart">Rejouer une vie</button>`;
-
   $('#restart').addEventListener('click', () => { wipe(); renderStart(); });
 }
 
-/* ------------------ Liaison des événements DOM ------------------ */
+/* ================= Liaison des événements ================= */
 
-function bindTabEvents() {
+const SLIDERS = {
+  budget: (el, v) => { setBudget(el.dataset.id, el.dataset.ch, v); return fmt(v) + '/mois'; },
+  price: (el, v) => { const c = S.companies.find(x => x.uid === el.dataset.id); c.price = v / 100; return v + '% du prix marché'; },
+  rd: (el, v) => { const c = S.companies.find(x => x.uid === el.dataset.id); c.rd = v; return fmt(v) + '/mois'; },
+  support: (el, v) => { const c = S.companies.find(x => x.uid === el.dataset.id); c.support = v; return fmt(v) + '/mois'; },
+  pay: (el, v) => { const c = S.companies.find(x => x.uid === el.dataset.id); c.payMod = v / 100; return v + '% du marché'; },
+  opening: (el, v) => { const c = S.companies.find(x => x.uid === el.dataset.id); c.openings[el.dataset.role].salary = v; return fmt(v) + '/mois proposés'; }
+};
+
+// Rafraîchit les seuls indicateurs globaux, sans reconstruire la page
+function refreshHeader() { renderHeader(); bindHeader(); }
+function bindHeader() {
+  $$('#hdr [data-act]').forEach(el => el.addEventListener('click', () => handleAction(el.dataset.act, el.dataset)));
+}
+
+function bindEvents() {
   $$('#tabs .tab').forEach(b => b.addEventListener('click', () => { TAB = b.dataset.tab; render(); }));
 
   $$('[data-act]').forEach(el => {
     const act = el.dataset.act;
-    if (act === 'marketing') {
+    if (SLIDERS[act]) {
+      const label = el.parentElement.querySelector('.budget-label');
       el.addEventListener('input', e => {
-        const c = S.companies.find(x => x.uid === el.dataset.id);
-        c.marketing = +e.target.value;
-        const lbl = el.parentElement.querySelector('span b');
-        if (lbl) lbl.textContent = fmt(c.marketing);
+        const txt = SLIDERS[act](el, +e.target.value);
+        if (label) label.textContent = txt;
       });
-      el.addEventListener('change', () => save());
+      // pas de re-rendu ici : cela ferait sauter l'interface pendant qu'on règle un curseur
+      el.addEventListener('change', () => { save(); refreshHeader(); });
       return;
     }
-    el.addEventListener('click', e => {
-      e.stopPropagation();
-      handleAction(act, el.dataset);
-    });
+    el.addEventListener('click', e => { e.stopPropagation(); handleAction(act, el.dataset); });
   });
 }
 
-function handleAction(act, data) {
-  const id = data.id;
+function handleAction(act, d) {
+  const id = d.id;
   switch (act) {
-    case 'endmonth': endMonth(); break;
+    case 'advance': advance(+d.days); break;
+
+    case 'hours': {
+      const cur = planEntry(d.a, d.id || undefined);
+      const h = (cur ? cur.hours : 0) + (+d.delta);
+      setPlan(d.a, h, d.id || undefined, cur ? cur.role : (d.a === 'biz' ? 'sales' : undefined));
+      break;
+    }
+    case 'planrole': setPlanRole(id, d.role); break;
+
     case 'housing': setHousing(id); break;
     case 'apply': applyForJob(id); break;
-    case 'train': doTraining(id); break;
-    case 'quitJob': ACTIONS.quitJob(); break;
+    case 'quitJob': quitJob(); break;
+    case 'train': startTraining(id); break;
+
+    case 'meet': meetContact(id); break;
+    case 'favor': askFavor(id); break;
+
     case 'found':
-      askText('Nom de ton entreprise', "Comment veux-tu l'appeler ?", n => foundCompany(id, n),
+      askText("Nom de ton entreprise", "Comment veux-tu l'appeler ?", n => foundCompany(id, n),
         BUSINESS_TYPES.find(t => t.id === id).name);
       break;
-    case 'toggleBiz': BIZ_OPEN = BIZ_OPEN === id ? null : id; render(); break;
-    case 'focus': focusCompany(id); break;
-    case 'improve': improveProduct(id); break;
-    case 'prospect': prospect(id); break;
-    case 'hire': hire(id); break;
-    case 'fire': fire(id); break;
+    case 'toggleBiz': BIZ_OPEN = BIZ_OPEN === id ? null : id; BIZ_TAB = 'pilotage'; render(); break;
+    case 'biztab': BIZ_TAB = id; render(); break;
     case 'upgrade': upgradeCompany(id); break;
+
+    case 'openPos': {
+      const ref = Math.round(marketSalary(d.role, 50) * S.wageIndex);
+      openPosition(id, d.role, ref);
+      break;
+    }
+    case 'closePos': closePosition(id, d.role); break;
+    case 'headhunt': useHeadhunter(id, d.role); break;
+    case 'interview': interview(id, d.sid); break;
+    case 'negotiate': negotiate(id, d.sid); break;
+    case 'hire': hireCandidate(id, d.sid); break;
+    case 'fireStaff': {
+      const c = S.companies.find(x => x.uid === id);
+      const e = c.staff.find(x => x.id === d.sid);
+      confirmBox(`Licencier ${e.name} ?`, `Deux mois d'indemnités seront prélevés sur la trésorerie de ${c.name}, et le moral de l'équipe en prendra un coup.`, () => fireStaff(id, d.sid));
+      break;
+    }
+    case 'raiseSalary': raiseSalary(id, d.sid); break;
+
     case 'dividend': {
       const c = S.companies.find(x => x.uid === id);
-      askNumber('Sortir des dividendes', `Trésorerie disponible : ${fmtFull(c.cash)}. Fiscalité : 30%.`,
-        v => transfer(id, v), Math.max(0, Math.floor(c.cash)));
+      askNumber('Sortir des dividendes', `Trésorerie disponible : ${fmtFull(c.cash)}.`, v => transfer(id, v), Math.max(0, Math.floor(c.cash)));
       break;
     }
-    case 'inject': {
-      askNumber('Injecter du cash', `Tes liquidités : ${fmtFull(S.money)}.`, v => transfer(id, -v));
-      break;
-    }
+    case 'inject': askNumber('Injecter du cash', `Tes liquidités : ${fmtFull(S.money)}.`, v => transfer(id, -v)); break;
     case 'raise': raiseFunds(id); break;
     case 'sell': {
       const c = S.companies.find(x => x.uid === id);
-      confirmBox(`Vendre ${c.name} ?`, `Tu récupères ${fmtFull((valuation(c) + c.cash) * c.equity)}. L'entreprise ne t'appartiendra plus.`,
-        () => sellCompany(id));
+      confirmBox(`Vendre ${c.name} ?`, `Tu récupères ${fmtFull((valuation(c) + c.cash) * c.equity)}.`, () => sellCompany(id));
       break;
     }
-    case 'borrow': borrow(+data.amount); break;
-    case 'repay': repay(+data.amount); break;
+
+    case 'borrow': borrow(+d.amount); break;
+    case 'repay': repay(+d.amount); break;
     case 'repayAll': repay(S.debt); break;
-    case 'buy': buyAsset(id, +data.amount); break;
+    case 'buy': buyAsset(id, +d.amount); break;
     case 'buyCustom': askNumber('Investir', `Liquidités : ${fmtFull(S.money)}.`, v => buyAsset(id, v)); break;
-    case 'sellAsset': sellAsset(id, +data.amount); break;
+    case 'sellAsset': sellAsset(id, +d.amount); break;
     case 'sellAll': sellAsset(id, (S.portfolio[id] || 0) * S.prices[id]); break;
-    default:
-      if (ACTIONS[act]) ACTIONS[act]();
   }
 }
 
-function confirmBox(title, text, cb) {
-  const m = $('#modal');
-  m.innerHTML = `
-    <div class="modal-box">
-      <h2>${title}</h2>
-      <p>${text}</p>
-      <div class="modal-choices">
-        <button class="btn btn-danger" id="cf-ok">Confirmer</button>
-        <button class="btn btn-ghost" id="cf-no">Annuler</button>
-      </div>
-    </div>`;
-  m.classList.remove('hidden');
-  $('#cf-ok').addEventListener('click', () => { closeModal(); cb(); });
-  $('#cf-no').addEventListener('click', () => closeModal());
-}
-
-/* ------------------ Démarrage ------------------ */
+/* ================= Démarrage ================= */
 
 document.addEventListener('DOMContentLoaded', () => {
   renderStart();
 
   $('#start-btn').addEventListener('click', () => {
-    const name = $('#player-name').value.trim() || 'Alex';
-    newGame(name, $('#start-btn').dataset.origin);
+    newGame($('#player-name').value.trim() || 'Alex', $('#start-btn').dataset.origin);
     TAB = 'vie';
     render();
   });
-
   $('#continue-btn').addEventListener('click', () => {
-    if (load()) { TAB = 'vie'; render(); }
-    else toast("Aucune sauvegarde trouvée.");
+    if (load()) { TAB = 'vie'; render(); } else toast("Aucune sauvegarde trouvée.");
   });
-
   $('#reset-btn').addEventListener('click', () => {
     confirmBox('Recommencer une vie ?', 'Ta partie en cours sera définitivement effacée.', () => { wipe(); renderStart(); });
   });
 
   document.addEventListener('keydown', e => {
+    if (/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
     if (e.key === 'Escape' && !PENDING) closeModal();
-    if (e.key === 'Enter' && S && !S.over && $('#modal').classList.contains('hidden') && !/INPUT|TEXTAREA/.test(document.activeElement.tagName)) {
-      endMonth();
-    }
+    if (!S || S.over || !$('#modal').classList.contains('hidden')) return;
+    if (e.key === 'ArrowRight') advance(1);
+    if (e.key === 'Enter') advance(7);
   });
 });

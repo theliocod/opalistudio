@@ -405,3 +405,133 @@ a.back-link:hover { color: var(--orange); }
   .start-wrap { padding: 40px 18px 70px; }
   .end-wrap h1 { font-size: 1.9rem; }
 }
+
+/* =========================================================
+   V2 — planning, équipes, recrutement, réseau
+   ========================================================= */
+
+/* ---- Planning ---- */
+.plan-total { margin: 16px 0 18px; }
+.plan-gauge {
+  display: flex; height: 14px; border-radius: 99px; overflow: hidden;
+  background: var(--bg-2); border: 1px solid var(--line-soft);
+}
+.plan-seg { transition: width .25s ease; }
+.plan-seg.free { background: repeating-linear-gradient(45deg, #1c2536, #1c2536 5px, #222d43 5px, #222d43 10px); }
+.plan-legend { display: flex; justify-content: space-between; margin-top: 8px; font-size: .8rem; color: var(--txt-2); }
+.plan-legend b { color: var(--txt); }
+
+.plan-rows { display: flex; flex-direction: column; gap: 8px; }
+.plan-row {
+  display: flex; align-items: center; gap: 14px; padding: 12px 14px;
+  background: var(--card-2); border: 1px solid var(--line-soft); border-radius: var(--radius-sm);
+}
+.plan-row.on { border-color: #35425f; }
+.plan-ico { font-size: 1.05rem; width: 22px; text-align: center; }
+.plan-main { flex: 1; min-width: 0; }
+.plan-main b { font-size: .88rem; display: block; }
+.plan-hours { display: flex; align-items: center; gap: 10px; }
+.plan-hours span { font-weight: 800; min-width: 34px; text-align: center; font-size: .9rem; }
+.hbtn {
+  width: 28px; height: 28px; border-radius: 8px; cursor: pointer;
+  background: var(--bg-2); border: 1px solid var(--line); color: var(--txt);
+  font-size: 1rem; font-weight: 700; line-height: 1; transition: .15s;
+}
+.hbtn:hover { border-color: var(--orange); color: var(--orange); }
+
+.role-picker { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.role-btn {
+  padding: 5px 10px; border-radius: 99px; cursor: pointer; font-family: inherit;
+  background: var(--bg-2); border: 1px solid var(--line); color: var(--txt-2);
+  font-size: .72rem; font-weight: 600; transition: .15s;
+}
+.role-btn:hover { color: var(--txt); border-color: #3d4a70; }
+.role-btn.on { background: rgba(249,115,22,.15); border-color: var(--orange); color: var(--orange-light); }
+
+/* ---- Compétences ---- */
+.bar-caps { position: relative; }
+.cap-mark { position: absolute; top: -2px; width: 1px; height: 11px; background: rgba(255,255,255,.28); }
+.skill-use { font-size: .72rem; color: var(--txt-3); margin-top: 5px; line-height: 1.45; }
+.training-current { padding: 14px; background: var(--card-2); border: 1px solid var(--line); border-radius: var(--radius-sm); margin-bottom: 14px; }
+.training-current b { display: block; margin-bottom: 8px; font-size: .92rem; }
+
+/* ---- Sous-onglets entreprise ---- */
+.subtabs { display: flex; gap: 4px; padding: 14px 0 4px; flex-wrap: wrap; border-bottom: 1px solid var(--line-soft); margin-bottom: 6px; }
+.subtab {
+  padding: 8px 14px; border-radius: var(--radius-sm) var(--radius-sm) 0 0; cursor: pointer;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  color: var(--txt-2); font-family: inherit; font-size: .82rem; font-weight: 600; transition: .15s;
+}
+.subtab:hover { color: var(--txt); }
+.subtab.active { color: var(--orange-light); border-bottom-color: var(--orange); }
+
+.field > span.field-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+.field-head em { font-style: normal; font-size: .78rem; color: var(--txt-2); font-weight: 700; }
+.field.blocked { opacity: .55; }
+.alert-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; border-radius: 99px; margin-left: 6px;
+  background: var(--neg); color: #fff; font-size: .68rem; font-weight: 800;
+}
+
+/* ---- Équipe ---- */
+.team-head { display: grid; grid-template-columns: 1fr 1fr; gap: 26px; padding: 16px 0; }
+.staff-list { display: flex; flex-direction: column; gap: 9px; padding-bottom: 8px; }
+.staff {
+  display: flex; align-items: center; justify-content: space-between; gap: 16px;
+  padding: 13px 15px; background: var(--card-2);
+  border: 1px solid var(--line-soft); border-radius: var(--radius-sm);
+}
+.staff-risk { border-color: rgba(239,68,68,.4); background: rgba(239,68,68,.06); }
+.staff-main { flex: 1; min-width: 0; }
+.staff-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: .9rem; }
+.staff-name i { color: var(--orange); }
+.staff-bars { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin: 8px 0 5px; max-width: 420px; }
+.staff-bar span { font-size: .72rem; color: var(--txt-2); display: block; margin-bottom: 4px; }
+.staff-actions { display: flex; flex-direction: column; gap: 6px; }
+
+/* ---- Recrutement ---- */
+.opening { padding: 13px; background: var(--card-2); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); margin-bottom: 9px; }
+.opening.on { border-color: #3d4a70; }
+.opening-head { margin-bottom: 9px; }
+.opening-head b { display: block; font-size: .88rem; }
+.opening-head b i { color: var(--orange); margin-right: 6px; }
+.applicant {
+  padding: 13px; background: var(--card-2); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm); margin-bottom: 9px;
+}
+.applicant-main b { font-size: .9rem; }
+.applicant-main b i { color: var(--orange); margin-right: 6px; }
+.applicant .btn-row { margin-top: 10px; margin-bottom: 0; }
+
+/* ---- Réseau ---- */
+.contacts { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; margin-top: 14px; }
+.contact { padding: 17px; background: var(--card-2); border: 1px solid var(--line-soft); border-radius: var(--radius); }
+.contact-head { display: flex; align-items: center; gap: 12px; margin-bottom: 9px; }
+.contact-head i { font-size: 1.2rem; color: var(--orange); width: 24px; text-align: center; }
+.contact-head b { display: block; font-size: .95rem; }
+.contact .btn-row { margin-top: 12px; margin-bottom: 0; }
+
+.empty-inline {
+  padding: 26px; text-align: center; color: var(--txt-2); font-size: .87rem;
+  border: 1px dashed var(--line); border-radius: var(--radius-sm); margin-top: 12px;
+}
+.empty-inline i { display: block; font-size: 1.4rem; color: var(--txt-3); margin-bottom: 10px; }
+
+.badge-alt { background: var(--pos) !important; }
+
+@media (max-width: 1000px) {
+  .team-head { grid-template-columns: 1fr; gap: 16px; }
+  .staff { flex-direction: column; align-items: flex-start; }
+  .staff-actions { flex-direction: row; width: 100%; }
+  .staff-bars { grid-template-columns: 1fr; }
+}
+
+.burn {
+  display: flex; flex-direction: column; gap: 4px;
+  padding: 11px 13px; margin: 10px 0 14px; font-size: .8rem; line-height: 1.5;
+  background: var(--bg-2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  color: var(--txt-2);
+}
+.burn b { color: var(--txt); }
+.burn-bad { border-color: rgba(239, 68, 68, .45); background: rgba(239, 68, 68, .07); }
