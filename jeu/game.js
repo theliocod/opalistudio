@@ -83,6 +83,10 @@ function createCompany(type, name) {
     lastRevenue: 0,
     lastCosts: 0,
     lastProfit: 0,
+    avgRevenue: 0,
+    avgProfit: 0,
+    growth: 0,
+    revenueAgo: 0,
     blocked: null,
     channelBoost: null
   };
@@ -137,6 +141,7 @@ function newGame(name, originId, look) {
     goals: [],
     log: [],
     seen: {},
+    seenAt: {},
     over: false,
     overReason: '',
     history: []
@@ -258,9 +263,17 @@ function spanOfControl(c) {
   return 3 + S.skills.business / 9 + mgrPower + founderBonus;
 }
 
+// La capacité croît plus vite que le niveau : structurer une entreprise
+// démultiplie ce qu'une même équipe peut servir.
 function capacity(c) {
   const t = getType(c);
-  return t.capPerLevel * c.level + roleForce(c, 'ops') * t.roleCap;
+  const infra = t.capPerLevel * Math.pow(c.level, 1.35);
+  const team = roleForce(c, 'ops') * t.roleCap * Math.pow(c.level, 0.9);
+  // Personne ne sert des millions de clients tout seul : chaque tête ne
+  // peut en couvrir qu'un nombre fini, que l'outillage démultiplie.
+  const heads = 1 + c.staff.length;
+  const perHead = t.roleCap * Math.pow(c.level, 0.6) * 1.6;
+  return Math.min(infra + team, heads * perHead);
 }
 
 function marketSize(c) {
@@ -271,11 +284,31 @@ function marketShare(c) {
   return clamp(c.clients / marketSize(c), 0, 1);
 }
 
+/* Ce que vaut ton produit aux yeux du marché. Un produit médiocre
+   vendu cher ne trouve pas preneur ; un excellent produit se vend
+   plus cher sans perdre de clients. */
+function perceivedValue(c) {
+  return 0.5 + c.quality / 100;
+}
+
+/* Rapport prix demandé / valeur perçue. 1 = prix juste. */
+function priceRatio(c) {
+  return c.price / Math.max(0.25, perceivedValue(c));
+}
+
+/* Élasticité de la demande au prix : au-delà du prix juste, les
+   clients partent plus vite qu'ils n'arrivent. */
+function priceDemandFactor(c) {
+  return clamp(Math.pow(priceRatio(c), -1.6), 0.12, 3.2);
+}
+
 /* Efficacité d'un canal : c'est ici que les compétences du joueur
    pèsent vraiment. Un bon marketeur fait rendre deux fois plus le
    même budget publicitaire. */
 function channelEfficiency(c, ch) {
   let eff = 0.5 + S.skills[ch.skill] / 100;                    // 0,5 → 1,5
+  // un bon produit convertit mieux, se recommande et coûte moins cher à vendre
+  eff *= 0.45 + c.quality / 70;                                // 0,45 → 1,88
   eff *= 1 + roleForce(c, 'marketer') * 0.22;                  // les marketeurs salariés
   const founder = planEntry('biz', c.uid);
   if (founder && founder.role === 'marketing') eff *= 1 + founder.hours / 26;
@@ -291,12 +324,14 @@ function channelEfficiency(c, ch) {
 function channelOutput(c, ch) {
   if (c.blocked && c.blocked.channel === ch.id) return 0;
   const t = getType(c);
-  const spendDay = (c.budgets[ch.id] || 0) / DAYS_PER_MONTH;
+  // On paie le budget du mois, mais ce sont les euros déjà « installés »
+  // qui rapportent : une campagne, une audience ou un fichier de prospects
+  // mettent des semaines à produire leur plein effet.
+  const spendDay = c.stock[ch.id] || 0;
   if (spendDay <= 0) return 0;
 
   let power = ch.power * channelEfficiency(c, ch);
   if (ch.id === 'influence') power *= 0.5 + S.reputation / 70;
-  if (ch.id === 'organic') power *= 0.25 + (c.stock[ch.id] || 0);   // se construit dans le temps
 
   const cacEff = t.cac / Math.max(0.05, power);
   const raw = spendDay / cacEff;                                     // clients/jour sans plafond
@@ -340,19 +375,27 @@ function dailyAcquisition(c) {
     acq += base * (0.3 + skill / 70) * (founder.hours / 8) * efficiency();
   }
 
-  return acq
-    * (0.6 + c.quality / 130)
+  acq = acq
+    * priceDemandFactor(c)
     * (1 + S.reputation / 260)
     * S.marketMood
     * (c.hype || 1)
     * rampFactor(c)
     * (1 - marketShare(c))
     * rand(0.9, 1.1);
+
+  // Une entreprise ne peut pas absorber une croissance illimitée : recruter,
+  // livrer, servir et structurer prennent du temps. Au-delà d'environ 18 %
+  // de croissance mensuelle, ce qui arriverait en plus se perd.
+  const socle = Math.max(marketSize(c) * 0.0002, 1.5) / DAYS_PER_MONTH;
+  const maxGrowth = socle + c.clients * 0.18 / DAYS_PER_MONTH;
+  return Math.min(acq, maxGrowth);
 }
 
 function dailyChurn(c) {
   const t = getType(c);
   let churn = t.churn * (1.3 - c.quality / 180) / (c.loyalty || 1);
+  churn *= clamp(Math.pow(priceRatio(c), 0.8), 0.7, 2.2);   // payer trop cher pour ce qu'on reçoit
   churn *= Math.max(0.45, 1 - roleForce(c, 'support') * 0.14);
   churn *= Math.max(0.7, 1 - (c.support / DAYS_PER_MONTH) / Math.max(80, c.clients * 2) * 0.5);
   const cap = capacity(c);
@@ -378,7 +421,9 @@ function projectedRevenue(c) {
 
 function projectedCosts(c) {
   const t = getType(c);
-  const fixed = t.fixedCost * c.level * Math.max(0.75, 1 - S.skills.business / 400);
+  // locaux, systèmes, administration : les charges de structure croissent
+  // plus vite que la taille, et un bon gestionnaire les contient un peu.
+  const fixed = t.fixedCost * Math.pow(c.level, 1.35) * Math.max(0.72, 1 - S.skills.business / 400);
   return fixed
     + payrollMonthly(c)
     + adSpendMonthly(c)
@@ -394,12 +439,27 @@ function projectedProfit(c) {
 
 function valuation(c) {
   const t = getType(c);
-  const annual = Math.max(0, projectedProfit(c)) * 12;
-  const base = annual * t.multiple * (c.hype || 1);
-  const clientValue = c.clients * t.revPerClient * 2.5;
+
+  // On valorise sur des résultats installés, pas sur le mois en cours :
+  // les acheteurs regardent une moyenne, pas un pic.
+  const profit = c.avgProfit !== undefined ? c.avgProfit : projectedProfit(c);
+  const revenue = c.avgRevenue !== undefined ? c.avgRevenue : projectedRevenue(c);
+  const annual = Math.max(0, profit) * 12;
+
+  // Prime de croissance : une entreprise qui grossit vite se paie plus cher.
+  const growth = clamp(c.growth || 0, -0.5, 1.5);
+  const growthMult = clamp(1 + growth * 0.9, 0.6, 2.4);
+
+  // Une jeune société sans historique ne se valorise pas comme une société installée.
+  const maturity = clamp(c.days / 540, 0.35, 1);
+
+  const earnings = annual * t.multiple * growthMult * maturity;
+  const topline = revenue * 12 * Math.min(1.2, t.multiple * 0.22) * growthMult * 0.35;
   const floor = t.cost * 0.35;
+
   const dealBonus = 1 + S.skills.finance / 400;
-  return Math.max(floor, (base * 0.75 + clientValue * 0.25) * dealBonus);
+  const base = Math.max(floor, earnings * 0.75 + topline * 0.25) * dealBonus * (c.hype || 1);
+  return base;
 }
 
 function monthlyBusinessProfit(s) {
@@ -467,15 +527,26 @@ function quitJob() {
   render();
 }
 
+function trainingCount(id) {
+  return S.doneTrainings.filter(x => x === id).length;
+}
+
+function trainingCost(t) {
+  // Se reformer coûte un peu plus cher à chaque fois : on va chercher
+  // des programmes plus pointus.
+  return Math.round(t.cost * Math.pow(1.35, trainingCount(t.id)));
+}
+
 function startTraining(id) {
   const t = TRAININGS.find(x => x.id === id);
-  if (S.doneTrainings.includes(id)) return toast("Tu as déjà suivi cette formation.");
+  if (!t.repeat && S.doneTrainings.includes(id)) return toast("Tu as déjà suivi cette formation.");
   if (t.req && Object.entries(t.req).some(([k, v]) => S.skills[k] < v)) return toast("Tu n'as pas le niveau requis.");
-  if (S.money < t.cost) return toast("Pas assez d'argent.");
-  S.money -= t.cost;
+  const cost = trainingCost(t);
+  if (S.money < cost) return toast("Pas assez d'argent.");
+  S.money -= cost;
   S.training = { id, progress: 0 };
   if (!planEntry('study')) setPlan('study', 2);
-  addLog(S, `Tu commences : ${t.name}${t.cost ? ` (${fmt(t.cost)})` : ''}. Alloue-lui des heures dans ton planning.`, 'info');
+  addLog(S, `Tu commences : ${t.name}${cost ? ` (${fmt(cost)})` : ''}. Alloue-lui des heures dans ton planning.`, 'info');
   render();
 }
 
@@ -581,6 +652,7 @@ function setCompanyField(uid, field, value) {
 
 function upgradeCompany(uid) {
   const c = S.companies.find(x => x.uid === uid);
+  if (!c) return;
   const t = getType(c);
   const cost = Math.round(t.upgradeCost * Math.pow(1.55, c.level - 1));
   if (c.cash < cost) return toast(`Il faut ${fmt(cost)} en trésorerie d'entreprise.`);
@@ -591,6 +663,7 @@ function upgradeCompany(uid) {
 
 function transfer(uid, amount) {
   const c = S.companies.find(x => x.uid === uid);
+  if (!c) return;
   amount = Math.round(amount);
   if (amount > 0) {
     const a = Math.min(amount, Math.floor(c.cash));
@@ -611,6 +684,7 @@ function transfer(uid, amount) {
 
 function sellCompany(uid) {
   const c = S.companies.find(x => x.uid === uid);
+  if (!c) return;
   const price = Math.round((valuation(c) + c.cash) * c.equity);
   S.money += price;
   S.exits.push({ name: c.name, price, day: S.day });
@@ -623,6 +697,7 @@ function sellCompany(uid) {
 
 function raiseFunds(uid) {
   const c = S.companies.find(x => x.uid === uid);
+  if (!c) return;
   if (c.investorAngry) return toast("Ton investisseur actuel bloque toute nouvelle opération.");
   if (c.lastProfit <= 0 && c.clients < 10) return toast("Aucun investisseur ne suivra avec ces chiffres.");
   const pct = 0.18;
@@ -638,6 +713,7 @@ function raiseFunds(uid) {
 
 function openPosition(uid, roleId, salary) {
   const c = S.companies.find(x => x.uid === uid);
+  if (!c) return;
   c.openings[roleId] = { salary: Math.round(salary) };
   addLog(S, `${c.name} : poste de ${getRole(roleId).name.toLowerCase()} ouvert à ${fmt(salary)}.`, 'info');
   render();
@@ -645,12 +721,14 @@ function openPosition(uid, roleId, salary) {
 
 function closePosition(uid, roleId) {
   const c = S.companies.find(x => x.uid === uid);
+  if (!c) return;
   delete c.openings[roleId];
   render();
 }
 
 function interview(uid, candId) {
   const c = S.companies.find(x => x.uid === uid);
+  if (!c) return;
   const cand = c.applicants.find(a => a.id === candId);
   if (!cand || cand.revealed) return;
   if (!spendEnergy(7)) return;
@@ -661,6 +739,7 @@ function interview(uid, candId) {
 
 function hireCandidate(uid, candId) {
   const c = S.companies.find(x => x.uid === uid);
+  if (!c) return;
   const cand = c.applicants.find(a => a.id === candId);
   if (!cand) return;
   const firstMonth = cand.ask * 1.5;
@@ -674,6 +753,7 @@ function hireCandidate(uid, candId) {
 
 function negotiate(uid, candId) {
   const c = S.companies.find(x => x.uid === uid);
+  if (!c) return;
   const cand = c.applicants.find(a => a.id === candId);
   if (!cand || cand.negotiated) return;
   if (!spendEnergy(5)) return;
@@ -695,6 +775,7 @@ function negotiate(uid, candId) {
 
 function fireStaff(uid, staffId) {
   const c = S.companies.find(x => x.uid === uid);
+  if (!c) return;
   const e = c.staff.find(x => x.id === staffId);
   if (!e) return;
   c.cash -= e.salary * 2;
@@ -706,6 +787,7 @@ function fireStaff(uid, staffId) {
 
 function raiseSalary(uid, staffId) {
   const c = S.companies.find(x => x.uid === uid);
+  if (!c) return;
   const e = c.staff.find(x => x.id === staffId);
   if (!e) return;
   e.salary = Math.round(e.salary * 1.12);
@@ -716,6 +798,7 @@ function raiseSalary(uid, staffId) {
 
 function useHeadhunter(uid, roleId) {
   const c = S.companies.find(x => x.uid === uid);
+  if (!c) return;
   const role = getRole(roleId);
   const price = Math.round(role.salary * 3 * S.wageIndex);
   if (S.money < price) return toast(`Le cabinet demande ${fmt(price)}.`);
@@ -852,11 +935,12 @@ function tick() {
     if (c.blocked) { c.blocked.days--; if (c.blocked.days <= 0) { addLog(S, `${c.name} : le canal ${getChannel(c.blocked.channel).name.toLowerCase()} est rétabli.`, 'good'); c.blocked = null; } }
     if (c.channelBoost) { c.channelBoost.days--; if (c.channelBoost.days <= 0) c.channelBoost = null; }
 
-    // capital organique : se construit lentement, se perd si on arrête
+    // Montée en charge des canaux : le budget mis aujourd'hui met des
+    // semaines à porter, et s'éteint aussi progressivement si on coupe.
     CHANNELS.forEach(ch => {
-      const spend = (c.budgets[ch.id] || 0) / D;
-      const target = Math.pow(spend / (ch.saturation / D / 4), 0.5);
-      c.stock[ch.id] = (c.stock[ch.id] || 0) + (target - (c.stock[ch.id] || 0)) * 0.004 * (1 / ch.delay);
+      const target = (c.budgets[ch.id] || 0) / D;
+      const speed = 1 / ch.rampDays;
+      c.stock[ch.id] = (c.stock[ch.id] || 0) + (target - (c.stock[ch.id] || 0)) * speed;
     });
 
     // clients
@@ -866,7 +950,9 @@ function tick() {
     c.clients = Math.min(c.clients, capacity(c) * 1.2, marketSize(c));
 
     // qualité : R&D, équipe produit, fondateur ; se dégrade sinon
-    let q = -0.055;
+    // Un produit qu'on n'entretient plus vieillit, mais il reste utilisable :
+    // la qualité redescend vers un plancher, pas vers zéro.
+    let q = -0.055 * clamp((c.quality - 18) / 70, 0, 1.4);
     q += roleForce(c, 'product') * 0.085;
     q += (c.rd / Math.max(120, t.fixedCost)) * 0.18;   // un budget R&D égal aux charges fixes ≈ +5 qualité/mois
     const founder = planEntry('biz', c.uid);
@@ -891,6 +977,20 @@ function tick() {
     c.lastProfit = profit * D;
     c.cash += profit;
 
+    // Moyennes glissantes sur environ six mois : c'est ce que regarde
+    // un repreneur, et cela évite que la valorisation saute chaque jour.
+    const k = 1 / 180;
+    c.avgRevenue = c.avgRevenue === undefined ? c.lastRevenue : c.avgRevenue + (c.lastRevenue - c.avgRevenue) * k;
+    c.avgProfit = c.avgProfit === undefined ? c.lastProfit : c.avgProfit + (c.lastProfit - c.avgProfit) * k;
+
+    // Croissance annualisée du chiffre d'affaires, elle aussi lissée
+    if (c.days % 30 === 0) {
+      const prev = c.revenueAgo || c.lastRevenue;
+      const g = prev > 0 ? (c.lastRevenue - prev) / prev * 12 : 0;
+      c.growth = c.growth === undefined ? g : c.growth + (g - c.growth) * 0.25;
+      c.revenueAgo = c.lastRevenue;
+    }
+
     // aléa sectoriel
     if (Math.random() < t.risk * 0.0035) {
       c.clients *= rand(0.7, 0.9);
@@ -902,6 +1002,11 @@ function tick() {
 
     // trésorerie négative
     if (c.cash < 0) {
+      // On ne paie pas des campagnes avec de l'argent qu'on n'a pas :
+      // les budgets se coupent d'eux-mêmes, un peu plus chaque jour.
+      CHANNELS.forEach(ch => c.budgets[ch.id] = Math.round((c.budgets[ch.id] || 0) * 0.9));
+      c.rd = Math.round(c.rd * 0.92);
+      c.support = Math.round(c.support * 0.95);
       c.negDays++;
       if (c.negDays === 1) addLog(S, `⚠️ ${c.name} est en trésorerie négative. Injecte du cash ou réduis les coûts.`, 'warn');
       if (c.negDays === 45) addLog(S, `⚠️ ${c.name} : encore 45 jours avant le dépôt de bilan.`, 'warn');
@@ -1088,7 +1193,14 @@ function advance(days) {
 function rollEvent() {
   if (Math.random() > CONFIG.eventChance) return null;
   const pool = EVENTS.filter(e => {
-    if (S.seen[e.id] && !e.global) return false;
+    // Un événement ponctuel n'arrive qu'une fois ; un événement récurrent
+    // (crise, tension sur les salaires…) ne peut pas revenir tous les mois.
+    if (!e.global && S.seen[e.id]) return false;
+    if (e.global) {
+      const last = S.seenAt[e.id];
+      const cooldown = e.cooldown || 900;
+      if (last !== undefined && S.day - last < cooldown) return false;
+    }
     try { return e.cond(S); } catch (_) { return false; }
   });
   if (!pool.length) return null;
@@ -1100,6 +1212,7 @@ function rollEvent() {
     e._ref = d.ref;
   } else { e._text = e.text; e._ref = null; }
   S.seen[e.id] = true;
+  S.seenAt[e.id] = S.day;
   return e;
 }
 

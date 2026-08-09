@@ -408,10 +408,17 @@ function renderCarriere() {
         ${TRAININGS.map(t => {
           const ok = !t.req || Object.entries(t.req).every(([k, v]) => S.skills[k] >= v);
           const capLabel = { auto: 'autoformation', paid: 'formation', field: 'terrain' }[t.source];
+          const done = trainingCount(t.id);
+          const price = trainingCost(t);
+          const closed = !t.repeat && done > 0;
           return `
-          <div class="row ${ok ? '' : 'row-locked'}">
+          <div class="row ${ok && !closed ? '' : 'row-locked'}">
             <div class="row-main">
-              <div class="row-title"><i class="fas ${t.icon}"></i> ${t.name}</div>
+              <div class="row-title">
+                <i class="fas ${t.icon}"></i> ${t.name}
+                ${t.repeat ? '<span class="chip ok">Renouvelable</span>' : ''}
+                ${done ? `<span class="chip">suivie ${done} fois</span>` : ''}
+              </div>
               <div class="row-sub">${t.desc}</div>
               <div class="req">
                 ${Object.entries(t.gain).map(([k, v]) => `<span class="chip ok">+${v} ${skillName(k)}</span>`).join('')}
@@ -420,8 +427,11 @@ function renderCarriere() {
               </div>
             </div>
             <div class="row-side">
-              <span class="price">${t.cost ? fmt(t.cost) : 'Gratuit'}</span>
-              <button class="btn btn-sm" data-act="train" data-id="${t.id}" ${ok && !S.training ? '' : 'disabled'}>Commencer</button>
+              <span class="price">${price ? fmt(price) : 'Gratuit'}</span>
+              ${done && t.repeat ? '<span class="row-sub">plus pointue, donc plus chère</span>' : ''}
+              <button class="btn btn-sm" data-act="train" data-id="${t.id}" ${ok && !S.training && !closed ? '' : 'disabled'}>
+                ${closed ? 'Déjà obtenue' : done ? 'Se reformer' : 'Commencer'}
+              </button>
             </div>
           </div>`;
         }).join('')}
@@ -635,6 +645,8 @@ function renderPilotage(c) {
       <div class="metric" style="margin-top:12px"><span>Part de marché</span><b class="${share > 70 ? 'warn' : ''}">${share}%</b></div>
       ${bar(share, 100, 'rep')}
       <div class="metric" style="margin-top:12px"><span>Démarrage</span><b>${Math.round(rampFactor(c) * 100)}%</b></div>
+      <div class="metric"><span>Croissance annualisée</span><b class="${(c.growth || 0) > 0 ? 'pos' : 'neg'}">${((c.growth || 0) * 100).toFixed(0)}%</b></div>
+      <div class="metric"><span>Profit moyen (6 mois)</span><b>${fmt(c.avgProfit || 0)}</b></div>
       <div class="metric"><span>Masse salariale</span><b>${fmt(payrollMonthly(c))}</b></div>
       <div class="metric"><span>Charges fixes</span><b>${fmt(t.fixedCost * c.level)}</b></div>
       <div class="metric"><span>Budget acquisition</span><b>${fmt(adSpendMonthly(c))}</b></div>
@@ -673,8 +685,14 @@ function renderPilotage(c) {
           <input type="range" min="0" max="${maxB}" step="50" value="${c.budgets[ch.id] || 0}"
                  data-act="budget" data-id="${c.uid}" data-ch="${ch.id}" ${blocked ? 'disabled' : ''}>
           <span class="row-sub">
-            ${blocked ? `<b class="neg">Canal bloqué encore ${c.blocked.days} jours.</b>` :
-            `Efficacité ×${eff.toFixed(2)} · rendement actuel ${out.toFixed(2)} · ${ch.desc}`}
+            ${blocked ? `<b class="neg">Canal bloqué encore ${c.blocked.days} jours.</b>` : (() => {
+              const target = (c.budgets[ch.id] || 0) / DAYS_PER_MONTH;
+              const installed = c.stock[ch.id] || 0;
+              const ramp = target > 0 ? Math.round(installed / target * 100) : (installed > 0 ? 100 : 0);
+              return `Efficacité ×${eff.toFixed(2)} · ${out.toFixed(2)} client${out >= 2 ? 's' : ''}/jour
+                ${target > 0 && ramp < 96 ? `· <b class="warn">montée en charge ${Math.min(99, ramp)}%</b> (${ch.rampDays} j pour porter à plein)` : ''}
+                <br>${ch.desc}`;
+            })()}
           </span>
         </label>`;
       }).join('')}
@@ -685,7 +703,14 @@ function renderPilotage(c) {
         <em class="budget-label" data-for="${c.uid}-price">${Math.round(c.price * 100)}% du prix marché</em></span>
         <input type="range" min="60" max="160" step="5" value="${Math.round(c.price * 100)}"
                data-act="price" data-id="${c.uid}">
-        <span class="row-sub">Monter les prix augmente la marge et fait fuir une partie des clients.</span>
+        <span class="row-sub">
+          Valeur perçue de ton produit : <b>${Math.round(perceivedValue(c) * 100)}%</b> du prix marché
+          (elle monte avec la qualité). Tu demandes ${Math.round(c.price * 100)}% →
+          <b class="${priceDemandFactor(c) >= 1 ? 'pos' : 'neg'}">demande ×${priceDemandFactor(c).toFixed(2)}</b>.
+          ${priceRatio(c) > 1.15 ? "Tu vends plus cher que ce que ton produit vaut : les clients arrivent moins et partent plus vite."
+            : priceRatio(c) < 0.8 ? "Tu vends moins cher que ta valeur : du volume, mais de la marge laissée sur la table."
+            : "Ton prix est cohérent avec ce que tu offres."}
+        </span>
       </label>
       <label class="field">
         <span class="field-head"><b><i class="fas fa-flask"></i> Budget R&D / produit</b>

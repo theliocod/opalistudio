@@ -40,15 +40,44 @@ Chaque société se règle sur une dizaine de variables :
 
 - **Quatre canaux d'acquisition** — contenu organique, publicité payante, influence,
   prospection sortante. Chacun a son coût par client, son plafond propre et sa
-  dépendance à une compétence. Le contenu organique est le moins cher mais met des
-  mois à s'installer ; l'influence dépend de ta réputation. Comme chaque canal sature
-  séparément, répartir coûte moins cher que tout mettre au même endroit.
-- **Le niveau de prix** (60 % à 160 % du prix marché) : marge contre volume.
-- **Le budget R&D**, qui fait monter la qualité — laquelle retient les clients et
-  justifie les prix.
+  dépendance à une compétence. Comme chaque canal sature séparément, répartir coûte
+  moins cher que tout mettre au même endroit.
+- **Le niveau de prix** (60 % à 160 % du prix marché) : mais le prix ne se décide pas
+  seul, voir plus bas.
+- **Le budget R&D**, qui fait monter la qualité.
 - **Le budget support**, qui réduit le churn.
 - **La politique salariale** (80 % à 140 % du marché), qui tient le moral de l'équipe.
 - **Le niveau d'infrastructure**, qui augmente la capacité.
+
+### Le prix se juge par rapport à ce que vaut ton produit
+
+Ta qualité détermine une **valeur perçue**. Si tu demandes plus que cette valeur, les
+clients arrivent moins vite et partent plus vite ; si tu demandes moins, tu fais du
+volume en laissant de la marge. Un produit à 90 de qualité peut donc se vendre 30 %
+au-dessus du marché sans perdre personne, alors que le même prix sur un produit
+médiocre divise la demande par deux. L'interface affiche en clair la valeur perçue,
+le prix demandé et le facteur de demande qui en résulte.
+
+La qualité pèse aussi directement sur la **publicité** : un bon produit convertit
+mieux et se recommande, ce qui fait rendre presque deux fois plus chaque euro investi
+en acquisition.
+
+### Rien ne produit son effet immédiatement
+
+Un budget publicitaire met des semaines à porter — 35 jours pour la publicité payante,
+150 pour le contenu organique. L'interface affiche la montée en charge de chaque canal.
+Couper un budget ne fait pas disparaître ses effets du jour au lendemain non plus.
+
+De la même façon, **une entreprise ne peut pas absorber une croissance illimitée** :
+au-delà d'environ 18 % de clients supplémentaires par mois, ce qui arriverait en plus
+se perd, parce qu'on ne recrute, ne livre et ne structure pas plus vite que ça.
+
+### La taille demande du monde
+
+La capacité ne dépend pas que de l'infrastructure : **chaque personne ne peut couvrir
+qu'un nombre fini de clients**, que l'outillage démultiplie. Servir des centaines de
+milliers de clients demande donc une vraie équipe, pas seulement des niveaux
+d'infrastructure. Les charges de structure, elles, croissent plus vite que la taille.
 
 Un encadré permanent affiche ce que tu brûles chaque mois et combien de mois
 d'autonomie il te reste.
@@ -91,6 +120,25 @@ et **chaque source d'apprentissage a son plafond**. L'autoformation te mène à 
 les formations payantes à 78, l'expérience de terrain à 88. Au-delà, seul un mentor
 de ton réseau peut encore te faire progresser — et jamais au-dessus de son propre
 niveau.
+
+Certaines formations sont **renouvelables** : lectures, autoformation, programmes en
+ligne et coaching peuvent se reprendre autant de fois que tu veux, en allant chercher
+des programmes plus pointus — donc un peu plus chers à chaque fois. Les diplômes
+(bootcamp, certification, MBA) ne se passent qu'une fois.
+
+## Combien peut valoir une entreprise
+
+Les marchés sont dimensionnés en clients réellement atteignables : 30 pour un
+freelance, 700 pour une agence, 950 000 pour un SaaS, 8 millions de joueurs pour un
+studio. Une **startup IA bien menée dépasse le milliard d'euros de valorisation** ;
+un SaaS ou un studio approchent le milliard ; une agence plafonne à quelques dizaines
+de millions ; un freelance restera un freelance. La hiérarchie des modèles est celle
+de la réalité.
+
+La valorisation ne se calcule pas sur le mois en cours mais sur une **moyenne glissante
+de six mois**, assortie d'une prime de croissance et d'une décote de jeunesse. Elle ne
+saute donc plus d'un mois à l'autre — moins de 3 % de variation mensuelle sur une
+activité stable — exactement comme un repreneur regarderait tes comptes.
 
 ## Le réseau
 

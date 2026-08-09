@@ -148,16 +148,16 @@ const JOBS = [
    --------------------------------------------------------- */
 const TRAININGS = [
   { id: 'youtube', name: 'Se former sur YouTube', cost: 0, days: 20, icon: 'fa-play',
-    gain: { marketing: 6, tech: 4 }, cap: 32, source: 'auto',
+    gain: { marketing: 6, tech: 4 }, cap: 32, repeat: true, source: 'auto',
     desc: "Gratuit, lent, plafonne vite. Mais c'est un début." },
   { id: 'livres', name: 'Lire 6 livres de business', cost: 120, days: 25, icon: 'fa-book',
-    gain: { business: 8, finance: 3 }, cap: 38, source: 'auto',
+    gain: { business: 8, finance: 3 }, cap: 38, repeat: true, source: 'auto',
     desc: "Le meilleur rapport prix/apprentissage du monde." },
   { id: 'formation', name: 'Formation en ligne premium', cost: 1200, days: 30, icon: 'fa-graduation-cap',
-    gain: { marketing: 12, business: 5 }, cap: 55, source: 'paid',
+    gain: { marketing: 12, business: 5 }, cap: 55, repeat: true, source: 'paid',
     desc: "Un vrai programme, avec un vrai formateur." },
   { id: 'salesclub', name: 'Coaching vente & closing', cost: 3000, days: 40, icon: 'fa-comments',
-    gain: { social: 14, business: 5 }, cap: 62, source: 'paid',
+    gain: { social: 14, business: 5 }, cap: 62, repeat: true, source: 'paid',
     desc: "Apprendre à ne plus avoir peur de demander l'argent." },
   { id: 'bootcamp', name: 'Bootcamp développement', cost: 7500, days: 75, icon: 'fa-terminal',
     gain: { tech: 30 }, cap: 68, source: 'paid',
@@ -177,21 +177,27 @@ const SKILL_CAPS = { auto: 38, paid: 78, field: 88, mentor: 100 };
 
 /* ---------------------------------------------------------
    CANAUX PUBLICITAIRES
+   satShare : part du marché total qu'un canal peut capter chaque mois
+              en y mettant un budget illimité. Tous canaux confondus,
+              on plafonne à environ 3 % du marché par mois.
+   rampDays : temps de montée en charge. Doubler un budget ne double pas
+              les clients le lendemain — il faut des semaines, et des mois
+              pour le contenu organique.
    Chacun sature indépendamment : diversifier coûte moins cher
    que tout mettre sur un seul levier.
    --------------------------------------------------------- */
 const CHANNELS = [
-  { id: 'organic', name: 'Contenu organique', icon: 'fa-seedling', power: 1.4, satShare: 0.022,
-    skill: 'marketing', delay: 0.4,
+  { id: 'organic', name: 'Contenu organique', icon: 'fa-seedling', power: 1.4, satShare: 0.004,
+    skill: 'marketing', rampDays: 150,
     desc: "Le moins cher au client acquis, mais il faut des mois pour l'installer." },
-  { id: 'paid', name: 'Publicité payante', icon: 'fa-rectangle-ad', power: 1.0, satShare: 0.075,
-    skill: 'marketing', delay: 1,
+  { id: 'paid', name: 'Publicité payante', icon: 'fa-rectangle-ad', power: 1.0, satShare: 0.012,
+    skill: 'marketing', rampDays: 35,
     desc: "Immédiat et scalable. Coupe le budget, tout s'arrête." },
-  { id: 'influence', name: 'Influence & partenariats', icon: 'fa-star', power: 1.1, satShare: 0.04,
-    skill: 'social', delay: 0.75,
+  { id: 'influence', name: 'Influence & partenariats', icon: 'fa-star', power: 1.1, satShare: 0.007,
+    skill: 'social', rampDays: 80,
     desc: "Dépend de ta réputation. Très rentable quand on te connaît." },
-  { id: 'outbound', name: 'Prospection sortante', icon: 'fa-phone-volume', power: 0.8, satShare: 0.035,
-    skill: 'social', delay: 1,
+  { id: 'outbound', name: 'Prospection sortante', icon: 'fa-phone-volume', power: 0.8, satShare: 0.006,
+    skill: 'social', rampDays: 50,
     desc: "Du dur, du direct. Marche même sans notoriété." }
 ];
 
@@ -220,89 +226,92 @@ const ROLES = [
    cac     : coût d'acquisition d'un client, en euros
    acqBase : clients par mois qu'apporte une personne à plein temps
    ramp    : jours avant que l'affaire tourne à plein régime
+   market  : nombre de clients réellement atteignables sur le secteur
+   capPerLevel / roleCap : la capacité croît plus vite que linéairement
+             avec le niveau d'infrastructure (voir capacity() dans game.js)
    --------------------------------------------------------- */
 const BUSINESS_TYPES = [
   {
     id: 'freelance', name: 'Freelance / Consultant', icon: 'fa-user-pen', cost: 200,
     req: {}, revPerClient: 900, varCost: 0.05, fixedCost: 120, churn: 0.14,
-    capPerLevel: 4, roleCap: 3, upgradeCost: 2500, multiple: 1.2, market: 14,
+    capPerLevel: 5, roleCap: 4, upgradeCost: 2500, multiple: 1.2, market: 30,
     cac: 260, acqBase: 1.2, skill: ['social', 'business'], risk: 0.05, ramp: 30,
     desc: "Tu vends ton temps. Zéro capital, zéro scalabilité, mais du cash tout de suite."
   },
   {
     id: 'creator', name: 'Créateur de contenu', icon: 'fa-video', cost: 800,
     req: { marketing: 10 }, revPerClient: 2.2, varCost: 0.02, fixedCost: 250, churn: 0.09,
-    capPerLevel: 40000, roleCap: 20000, upgradeCost: 4000, multiple: 2.2, market: 260000,
+    capPerLevel: 60000, roleCap: 30000, upgradeCost: 4000, multiple: 2.2, market: 9000000,
     cac: 1.1, acqBase: 700, skill: ['marketing', 'social'], risk: 0.12, ramp: 120,
     desc: "Tu construis une audience. Très lent au début, imbattable ensuite."
   },
   {
     id: 'dropship', name: 'E-commerce / Dropshipping', icon: 'fa-truck-fast', cost: 3000,
     req: { marketing: 15 }, revPerClient: 55, varCost: 0.55, fixedCost: 600, churn: 0.35,
-    capPerLevel: 900, roleCap: 500, upgradeCost: 6000, multiple: 1.6, market: 9000,
+    capPerLevel: 1400, roleCap: 800, upgradeCost: 6000, multiple: 1.6, market: 420000,
     cac: 26, acqBase: 50, skill: ['marketing'], risk: 0.25, ramp: 25,
     desc: "Du cash rapide tant que la pub tourne. Coupe le budget, tout s'arrête."
   },
   {
     id: 'agence', name: 'Agence marketing', icon: 'fa-bullhorn', cost: 2500,
     req: { marketing: 25, social: 20 }, revPerClient: 2800, varCost: 0.12, fixedCost: 900, churn: 0.11,
-    capPerLevel: 5, roleCap: 4, upgradeCost: 9000, multiple: 2.4, market: 45,
+    capPerLevel: 7, roleCap: 6, upgradeCost: 9000, multiple: 2.4, market: 700,
     cac: 2100, acqBase: 0.8, skill: ['marketing', 'social'], risk: 0.1, ramp: 45,
     desc: "Marges énormes, dépendance aux clients. Le modèle préféré des ambitieux."
   },
   {
     id: 'dtc', name: 'Marque DTC', icon: 'fa-shirt', cost: 20000,
     req: { marketing: 35, business: 25 }, revPerClient: 78, varCost: 0.42, fixedCost: 3500, churn: 0.22,
-    capPerLevel: 1600, roleCap: 900, upgradeCost: 18000, multiple: 2.8, market: 13000,
+    capPerLevel: 2400, roleCap: 1300, upgradeCost: 18000, multiple: 2.8, market: 900000,
     cac: 42, acqBase: 40, skill: ['marketing', 'business'], risk: 0.18, ramp: 60,
     desc: "Ta propre marque, tes clients, ta marge. Le stock immobilise du cash."
   },
   {
     id: 'saas', name: 'Micro-SaaS', icon: 'fa-cloud', cost: 8000,
     req: { tech: 35 }, revPerClient: 49, varCost: 0.08, fixedCost: 1200, churn: 0.06,
-    capPerLevel: 3000, roleCap: 1500, upgradeCost: 14000, multiple: 5.5, market: 32000,
+    capPerLevel: 4500, roleCap: 2400, upgradeCost: 14000, multiple: 5.5, market: 950000,
     cac: 85, acqBase: 25, skill: ['tech', 'marketing'], risk: 0.08, ramp: 90,
     desc: "Long à démarrer, revenus récurrents, valorisation énorme à la revente."
   },
   {
     id: 'foodtruck', name: 'Food truck', icon: 'fa-burger', cost: 32000,
     req: { business: 15 }, revPerClient: 17, varCost: 0.38, fixedCost: 2200, churn: 0.28,
-    capPerLevel: 1400, roleCap: 700, upgradeCost: 15000, multiple: 1.8, market: 4200,
+    capPerLevel: 2000, roleCap: 1100, upgradeCost: 15000, multiple: 1.8, market: 65000,
     cac: 7.5, acqBase: 80, skill: ['business', 'social'], risk: 0.15, ramp: 30,
     desc: "Un vrai commerce, mobile, avec des marges honnêtes et des journées longues."
   },
   {
     id: 'resto', name: 'Restaurant', icon: 'fa-utensils', cost: 140000,
     req: { business: 40, finance: 25 }, revPerClient: 42, varCost: 0.36, fixedCost: 14000, churn: 0.24,
-    capPerLevel: 2200, roleCap: 900, upgradeCost: 45000, multiple: 2.0, market: 9000,
+    capPerLevel: 3200, roleCap: 1400, upgradeCost: 45000, multiple: 2.0, market: 260000,
     cac: 19, acqBase: 110, skill: ['business', 'social'], risk: 0.22, ramp: 45,
     desc: "Charges fixes lourdes, ego flatté. On n'y va pas pour la rentabilité."
   },
   {
     id: 'immo', name: 'Agence immobilière', icon: 'fa-key', cost: 65000,
     req: { business: 45, social: 40, finance: 30 }, revPerClient: 5200, varCost: 0.2, fixedCost: 7000, churn: 0.16,
-    capPerLevel: 6, roleCap: 5, upgradeCost: 25000, multiple: 2.6, market: 65,
+    capPerLevel: 9, roleCap: 7, upgradeCost: 25000, multiple: 2.6, market: 2600,
     cac: 3200, acqBase: 1.0, skill: ['social', 'business'], risk: 0.12, ramp: 60,
     desc: "Peu de transactions, grosses commissions. Tout repose sur la confiance."
   },
   {
     id: 'studio', name: 'Studio de jeux vidéo', icon: 'fa-gamepad', cost: 95000,
     req: { tech: 55, marketing: 30 }, revPerClient: 9, varCost: 0.12, fixedCost: 16000, churn: 0.05,
-    capPerLevel: 30000, roleCap: 12000, upgradeCost: 60000, multiple: 4.0, market: 320000,
+    capPerLevel: 45000, roleCap: 20000, upgradeCost: 60000, multiple: 4.0, market: 8000000,
     cac: 4.5, acqBase: 350, skill: ['tech', 'marketing'], risk: 0.35, ramp: 150,
     desc: "Tout ou rien. Un flop et tu fermes, un hit et tu es riche à vie."
   },
   {
     id: 'ia', name: 'Startup IA', icon: 'fa-microchip', cost: 250000,
     req: { tech: 70, business: 50, finance: 40 }, revPerClient: 320, varCost: 0.25, fixedCost: 55000, churn: 0.05,
-    capPerLevel: 900, roleCap: 400, upgradeCost: 150000, multiple: 9.0, market: 6000,
+    capPerLevel: 1400, roleCap: 700, upgradeCost: 150000, multiple: 9.0, market: 160000,
     cac: 850, acqBase: 6, skill: ['tech', 'business'], risk: 0.3, ramp: 180,
     desc: "Brûle du cash comme un réacteur. Si ça prend, la valorisation explose."
   },
   {
     id: 'holding', name: "Holding d'investissement", icon: 'fa-landmark', cost: 400000,
     req: { finance: 70, business: 65 }, revPerClient: 14000, varCost: 0.05, fixedCost: 30000, churn: 0.04,
-    capPerLevel: 6, roleCap: 4, upgradeCost: 220000, multiple: 6.0, market: 42,
+    capPerLevel: 8, roleCap: 6, upgradeCost: 220000, multiple: 6.0, market: 420,
     cac: 11000, acqBase: 0.5, skill: ['finance', 'business'], risk: 0.1, ramp: 90,
     desc: "Tu ne construis plus : tu rachètes ce que d'autres ont construit."
   }

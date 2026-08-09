@@ -407,25 +407,25 @@ const EVENTS = [
     id: 'marche_tendu', title: "Le marché du travail se tend",
     text: "Tout le monde recrute sur ton secteur. Les prétentions salariales explosent.",
     cond: s => s.day > 700,
-    global: true,
+    global: true, cooldown: 1440,
     choices: [
       {
         label: "S'aligner sur le marché", custom: s => {
-          s.wageIndex = (s.wageIndex || 1) * 1.15;
+          s.wageIndex = Math.min(2.6, (s.wageIndex || 1) * 1.15);
           s.companies.forEach(c => c.staff.forEach(e => { e.salary = Math.round(e.salary * 1.12); e.morale = clamp(e.morale + 10, 0, 100); }));
           addLog(s, "Masse salariale +12%, mais personne ne part.", 'warn');
         }
       },
       {
         label: "Tenir les salaires", custom: s => {
-          s.wageIndex = (s.wageIndex || 1) * 1.15;
+          s.wageIndex = Math.min(2.6, (s.wageIndex || 1) * 1.15);
           s.companies.forEach(c => c.staff.forEach(e => e.morale = clamp(e.morale - 16, 0, 100)));
           addLog(s, "Tu tiens tes coûts. Le moral en prend un coup.", 'warn');
         }
       },
       {
         label: "Compenser autrement (télétravail, congés)", custom: s => {
-          s.wageIndex = (s.wageIndex || 1) * 1.15;
+          s.wageIndex = Math.min(2.6, (s.wageIndex || 1) * 1.15);
           s.companies.forEach(c => { c.staff.forEach(e => e.morale = clamp(e.morale + 6, 0, 100)); c.cash -= 3000; });
           addLog(s, "Des avantages plutôt que du salaire. Ça tient, pour l'instant.", 'info');
         }
@@ -856,7 +856,7 @@ const EVENTS = [
     id: 'crise', title: "Crise économique",
     text: "Les marchés dévissent, les clients coupent leurs budgets, les banques ferment le robinet.",
     cond: s => s.day > 720,
-    global: true,
+    global: true, cooldown: 1800,
     choices: [
       {
         label: "Réduire les coûts immédiatement", custom: s => {
@@ -895,7 +895,7 @@ const EVENTS = [
     id: 'boom', title: "Le marché s'emballe",
     text: "Tout le monde consomme, les investisseurs signent des chèques, ton secteur est à la mode.",
     cond: s => s.day > 540,
-    global: true,
+    global: true, cooldown: 1620,
     choices: [
       { label: "Profiter de la vague", custom: s => { s.marketMood = 1.35; addLog(s, "Vent dans le dos pendant plusieurs mois.", 'good'); } },
       {
