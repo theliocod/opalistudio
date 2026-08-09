@@ -144,7 +144,7 @@ function render() {
   $('#tab-content').innerHTML = map[TAB]();
   bindEvents();
   renderPhone();
-  if (S.scene) renderScene();
+  if (S.scene) renderScene(); else closeScenePanel();
   save();
 }
 

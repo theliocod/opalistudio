@@ -306,15 +306,25 @@ function promptEvent(entry) {
    SCÈNE ISOMÉTRIQUE
    ========================================================= */
 
+/* Referme le panneau de scène. Appelé aussi bien en quittant un
+   événement qu'à chaque rendu où plus aucune scène n'est en cours. */
+function closeScenePanel() {
+  const el = $('#scene');
+  el.classList.add('hidden');
+  el.innerHTML = '';
+  document.body.classList.remove('no-scroll');
+}
+
 function renderScene() {
   const sc = S.scene;
   const el = $('#scene');
-  if (!sc) { el.classList.add('hidden'); el.innerHTML = ''; render(); return; }
+  if (!sc) { closeScenePanel(); return; }
 
   const room = ROOMS[sc.room];
   const remaining = sc.guests.filter(g => !g.talked).length;
 
   el.classList.remove('hidden');
+  document.body.classList.add('no-scroll');
   el.innerHTML = `
     <div class="scene-wrap">
       <div class="scene-head">

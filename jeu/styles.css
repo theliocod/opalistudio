@@ -876,3 +876,5 @@ a.back-link:hover { color: var(--orange); }
   .phone-dock { right: 12px; bottom: 12px; }
   .iso-room { width: 92vw; }
 }
+
+body.no-scroll { overflow: hidden; }
