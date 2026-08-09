@@ -658,6 +658,35 @@ function renderPilotage(c) {
     </div>
 
     <div>
+      <h4>Est-ce que ta publicité rapporte ?</h4>
+      ${(() => {
+        const cac = realCAC(c);
+        const ltv = clientValue(c);
+        const ret = acquisitionReturn(c);
+        const life = clientLifetime(c);
+        const acqM = dailyAcquisition(c) * DAYS_PER_MONTH;
+        const capM = absorptionCap(c) * DAYS_PER_MONTH;
+        const saturated = acqM > capM * 0.97;
+        const cap = capacity(c);
+        const full = c.clients >= cap * 0.95;
+        const cls = full || ret < 1 ? 'bad' : ret >= 1.6 ? 'good' : '';
+        return `
+        <div class="acq ${cls}">
+          <div class="acq-grid">
+            <div><span>Un client te coûte</span><b>${isFinite(cac) ? fmt(cac) : '—'}</b></div>
+            <div><span>Un client te rapporte</span><b>${fmt(ltv)}</b></div>
+            <div><span>Il reste</span><b>${life.toFixed(1)} mois</b></div>
+            <div><span>Retour</span><b class="${ret >= 1 ? 'pos' : 'neg'}">${ret > 0 ? ret.toFixed(1) + '×' : '—'}</b></div>
+          </div>
+          <p>
+            ${ret >= 1.6 ? `Chaque euro de publicité en rapporte ${ret.toFixed(1)}. Tu peux pousser les budgets.`
+              : ret >= 1 ? `Chaque euro rapporte ${ret.toFixed(1)} : c'est rentable, mais la marge est mince.`
+              : `<b>Chaque euro de publicité te fait perdre de l'argent.</b> Un client te coûte plus cher qu'il ne te rapportera. Baisse les budgets, monte tes prix, ou fais rester tes clients plus longtemps (qualité, support).`}
+            ${full ? `<br><b class="neg">Ta capacité est saturée</b> : tu sers déjà ${num(c.clients)} clients pour une capacité de ${num(cap)}. Les nouveaux clients que tu payes repartent presque aussitôt. Monte ton niveau d'infrastructure ou recrute aux opérations <b>avant</b> d'augmenter la publicité.` : ''}
+            ${saturated && !full ? `<br><b class="warn">Tu as atteint ta limite d'absorption</b> : environ ${num(capM)} nouveaux clients par mois. Au-delà, chaque client supplémentaire coûte de plus en plus cher — augmenter le budget maintenant ne sert quasiment à rien.` : ''}
+          </p>
+        </div>`;
+      })()}
       <h4>Canaux d'acquisition</h4>
       ${(() => {
         const burn = projectedCosts(c) - projectedRevenue(c);

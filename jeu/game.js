@@ -384,12 +384,53 @@ function dailyAcquisition(c) {
     * (1 - marketShare(c))
     * rand(0.9, 1.1);
 
-  // Une entreprise ne peut pas absorber une croissance illimitée : recruter,
-  // livrer, servir et structurer prennent du temps. Au-delà d'environ 18 %
-  // de croissance mensuelle, ce qui arriverait en plus se perd.
+  // Une entreprise n'absorbe pas une croissance illimitée : recruter, livrer,
+  // servir et structurer prennent du temps. Au-delà d'environ 18 % de croissance
+  // mensuelle, chaque client supplémentaire coûte de plus en plus cher à aller
+  // chercher — l'argent n'est pas perdu, mais son rendement s'effondre.
+  const cap = absorptionCap(c);
+  if (acq <= cap) return acq;
+  return cap * (1 + Math.log1p((acq - cap) / cap) * 0.3);
+}
+
+/* Ce que l'entreprise peut absorber de nouveaux clients par jour sans casser. */
+function absorptionCap(c) {
   const socle = Math.max(marketSize(c) * 0.0002, 1.5) / DAYS_PER_MONTH;
-  const maxGrowth = socle + c.clients * 0.18 / DAYS_PER_MONTH;
-  return Math.min(acq, maxGrowth);
+  return socle + c.clients * 0.18 / DAYS_PER_MONTH;
+}
+
+/* ---- Économie de l'acquisition, telle que le joueur doit la lire ---- */
+
+// Marge dégagée par un client chaque mois, une fois les coûts variables payés
+function clientMargin(c) {
+  const t = getType(c);
+  return t.revPerClient * c.price * S.marketMood * (1 - t.varCost * (c.costMod || 1));
+}
+
+// Combien de mois un client reste, en moyenne
+function clientLifetime(c) {
+  const monthly = dailyChurn(c) * DAYS_PER_MONTH;
+  return monthly > 0 ? 1 / monthly : 0;
+}
+
+// Ce que rapporte un client sur toute sa durée de vie
+function clientValue(c) {
+  return clientMargin(c) * clientLifetime(c);
+}
+
+// Ce que te coûte réellement un client acquis, budgets d'acquisition compris
+function realCAC(c) {
+  const perMonth = dailyAcquisition(c) * DAYS_PER_MONTH;
+  if (perMonth <= 0.01) return Infinity;
+  return adSpendMonthly(c) / perMonth;
+}
+
+// Rapport entre ce qu'un client rapporte et ce qu'il coûte : au-dessus de 1,
+// chaque euro de publicité crée de la valeur ; en dessous, il en détruit.
+function acquisitionReturn(c) {
+  const cac = realCAC(c);
+  if (!isFinite(cac) || cac <= 0) return 0;
+  return clientValue(c) / cac;
 }
 
 function dailyChurn(c) {

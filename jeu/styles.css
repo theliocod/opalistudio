@@ -878,3 +878,16 @@ a.back-link:hover { color: var(--orange); }
 }
 
 body.no-scroll { overflow: hidden; }
+
+/* Économie de l'acquisition */
+.acq {
+  padding: 13px 15px; margin: 8px 0 16px; border-radius: var(--radius-sm);
+  background: var(--bg-2); border: 1px solid var(--line); border-left-width: 3px;
+}
+.acq.good { border-left-color: var(--pos); }
+.acq.bad { border-left-color: var(--neg); background: rgba(239, 68, 68, .07); }
+.acq-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 9px; }
+.acq-grid span { display: block; font-size: .64rem; color: var(--txt-3); text-transform: uppercase; letter-spacing: .05em; font-weight: 800; }
+.acq-grid b { font-size: .95rem; font-weight: 800; }
+.acq p { font-size: .79rem; color: var(--txt-2); line-height: 1.55; margin: 0; }
+@media (max-width: 700px) { .acq-grid { grid-template-columns: repeat(2, 1fr); } }
