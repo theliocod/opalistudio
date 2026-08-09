@@ -85,6 +85,7 @@ function createCompany(type, name) {
     lastProfit: 0,
     avgRevenue: 0,
     avgProfit: 0,
+    history: [],
     growth: 0,
     revenueAgo: 0,
     blocked: null,
@@ -1023,6 +1024,25 @@ function tick() {
     const k = 1 / 180;
     c.avgRevenue = c.avgRevenue === undefined ? c.lastRevenue : c.avgRevenue + (c.lastRevenue - c.avgRevenue) * k;
     c.avgProfit = c.avgProfit === undefined ? c.lastProfit : c.avgProfit + (c.lastProfit - c.avgProfit) * k;
+
+    // Photo mensuelle des comptes, pour l'onglet Finances
+    if (c.days % 30 === 0) {
+      const tt = getType(c);
+      c.history.push({
+        d: S.day,
+        rev: c.lastRevenue,
+        cost: c.lastCosts,
+        profit: c.lastProfit,
+        clients: Math.round(c.clients),
+        cash: Math.round(c.cash),
+        staff: c.staff.length,
+        ads: adSpendMonthly(c),
+        payroll: payrollMonthly(c),
+        fixed: tt.fixedCost * Math.pow(c.level, 1.35),
+        variable: c.lastRevenue * tt.varCost * (c.costMod || 1)
+      });
+      if (c.history.length > 600) c.history.shift();
+    }
 
     // Croissance annualisée du chiffre d'affaires, elle aussi lissée
     if (c.days % 30 === 0) {

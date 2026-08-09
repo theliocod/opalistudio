@@ -139,7 +139,8 @@ function render() {
 
   const map = {
     vie: renderVie, carriere: renderCarriere, business: renderBusiness,
-    reseau: renderReseau, patrimoine: renderPatrimoine, journal: renderJournal
+    reseau: renderReseau, finances: renderFinances, patrimoine: renderPatrimoine,
+    journal: renderJournal
   };
   $('#tab-content').innerHTML = map[TAB]();
   bindEvents();
@@ -203,6 +204,7 @@ function renderTabs() {
     ['vie', 'Vie & planning', 'fa-calendar-day', 0],
     ['carriere', 'Carrière', 'fa-briefcase', 0],
     ['business', 'Entreprises', 'fa-rocket', S.companies.length],
+    ['finances', 'Finances', 'fa-chart-column', 0],
     ['reseau', 'Réseau', 'fa-address-book', S.contacts.length],
     ['patrimoine', 'Patrimoine', 'fa-chart-line', 0],
     ['journal', 'Journal', 'fa-book-open', 0]
@@ -252,6 +254,7 @@ function renderVie() {
   ['sport', 'social', 'network'].forEach(a => rows.push(planRow(a, undefined, PLAN_ACTS[a].name, '')));
 
   return `
+  ${renderGuide()}
   <div class="cols">
    <div class="col">
     <section class="card">
@@ -1240,6 +1243,9 @@ function handleAction(act, d) {
       confirmBox(`Vendre ${c.name} ?`, `Tu récupères ${fmtFull((valuation(c) + c.cash) * c.equity)}.`, () => sellCompany(id));
       break;
     }
+
+    case 'goTab': TAB = id; render(); window.scrollTo({ top: 0, behavior: 'smooth' }); break;
+    case 'guideOff': S.guideOff = true; render(); break;
 
     case 'signup': signUp(id); break;
     case 'attend': attendEvent(id); break;
