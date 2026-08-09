@@ -967,3 +967,16 @@ body.no-scroll { overflow: hidden; }
 .rival-head b { font-size: .9rem; }
 .rival-head b i { color: var(--orange); margin-right: 7px; }
 .rival .btn-row { margin-top: 10px; margin-bottom: 0; }
+
+/* ---------------- Famille ---------------- */
+.fam-row { display: flex; gap: 14px; padding: 14px; background: var(--card-2); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); }
+.fam-row .mini-av .avatar { border-radius: 50%; }
+.fam-main { flex: 1; min-width: 0; }
+.fam-main b { font-size: .95rem; }
+.fam-main .metric { margin-top: 8px; }
+.fam-main .btn-row { margin-top: 10px; margin-bottom: 0; }
+.kids { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; }
+.kid { display: flex; gap: 11px; padding: 11px; background: var(--card-2); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); }
+.kid .mini-av .avatar { border-radius: 50%; }
+.kid > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.kid b { font-size: .87rem; }

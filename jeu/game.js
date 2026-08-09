@@ -129,6 +129,8 @@ function newGame(name, originId, look) {
     look: null,
     plan: [{ act: 'sport', hours: 1 }, { act: 'social', hours: 1 }],
     calendar: [],
+    family: { partner: null, children: [], friends: 55 },
+    forcedEvent: null,
     luxury: [],
     attending: null,
     scene: null,
@@ -961,6 +963,10 @@ function tick() {
     S.money -= hours.social * 8;
     dayOutcome += hours.social * 8;
   }
+  if (hours.family) {
+    // du temps donné aux siens repose autant qu'il coûte
+    S.energy = clamp(S.energy + hours.family * 0.25, 0, S.maxEnergy);
+  }
   if (hours.network) {
     gainSkill({ social: hours.network * 0.05 }, 1, 'field');
     S.reputation = clamp(S.reputation + hours.network * 0.012, 0, 100);
@@ -1148,6 +1154,8 @@ function tick() {
   S.marketMood += (1 - S.marketMood) * 0.008;
   if (S.contrarian) { S.contrarian--; if (!S.contrarian) S.companies.forEach(c => c.hype = 1.1); }
 
+  tickFamily(S);
+
   /* ---------- Objectifs, temps, fin ---------- */
   GOALS.forEach(g => {
     if (!S.goals.includes(g.id) && g.check(S)) {
@@ -1257,6 +1265,17 @@ function advance(days) {
 }
 
 function rollEvent() {
+  // Certaines choses n'attendent pas le tirage au sort
+  if (S.forcedEvent) {
+    const forced = EVENTS.find(e => e.id === S.forcedEvent);
+    S.forcedEvent = null;
+    if (forced) {
+      if (forced.dynamic) {
+        const d = forced.dynamic(S);
+        if (d) { forced._text = d.text; forced._ref = d.ref; return forced; }
+      } else { forced._text = forced.text; forced._ref = null; return forced; }
+    }
+  }
   if (Math.random() > CONFIG.eventChance) return null;
   const pool = EVENTS.filter(e => {
     // Un événement ponctuel n'arrive qu'une fois ; un événement récurrent

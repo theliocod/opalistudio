@@ -225,6 +225,7 @@ const PLAN_ACTS = {
   study: { name: "Formation", icon: 'fa-graduation-cap', color: '#a78bfa' },
   sport: { name: "Sport", icon: 'fa-dumbbell', color: '#22c55e' },
   social: { name: "Vie sociale", icon: 'fa-champagne-glasses', color: '#f472b6' },
+  family: { name: "Famille", icon: 'fa-heart', color: '#ef4444' },
   network: { name: "Réseautage", icon: 'fa-users-line', color: '#facc15' }
 };
 
@@ -250,6 +251,11 @@ function renderVie() {
     const t = TRAININGS.find(x => x.id === S.training.id);
     const pct = Math.round((S.training.progress / t.days) * 100);
     rows.push(planRow('study', undefined, `${t.name} — ${pct}% fait`, ''));
+  }
+  const fam = initFamily(S);
+  if (fam.partner || fam.children.length) {
+    rows.push(planRow('family', undefined,
+      `Famille — ${familyNeed(S).toFixed(1)}h attendues`, ''));
   }
   ['sport', 'social', 'network'].forEach(a => rows.push(planRow(a, undefined, PLAN_ACTS[a].name, '')));
 
@@ -328,6 +334,8 @@ function renderVie() {
           </div>`).join('')}
       </div>
     </section>
+
+    ${renderFamily()}
 
     <section class="card">
       <h2><i class="fas fa-trophy"></i> Objectifs de vie</h2>
@@ -1326,6 +1334,15 @@ function handleAction(act, d) {
     case 'sell': {
       const c = S.companies.find(x => x.uid === id);
       confirmBox(`Vendre ${c.name} ?`, `Tu récupères ${fmtFull((valuation(c) + c.cash) * c.equity)}.`, () => sellCompany(id));
+      break;
+    }
+
+    case 'marry': proposeMarriage(); break;
+    case 'breakup': {
+      const p = initFamily(S).partner;
+      confirmBox(`Mettre fin à ta relation avec ${p.name} ?`,
+        p.married ? "Un divorce te coûtera entre 30 et 45 % de ton patrimoine." : "Vous vous séparez, sans conséquence financière.",
+        () => breakUp());
       break;
     }
 

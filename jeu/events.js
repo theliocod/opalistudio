@@ -70,10 +70,26 @@ const EVENTS = [
   },
   {
     id: 'rencontre', title: "Tu rencontres quelqu'un",
-    text: "Un dîner, une conversation qui dure jusqu'à 3h du matin. Ça fait longtemps que ça ne t'était pas arrivé.",
-    cond: s => !s.flags.includes('couple') && s.happiness > 35 && s.day > 180,
+    text: null,
+    dynamic: s => {
+      const p = makePartner();
+      const t = partnerTrait(p);
+      return {
+        text: `Un dîner, une conversation qui dure jusqu'à 3 h du matin. ${p.name} — ${t.desc.toLowerCase()} Ça fait longtemps que ça ne t'était pas arrivé.`,
+        ref: { p }
+      };
+    },
+    cond: s => !initFamily(s).partner && s.happiness > 35 && s.day > 180,
     choices: [
-      { label: "Se lancer dans la relation", effects: { happiness: 18 }, flag: 'couple' },
+      {
+        label: "Se lancer dans la relation", custom: (s, ref) => {
+          initFamily(s).partner = ref.p;
+          if (!s.flags.includes('couple')) s.flags.push('couple');
+          if (!planEntry('family')) setPlan('family', 1);
+          addHappiness(18);
+          addLog(s, `Tu es en couple avec ${ref.p.name}. Pense à lui donner des heures dans ton planning.`, 'good');
+        }
+      },
       {
         label: "Rester concentré sur le business", effects: { happiness: -6 },
         custom: s => { s.focusBonus = (s.focusBonus || 0) + 0.05; addLog(s, "Tu choisis le travail. +5% d'efficacité sur tout ce que tu fais.", 'info'); }
@@ -83,11 +99,109 @@ const EVENTS = [
   {
     id: 'enfant', title: "Un enfant arrive",
     text: "Le test est positif. Tout change.",
-    cond: s => s.flags.includes('couple') && !s.flags.includes('parent') && s.age >= 25,
+    cond: s => initFamily(s).partner && initFamily(s).partner.relation > 45 && s.age >= 25 && initFamily(s).children.length < 3,
+    global: true, cooldown: 1080,
+    choices: [
+      { label: "Fonder une famille", custom: s => haveChild() },
+      {
+        label: "Ce n'est pas le moment", custom: s => {
+          const f = initFamily(s);
+          if (f.partner) f.partner.relation = clamp(f.partner.relation - 22, 0, 100);
+          addHappiness(-8);
+          addLog(s, "Décision prise à deux, mal vécue par un seul.", 'warn');
+        }
+      }
+    ]
+  },
+  {
+    id: 'crise_couple', title: "La conversation qu'on repousse",
+    text: null,
+    dynamic: s => {
+      const p = initFamily(s).partner;
+      if (!p) return null;
+      return { text: `${p.name} t'attend dans le salon, sans téléphone, sans télé. « On ne se voit plus. Je ne sais même pas ce que tu fais de tes journées. Dis-moi ce qu'on fait. »`, ref: { p } };
+    },
+    cond: s => { const p = initFamily(s).partner; return p && p.relation < 30; },
+    global: true, cooldown: 300,
     choices: [
       {
-        label: "Devenir père", effects: { happiness: 22 }, flag: 'parent',
-        custom: s => { s.lifeCost = (s.lifeCost || 0) + 700; addLog(s, "Coût de vie +700€/mois, et deux heures utiles en moins par jour.", 'info'); }
+        label: "Lever le pied pendant un moment", custom: (s, ref) => {
+          setPlan('family', Math.min(5, familyHours() + 3));
+          s.plan.forEach(pl => { if (pl.act === 'biz' && pl.hours > 2) pl.hours -= 2; });
+          ref.p.relation = clamp(ref.p.relation + 28, 0, 100);
+          addLog(s, `Tu réorganises tes journées autour de ${ref.p.name}. Le travail attendra.`, 'good');
+        }
+      },
+      {
+        label: "Promettre que ça ira mieux après", custom: (s, ref) => {
+          ref.p.relation = clamp(ref.p.relation + 8, 0, 100);
+          ref.p.promises = (ref.p.promises || 0) + 1;
+          if (ref.p.promises >= 3) {
+            addLog(s, `${ref.p.name} a déjà entendu ça deux fois. Cette fois, il n'y croit plus.`, 'bad');
+            ref.p.relation = clamp(ref.p.relation - 20, 0, 100);
+          } else {
+            addLog(s, "Tu gagnes du temps. Pas la paix.", 'warn');
+          }
+        }
+      },
+      {
+        label: "Reconnaître que ça ne marche plus", custom: s => breakUp()
+      }
+    ]
+  },
+  {
+    id: 'enfant_absent', title: "Ton enfant ne te raconte plus rien",
+    text: null,
+    dynamic: s => {
+      const k = initFamily(s).children.find(x => x.bond < 35 && childAge(x) >= 6);
+      if (!k) return null;
+      return { text: `${k.name} a ${childAge(k)} ans. Sa maîtresse t'a appelé : il a écrit une rédaction sur « quelqu'un que j'admire » et il a choisi son entraîneur de foot.`, ref: { k } };
+    },
+    cond: s => initFamily(s).children.some(k => k.bond < 35 && childAge(k) >= 6),
+    global: true, cooldown: 540,
+    choices: [
+      {
+        label: "Bloquer du temps pour lui, vraiment", custom: (s, ref) => {
+          setPlan('family', familyHours() + 2);
+          ref.k.bond = clamp(ref.k.bond + 25, 0, 100);
+          addHappiness(6);
+          addLog(s, `Tu réserves deux heures par jour aux tiens. ${ref.k.name} l'a remarqué tout de suite.`, 'good');
+        }
+      },
+      {
+        label: "Lui offrir quelque chose de cher", custom: (s, ref) => {
+          s.money -= 3000;
+          ref.k.bond = clamp(ref.k.bond + 6, 0, 100);
+          addLog(s, "Il est content deux jours. Ce n'était pas la question.", 'warn');
+        }
+      },
+      { label: "Il comprendra plus tard", effects: { happiness: -9 } }
+    ]
+  },
+  {
+    id: 'enfant_boite', title: "Ton enfant veut travailler avec toi",
+    text: null,
+    dynamic: s => {
+      const k = initFamily(s).children.find(x => childAge(x) >= 18 && x.bond > 55);
+      if (!k || !s.companies.length) return null;
+      return { text: `${k.name} a ${childAge(k)} ans et te demande d'entrer dans l'entreprise. « Je veux apprendre avec toi. »`, ref: { k, c: biggest(s) } };
+    },
+    cond: s => initFamily(s).children.some(k => childAge(k) >= 18 && k.bond > 55) && s.companies.length > 0,
+    choices: [
+      {
+        label: "Le prendre dans l'équipe", custom: (s, ref) => {
+          const cand = makeCandidate(pick(ROLES).id, 0.25);
+          cand.name = ref.k.name; cand.look = ref.k.look; cand.trait = 'debutant'; cand.revealed = true; cand.ask = 1800;
+          ref.c.applicants.push(cand);
+          ref.k.bond = clamp(ref.k.bond + 15, 0, 100);
+          addLog(s, `${ref.k.name} postule chez ${ref.c.name}. À toi de voir s'il a le niveau.`, 'good');
+        }
+      },
+      {
+        label: "Lui dire d'aller faire ses armes ailleurs", custom: (s, ref) => {
+          ref.k.bond = clamp(ref.k.bond - 10, 0, 100);
+          addLog(s, "Il encaisse mal, mais il te donnera peut-être raison dans dix ans.", 'info');
+        }
       }
     ]
   },
