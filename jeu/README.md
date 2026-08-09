@@ -112,11 +112,72 @@ mécaniques : compte publicitaire suspendu, client qui pèse 40 % du chiffre, as
 qui veut sortir, cabinet qui te démarche, marché du travail qui se tend, salarié qui
 craque, ancien employé qui te copie, réglementation nouvelle.
 
+
+## Ton personnage
+
+Avant de commencer, tu dessines ton avatar : teint, coiffure et sa couleur,
+pilosité, regard, tenue et sa couleur, accessoires. Tout est en SVG, donc net à
+n'importe quelle taille et sans une seule image à charger.
+
+Le même système donne un visage à **tout le monde** : tes contacts, tes salariés,
+tes candidats et les gens que tu croises en soirée. Chaque personne garde le
+sien d'une session à l'autre.
+
+## Le téléphone
+
+Un smartphone accessible en permanence en bas à droite, avec six applications :
+
+| App | Ce qu'elle fait |
+|---|---|
+| Contacts | ton réseau avec les visages, la relation, et les boutons pour voir quelqu'un ou lui demander un service |
+| Agenda | le calendrier du mois, les jours où il se passe quelque chose, et l'inscription aux événements |
+| Sorties | le catalogue des événements existants, leur prix, leur niveau et ce qu'il faut pour y entrer |
+| Recevoir | organiser une soirée chez toi, du simple apéro au rooftop privatisé |
+| Train de vie | acheter et revendre voitures, montres, immobilier, yacht, jet, art |
+| Journal | le fil des événements de ta vie |
+
+## Sortir, en vrai
+
+Sept types d'événements existent, de l'afterwork d'indépendants au sommet des
+investisseurs, chacun avec son prix d'entrée, son niveau de fréquentation et ses
+conditions d'accès. Ils apparaissent dans ton agenda à des dates précises ; tu
+t'inscris, et le jour venu la simulation s'arrête pour te demander si tu y vas.
+
+Quand tu y vas, **tu vois la salle** : une scène isométrique avec le décor du
+lieu et les gens présents, chacun avec son visage. Tu cliques sur quelqu'un pour
+l'aborder, et tu choisis ton approche — aller droit au but, le faire parler de
+lui, sortir tes chiffres, raconter ton histoire, rentrer dans la technique,
+détendre avec une vanne. Chaque approche teste une compétence différente contre
+le niveau de ton interlocuteur, et le pourcentage de réussite est affiché avant
+que tu choisisses.
+
+Ce que tu en tires dépend de qui c'est : un fondateur entre dans ton carnet
+d'adresses, un investisseur peut mettre au pot, un grand compte te signe des
+clients, un profil rare postule chez toi, un journaliste te fait gagner de la
+réputation, un vieux briscard te transmet ce qu'il sait. Rater une approche
+coûte l'occasion — on ne parle qu'une fois à chaque personne.
+
+Tu peux aussi **recevoir chez toi**. Cinq formats, du dîner à six couverts à la
+soirée rooftop, chacun demandant un logement à la hauteur. La fête d'entreprise,
+elle, remonte le moral de toutes tes équipes d'un coup.
+
+## Le train de vie
+
+Douze actifs, de la citadine d'occasion au jet privé, en passant par les montres,
+le penthouse, le manoir, le yacht et la collection d'art. Chacun a un prix, un
+entretien mensuel qui tombe tous les jours, un gain de réputation et de moral, et
+une valeur de revente — certains perdent la moitié de leur valeur, la montre de
+collection et l'art en gagnent. Le penthouse et le manoir deviennent ton
+logement, et débloquent les grandes soirées.
+
 ## Fichiers
 
 | Fichier | Rôle |
 |---|---|
+| `avatar.js` | générateur d'avatars SVG (visages, corps, coiffures, tenues) |
 | `data.js` | origines, logements, emplois, formations, types d'entreprise, canaux, postes, placements, objectifs |
+| `social.js` | lieux et événements, soirées, actifs de luxe, profils rencontrés, décors isométriques |
+| `scene.js` | le téléphone, les scènes isométriques et les conversations |
 | `people.js` | génération des candidats et des contacts, traits de caractère |
 | `events.js` | les 46 événements et leurs conséquences |
 | `game.js` | le moteur : tick journalier, économie, équipes, marché du travail, apprentissage |

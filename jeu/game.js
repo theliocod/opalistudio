@@ -4,7 +4,7 @@
    canaux d'acquisition, apprentissage, marché du travail.
    ========================================================= */
 
-const SAVE_KEY = 'empire_save_v2';
+const SAVE_KEY = 'empire_save_v3';
 
 let S = null;          // état de la partie
 let PENDING = null;    // événement en attente de décision
@@ -96,7 +96,7 @@ function hireFrom(cand) {
   };
 }
 
-function newGame(name, originId) {
+function newGame(name, originId, look) {
   const o = ORIGINS.find(x => x.id === originId);
   S = {
     name: name || 'Alex',
@@ -120,7 +120,13 @@ function newGame(name, originId) {
     prices: {},
     housingId: 'parents',
     lifeCost: 0,
+    look: null,
     plan: [{ act: 'sport', hours: 1 }, { act: 'social', hours: 1 }],
+    calendar: [],
+    luxury: [],
+    attending: null,
+    scene: null,
+    partyCount: 0,
     training: null,
     doneTrainings: [],
     flags: o.flags.slice(),
@@ -136,6 +142,8 @@ function newGame(name, originId) {
     history: []
   };
   ASSETS.forEach(a => S.prices[a.id] = a.price);
+  S.look = look || defaultLook();
+  refreshCalendar();
   if (S.flags.includes('connected')) { S.contacts.push(makeContact(45)); S.contacts.push(makeContact(35)); }
   addLog(S, `${S.name}, ${CONFIG.startAge} ans. ${o.name}. Tout commence maintenant.`, 'info');
   addLog(S, o.perk, 'info');
@@ -402,9 +410,24 @@ function portfolioValue(s) {
 }
 function netWorth(s) {
   const comp = s.companies.reduce((a, c) => a + valuation(c) * c.equity + c.cash * c.equity, 0);
-  return s.money - s.debt + comp + portfolioValue(s);
+  return s.money - s.debt + comp + portfolioValue(s) + luxuryValue(s);
 }
-function housing(s) { return HOUSING.find(h => h.id === s.housingId); }
+function housing(s) {
+  const h = HOUSING.find(x => x.id === s.housingId);
+  if (h) return h;
+  const lux = LUXURY.find(l => l.id === s.housingId);
+  if (lux && lux.housing) return { id: lux.id, name: lux.name, cost: 0, icon: lux.icon, desc: lux.desc, ...lux.housing };
+  return HOUSING[0];
+}
+
+/* Niveau de standing du logement, utilisé pour savoir quelles
+   soirées on peut recevoir chez soi. */
+function housingTier(s) {
+  const i = HOUSING.findIndex(h => h.id === s.housingId);
+  if (i >= 0) return i;
+  const lux = LUXURY.find(l => l.id === s.housingId);
+  return lux && lux.housing ? 5 : 0;
+}
 function totalLifeCost(s) { return housing(s).cost + (s.lifeCost || 0); }
 function debtCeiling(s) {
   return Math.max(15000, netWorth(s) * 0.5 + monthlyBusinessProfit(s) * 24 + (s.job ? s.job.salary * 20 : 0));
@@ -893,7 +916,7 @@ function tick() {
   });
 
   /* ---------- Coût de vie, dettes ---------- */
-  const life = totalLifeCost(S) / D;
+  const life = (totalLifeCost(S) + luxuryUpkeep(S)) / D;
   dayOutcome += life;
   if (S.debt > 0) {
     const interest = S.debt * CONFIG.debtInterest * Math.max(0.7, 1 - S.skills.finance / 300);
@@ -964,6 +987,7 @@ function tick() {
 
   S.day++;
   S.age = CONFIG.startAge + Math.floor(S.day / DAYS_PER_YEAR);
+  if (S.day % 7 === 0 || S.calendar.length < 4) refreshCalendar();
   if (S.day % 30 === 0) {
     S.history.push({ d: S.day, nw: Math.round(netWorth(S)) });
     if (S.history.length > 700) S.history.shift();
@@ -1046,9 +1070,14 @@ function tickRecruiting(c) {
 /* ================= Avance du temps ================= */
 
 function advance(days) {
-  if (S.over) return;
+  if (S.over || S.scene) return;
   for (let i = 0; i < days; i++) {
     if (!tick()) return;
+
+    // un événement auquel tu es inscrit a lieu aujourd'hui
+    const today = S.calendar.find(e => e.signed && !e.done && e.day === S.day);
+    if (today) { save(); return promptEvent(today); }
+
     const evt = rollEvent();
     if (evt) { save(); return showEvent(evt); }
   }
@@ -1120,4 +1149,276 @@ function wipe() {
 
 function skillName(k) {
   return { business: 'Business', marketing: 'Marketing', tech: 'Tech', social: 'Social', finance: 'Finance' }[k];
+}
+
+/* =========================================================
+   VIE SOCIALE — calendrier, sorties, luxe, soirées
+   ========================================================= */
+
+/* ---------- Calendrier ---------- */
+
+// Garde toujours une soixantaine de jours d'événements devant soi.
+function refreshCalendar() {
+  S.calendar = S.calendar.filter(e => e.day >= S.day);
+  const horizon = S.day + 75;
+  let last = S.calendar.length ? Math.max(...S.calendar.map(e => e.day)) : S.day + 2;
+  while (last < horizon) {
+    last += Math.round(rand(4, 11));
+    const pool = VENUES.filter(v => {
+      const rep = (v.req.reputation || 0) <= S.reputation + 12;
+      return rep;
+    });
+    if (!pool.length) break;
+    const v = pick(pool);
+    S.calendar.push({
+      uid: 'e' + Math.random().toString(36).slice(2, 8),
+      venue: v.id,
+      day: last,
+      signed: false
+    });
+  }
+  S.calendar.sort((a, b) => a.day - b.day);
+}
+
+function getVenue(id) { return VENUES.find(v => v.id === id); }
+function getParty(id) { return PARTIES.find(p => p.id === id); }
+function getLuxury(id) { return LUXURY.find(l => l.id === id); }
+
+function venueOpen(v) {
+  return Object.entries(v.req || {}).every(([k, val]) =>
+    k === 'reputation' ? S.reputation >= val : S.skills[k] >= val);
+}
+
+function signUp(uid) {
+  const e = S.calendar.find(x => x.uid === uid);
+  if (!e) return;
+  const v = getVenue(e.venue);
+  if (!venueOpen(v)) return toast("Tu n'as pas le profil pour entrer.");
+  if (S.money < v.cost) return toast("Tu n'as pas de quoi payer l'entrée.");
+  e.signed = !e.signed;
+  if (e.signed) addLog(S, `Inscrit : ${v.name}, dans ${e.day - S.day} jours.`, 'info');
+  render();
+}
+
+/* ---------- Se rendre à un événement ---------- */
+
+function openScene(kind, id) {
+  const def = kind === 'party' ? getParty(id) : getVenue(id);
+  const guests = [];
+  const n = def.crowd;
+
+  // placement en cercle irrégulier pour éviter la grille
+  for (let i = 0; i < n; i++) {
+    const g = makeGuest(def.prestige);
+    const a = (i / n) * Math.PI * 2 + rand(-0.25, 0.25);
+    const r = rand(24, 34);
+    g.x = clamp(50 + Math.cos(a) * r * 1.15, 12, 88);
+    g.y = clamp(52 + Math.sin(a) * r * 0.85, 20, 84);
+    guests.push(g);
+  }
+  // on croise parfois une connaissance
+  if (S.contacts.length && Math.random() < 0.45) {
+    const k = pick(S.contacts);
+    const g = guests[0];
+    g.name = k.name; g.look = k.look || lookFor(k.id);
+    g.known = k.id; g.level = k.level;
+  }
+
+  S.scene = {
+    kind, id,
+    room: def.room,
+    title: def.name,
+    guests,
+    talked: 0,
+    log: [],
+    prestige: def.prestige
+  };
+  save();
+  renderScene();
+}
+
+function attendEvent(uid) {
+  const e = S.calendar.find(x => x.uid === uid);
+  if (!e) return;
+  const v = getVenue(e.venue);
+  if (S.money < v.cost) return toast("Tu n'as pas de quoi payer l'entrée.");
+  if (S.energy < v.hours * 3) return toast("Tu es trop épuisé pour y aller.");
+  S.money -= v.cost;
+  S.energy = clamp(S.energy - v.hours * 3, 0, S.maxEnergy);
+  e.done = true;
+  e.signed = false;
+  addLog(S, `Tu te rends à « ${v.name} »${v.cost ? ` (${fmt(v.cost)})` : ''}.`, 'info');
+  openScene('venue', v.id);
+}
+
+function throwParty(id) {
+  const p = getParty(id);
+  if (S.money < p.cost) return toast("Cette soirée dépasse tes moyens.");
+  if (housingTier(S) < p.minHousing) return toast("Ton logement actuel ne permet pas de recevoir autant de monde.");
+  if (S.energy < p.hours * 3) return toast("Tu n'as plus l'énergie d'organiser ça.");
+  S.money -= p.cost;
+  S.energy = clamp(S.energy - p.hours * 3, 0, S.maxEnergy);
+  S.partyCount++;
+  addHappiness(p.happy);
+  S.reputation = clamp(S.reputation + p.rep, 0, 100);
+  if (p.staffMorale) {
+    S.companies.forEach(c => c.staff.forEach(e => e.morale = clamp(e.morale + p.staffMorale, 0, 100)));
+    addLog(S, `Toutes tes équipes repartent gonflées à bloc.`, 'good');
+  }
+  addLog(S, `Tu organises : ${p.name} (${fmt(p.cost)}).`, 'good');
+  openScene('party', p.id);
+}
+
+function leaveScene() {
+  const sc = S.scene;
+  if (sc) addLog(S, `Tu rentres. ${sc.talked} conversation${sc.talked > 1 ? 's' : ''} ce soir-là.`, 'info');
+  S.scene = null;
+  save();
+  render();
+}
+
+/* ---------- Conversations ---------- */
+
+// Chance de réussite d'une approche : ta compétence contre le niveau
+// de l'interlocuteur, ajustée par ta réputation et ta forme du moment.
+function approachOdds(guest, approach) {
+  const skill = S.skills[approach.skill];
+  const base = 0.16 + (skill + approach.bonus) / 130;
+  const gap = (guest.level - skill) / 190;
+  const rep = S.reputation / 320;
+  const shape = (S.energy / S.maxEnergy - 0.5) * 0.12 + (S.happiness / 100 - 0.5) * 0.08;
+  return clamp(base - gap + rep + shape + guest.mood * 0.12, 0.05, 0.94);
+}
+
+function talkTo(guestId, approachId) {
+  const sc = S.scene;
+  if (!sc) return;
+  const g = sc.guests.find(x => x.id === guestId);
+  if (!g || g.talked) return;
+  const ap = APPROACHES.find(a => a.id === approachId);
+  const odds = approachOdds(g, ap);
+  const win = Math.random() < odds;
+  g.talked = true;
+  sc.talked++;
+
+  const t = guestType(g);
+  let outcome = win ? ap.win : ap.lose;
+  let reward = '';
+
+  if (win) {
+    gainSkill({ social: 0.35 }, 1, 'field');
+    switch (t.gives) {
+      case 'contact': {
+        const k = makeContact(Math.max(15, g.level - 15));
+        k.name = g.name; k.level = g.level; k.look = g.look;
+        k.relation = clamp(22 + S.skills.social / 5, 0, 60);
+        S.contacts.push(k);
+        reward = `${g.name} entre dans ton carnet d'adresses.`;
+        break;
+      }
+      case 'money': {
+        const c = biggest(S);
+        if (c && c.equity > 0.35) {
+          const cash = Math.round(valuation(c) * 0.09 * (0.5 + g.level / 110));
+          c.equity -= 0.07; c.cash += cash;
+          reward = `Il investit ${fmt(cash)} dans ${c.name} contre 7% du capital.`;
+        } else {
+          const k = makeContact(g.level); k.name = g.name; k.kind = 'investor'; k.look = g.look; k.relation = 30;
+          S.contacts.push(k);
+          reward = `Pas de deal ce soir, mais il te laisse son numéro.`;
+        }
+        break;
+      }
+      case 'clients': {
+        const c = biggest(S);
+        if (c) {
+          const n = Math.max(1, Math.round(capacity(c) * 0.1 * (0.5 + g.level / 100)));
+          c.clients += n;
+          reward = `${n} nouveau${n > 1 ? 'x' : ''} client${n > 1 ? 's' : ''} pour ${c.name}.`;
+        } else {
+          S.reputation = clamp(S.reputation + 3, 0, 100);
+          reward = `Il retient ton nom pour le jour où tu auras quelque chose à vendre.`;
+        }
+        break;
+      }
+      case 'candidate': {
+        const c = biggest(S);
+        if (c) {
+          const cand = makeCandidate(pick(ROLES).id, clamp(g.level / 100, 0.2, 0.95));
+          cand.name = g.name; cand.look = g.look; cand.revealed = true;
+          c.applicants.push(cand);
+          reward = `${g.name} envoie sa candidature chez ${c.name} (niveau ${cand.skill}).`;
+        } else {
+          reward = `Il te dit de le rappeler quand tu auras une boîte à faire tourner.`;
+        }
+        break;
+      }
+      case 'reputation': {
+        const r = 3 + Math.round(g.level / 12);
+        S.reputation = clamp(S.reputation + r, 0, 100);
+        reward = `L'article sortira le mois prochain. +${r} de réputation.`;
+        break;
+      }
+      case 'skill': {
+        const sk = pick(t.topics);
+        gainSkill({ [sk]: 2 + g.level / 25 }, 1, 'mentor', g.level - 4);
+        reward = `Vingt minutes de conversation valent six mois de lecture. (${skillName(sk)})`;
+        break;
+      }
+      case 'intel': {
+        const c = biggest(S);
+        if (c) { c.quality = clamp(c.quality + 4, 0, 100); reward = `Ce qu'il laisse échapper sur son propre business te sert immédiatement.`; }
+        else reward = `Tu apprends beaucoup sur ce marché sans rien lâcher du tien.`;
+        break;
+      }
+      default:
+        addHappiness(8);
+        reward = `Une vraie bonne soirée. Ça faisait longtemps.`;
+    }
+  } else {
+    g.mood -= 0.2;
+    if (Math.random() < 0.3) S.reputation = clamp(S.reputation - 1, 0, 100);
+  }
+
+  sc.log.unshift({ name: g.name, text: outcome, reward, win });
+  save();
+  renderScene();
+}
+
+/* ---------- Actifs de luxe ---------- */
+
+function buyLuxury(id) {
+  const l = getLuxury(id);
+  if (S.luxury.includes(id)) return toast("Tu le possèdes déjà.");
+  if (S.money < l.price) return toast("Pas les moyens. Pas encore.");
+  S.money -= l.price;
+  S.luxury.push(id);
+  S.reputation = clamp(S.reputation + l.rep, 0, 100);
+  addHappiness(l.joy);
+  addLog(S, `Tu t'offres : ${l.name} (${fmt(l.price)}).`, 'good');
+  if (l.housing) addLog(S, `Tu peux désormais y habiter depuis l'onglet Train de vie.`, 'info');
+  render();
+}
+
+function sellLuxury(id) {
+  const l = getLuxury(id);
+  if (!S.luxury.includes(id)) return;
+  const price = Math.round(l.price * l.resale);
+  S.money += price;
+  S.luxury = S.luxury.filter(x => x !== id);
+  S.reputation = clamp(S.reputation - Math.round(l.rep * 0.6), 0, 100);
+  addHappiness(-l.joy * 0.4);
+  if (S.housingId === id) S.housingId = 'appart';
+  addLog(S, `Tu revends ${l.name} pour ${fmt(price)}.`, 'info');
+  render();
+}
+
+function luxuryUpkeep(s) {
+  return s.luxury.reduce((a, id) => a + getLuxury(id).upkeep, 0);
+}
+function luxuryValue(s) {
+  return s.luxury.reduce((a, id) => { const l = getLuxury(id); return a + l.price * l.resale; }, 0);
+}
+function luxuryRep(s) {
+  return s.luxury.reduce((a, id) => a + getLuxury(id).rep, 0);
 }

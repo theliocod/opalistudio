@@ -3,6 +3,7 @@
    ========================================================= */
 
 let TAB = 'vie';
+let LOOK = null;   // look en cours de création
 let BIZ_OPEN = null;
 let BIZ_TAB = 'pilotage';
 
@@ -22,6 +23,61 @@ function toast(msg) {
   el.classList.add('show');
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+}
+
+
+/* ---------- Créateur de personnage ---------- */
+
+const LOOK_PARTS = [
+  { key: 'skin', label: 'Teint', list: SKINS, swatch: true },
+  { key: 'hair', label: 'Coiffure', list: HAIRSTYLES, name: h => h.name },
+  { key: 'hairColor', label: 'Couleur de cheveux', list: HAIR_COLORS, swatch: true },
+  { key: 'beard', label: 'Pilosité', list: BEARDS, name: b => b.name },
+  { key: 'eyes', label: 'Regard', list: EYE_SHAPES, name: e => e[0].toUpperCase() + e.slice(1) },
+  { key: 'outfit', label: 'Tenue', list: OUTFITS, name: o => o.name },
+  { key: 'outfitColor', label: 'Couleur de tenue', list: OUTFIT_COLORS, swatch: true },
+  { key: 'accessory', label: 'Accessoire', list: ACCESSORIES, name: a => a.name }
+];
+
+function renderCreator() {
+  const box = $('#creator');
+  if (!box) return;
+  box.innerHTML = `
+    <div class="creator">
+      <div class="creator-preview">
+        <div class="creator-body">${avatarBody(LOOK, 128)}</div>
+        <div class="creator-face">${avatarSVG(LOOK, 96, { bg: 'rgba(255,255,255,.07)' })}</div>
+        <button class="btn btn-sm btn-ghost" data-look="random"><i class="fas fa-dice"></i> Au hasard</button>
+      </div>
+      <div class="creator-controls">
+        ${LOOK_PARTS.map(p => `
+          <div class="creator-row">
+            <span class="creator-label">${p.label}</span>
+            ${p.swatch ? `
+              <div class="swatches">
+                ${p.list.map((c, i) => `
+                  <button class="swatch ${LOOK[p.key] === i ? 'on' : ''}" style="background:${c}"
+                          data-look="set" data-key="${p.key}" data-val="${i}"></button>`).join('')}
+              </div>`
+            : `
+              <div class="stepper">
+                <button class="hbtn" data-look="prev" data-key="${p.key}">−</button>
+                <span>${p.name(p.list[LOOK[p.key]] || p.list[0])}</span>
+                <button class="hbtn" data-look="next" data-key="${p.key}">+</button>
+              </div>`}
+          </div>`).join('')}
+      </div>
+    </div>`;
+
+  $$('#creator [data-look]').forEach(b => b.addEventListener('click', () => {
+    const a = b.dataset.look, k = b.dataset.key;
+    const part = LOOK_PARTS.find(p => p.key === k);
+    if (a === 'random') LOOK = defaultLook();
+    else if (a === 'set') LOOK[k] = +b.dataset.val;
+    else if (a === 'next') LOOK[k] = (LOOK[k] + 1) % part.list.length;
+    else if (a === 'prev') LOOK[k] = (LOOK[k] - 1 + part.list.length) % part.list.length;
+    renderCreator();
+  }));
 }
 
 function skillIcon(k) {
@@ -55,6 +111,9 @@ function renderStart() {
       <div class="origin-perk"><i class="fas fa-bolt"></i> ${o.perk}</div>
     </button>`).join('');
 
+  if (!LOOK) LOOK = defaultLook();
+  renderCreator();
+
   $$('#origins .origin-card').forEach(b => b.addEventListener('click', () => {
     $$('#origins .origin-card').forEach(x => x.classList.remove('selected'));
     b.classList.add('selected');
@@ -84,6 +143,8 @@ function render() {
   };
   $('#tab-content').innerHTML = map[TAB]();
   bindEvents();
+  renderPhone();
+  if (S.scene) renderScene();
   save();
 }
 
@@ -92,8 +153,11 @@ function renderHeader() {
   const profit = monthlyBusinessProfit(S);
   $('#hdr').innerHTML = `
     <div class="hdr-left">
-      <div class="hdr-name">${S.name}</div>
-      <div class="hdr-date">${dateLabel(S)}</div>
+      <span class="hdr-av">${avatarSVG(S.look, 42)}</span>
+      <div>
+        <div class="hdr-name">${S.name}</div>
+        <div class="hdr-date">${dateLabel(S)}</div>
+      </div>
     </div>
     <div class="hdr-stats">
       <div class="stat">
@@ -416,10 +480,10 @@ function renderReseau() {
           return `
           <div class="contact">
             <div class="contact-head">
-              <i class="fas ${kind.icon}"></i>
+              <span class="mini-av">${personAvatar(k, 46)}</span>
               <div>
                 <b>${k.name}</b>
-                <span class="row-sub">${kind.name} · niveau ${k.level}</span>
+                <span class="row-sub"><i class="fas ${kind.icon}"></i> ${kind.name} · niveau ${k.level}</span>
               </div>
             </div>
             <p class="row-sub">${kind.desc}</p>
@@ -682,6 +746,7 @@ function renderEquipe(c) {
         <div class="staff ${e.morale < 30 ? 'staff-risk' : ''}">
           <div class="staff-main">
             <div class="staff-name">
+              <span class="mini-av">${personAvatar(e, 38)}</span>
               <i class="fas ${r.icon}"></i>
               <b>${e.name}</b>
               <span class="chip">${r.name}</span>
@@ -755,6 +820,7 @@ function renderRecrutement(c) {
         return `
         <div class="applicant">
           <div class="applicant-main">
+            <span class="mini-av floatl">${personAvatar(a, 40)}</span>
             <b><i class="fas ${r.icon}"></i> ${a.name}</b>
             <span class="row-sub">${r.name} · demande ${fmt(a.ask)}/mois</span>
             <div class="req">
@@ -1121,6 +1187,17 @@ function handleAction(act, d) {
       break;
     }
 
+    case 'signup': signUp(id); break;
+    case 'attend': attendEvent(id); break;
+    case 'party': throwParty(id); break;
+    case 'buyLux': buyLuxury(id); break;
+    case 'sellLux': {
+      const l = getLuxury(id);
+      confirmBox(`Revendre ${l.name} ?`, `Tu récupères ${fmtFull(l.price * l.resale)} et tu perds une partie de la réputation qui allait avec.`, () => sellLuxury(id));
+      break;
+    }
+    case 'liveIn': setHousing(id); break;
+
     case 'borrow': borrow(+d.amount); break;
     case 'repay': repay(+d.amount); break;
     case 'repayAll': repay(S.debt); break;
@@ -1137,7 +1214,7 @@ document.addEventListener('DOMContentLoaded', () => {
   renderStart();
 
   $('#start-btn').addEventListener('click', () => {
-    newGame($('#player-name').value.trim() || 'Alex', $('#start-btn').dataset.origin);
+    newGame($('#player-name').value.trim() || 'Alex', $('#start-btn').dataset.origin, LOOK);
     TAB = 'vie';
     render();
   });
