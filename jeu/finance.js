@@ -283,6 +283,21 @@ const GUIDE_STEPS = [
     tab: 'vie'
   },
   {
+    id: 'finance',
+    done: s => !s.companies.some(c => !roundGaps(c).length && !(c.rounds || []).length && !(c.offers || []).length)
+      && !s.companies.some(c => loanCapacity(c) > 100000 && !(c.loans || []).length),
+    title: "Tu peux financer ta croissance autrement",
+    text: "Une de tes sociétés est finançable : un tour de table t'apporte de l'argent contre du capital et des exigences, un prêt bancaire t'apporte de l'argent contre une échéance qui tombe tous les mois. Onglet Capital de la société.",
+    tab: 'business'
+  },
+  {
+    id: 'groupe',
+    done: s => s.companies.length < 2 || groupLevel(s) > 0 || groupTierGaps(s).length > 0,
+    title: "Structure ton groupe",
+    text: "Tes sociétés paient chacune leurs charges de structure de leur côté. Une direction commune les fait baisser partout à la fois, et aux niveaux suivants elles se passent des clients.",
+    tab: 'business'
+  },
+  {
     id: 'invest',
     done: s => portfolioValue(s) > 0 || s.money < 80000,
     title: "Fais travailler ton argent",

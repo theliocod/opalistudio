@@ -90,7 +90,11 @@ function createCompany(type, name) {
     revenueAgo: 0,
     blocked: null,
     channelBoost: null,
-    rivals: []
+    rivals: [],
+    rounds: [],
+    investors: [],
+    offers: [],
+    loans: []
   };
 }
 
@@ -130,6 +134,7 @@ function newGame(name, originId, look) {
     plan: [{ act: 'sport', hours: 1 }, { act: 'social', hours: 1 }],
     calendar: [],
     family: { partner: null, children: [], friends: 55 },
+    group: { level: 0 },
     forcedEvent: null,
     luxury: [],
     attending: null,
@@ -252,7 +257,9 @@ function staffPerf(c, e) {
   const over = Math.max(0, c.staff.length - spanOfControl(c));
   const spanPenalty = over > 0 ? Math.max(0.35, 1 - over * 0.09) : 1;
   const variable = e.variable ? 1.12 : 1;
-  return (e.skill / 100) * (0.45 + e.morale / 180) * t.perf * spanPenalty * variable;
+  // Dans un groupe intégré, les meilleurs circulent et tirent les autres
+  const skill = clamp(e.skill + (c.talentBonus || 0), 0, 99);
+  return (skill / 100) * (0.45 + e.morale / 180) * t.perf * spanPenalty * variable;
 }
 
 function roleForce(c, roleId) {
@@ -387,6 +394,7 @@ function dailyAcquisition(c) {
     * rampFactor(c)
     * (1 - occupiedShare(c))
     * clamp(1 - (marketPressure(c) - 0.5) * 0.9, 0.45, 1.45)
+    * groupAcqFactor(c, S)
     * rand(0.9, 1.1);
 
   // Une entreprise n'absorbe pas une croissance illimitée : recruter, livrer,
@@ -470,11 +478,14 @@ function projectedCosts(c) {
   const t = getType(c);
   // locaux, systèmes, administration : les charges de structure croissent
   // plus vite que la taille, et un bon gestionnaire les contient un peu.
-  const fixed = t.fixedCost * Math.pow(c.level, 1.35) * Math.max(0.72, 1 - S.skills.business / 400);
+  const fixed = t.fixedCost * Math.pow(c.level, 1.35)
+    * Math.max(0.72, 1 - S.skills.business / 400)
+    * groupCostFactor(S);
   return fixed
     + payrollMonthly(c)
     + adSpendMonthly(c)
     + c.rd + c.support
+    + loanInterestMonthly(c)
     + projectedRevenue(c) * t.varCost * (c.costMod || 1) * Math.max(0.8, 1 - S.skills.tech / 500);
 }
 
@@ -509,6 +520,13 @@ function valuation(c) {
   return base;
 }
 
+/* Ce que vaut réellement ce que tu détiens : la valeur de l'entreprise,
+   plus sa trésorerie, moins ce qu'elle doit à la banque, multiplié par
+   ta part du capital. Lever ou emprunter change ce chiffre. */
+function equityValue(c) {
+  return Math.max(0, valuation(c) + c.cash - companyDebt(c)) * c.equity;
+}
+
 function monthlyBusinessProfit(s) {
   return s.companies.reduce((a, c) => a + Math.max(0, c.lastProfit) * c.equity, 0);
 }
@@ -516,7 +534,7 @@ function portfolioValue(s) {
   return Object.entries(s.portfolio).reduce((a, [id, qty]) => a + qty * s.prices[id], 0);
 }
 function netWorth(s) {
-  const comp = s.companies.reduce((a, c) => a + valuation(c) * c.equity + c.cash * c.equity, 0);
+  const comp = s.companies.reduce((a, c) => a + equityValue(c), 0);
   return s.money - s.debt + comp + portfolioValue(s) + luxuryValue(s);
 }
 function housing(s) {
@@ -733,7 +751,7 @@ function transfer(uid, amount) {
 function sellCompany(uid) {
   const c = S.companies.find(x => x.uid === uid);
   if (!c) return;
-  const price = Math.round((valuation(c) + c.cash) * c.equity);
+  const price = Math.round(equityValue(c));
   S.money += price;
   S.exits.push({ name: c.name, price, day: S.day });
   S.companies = S.companies.filter(x => x.uid !== uid);
@@ -980,6 +998,7 @@ function tick() {
   }
 
   /* ---------- Entreprises ---------- */
+  groupCashPooling(S);
   S.companies.forEach(c => {
     const t = getType(c);
     c.days++;
@@ -1071,6 +1090,7 @@ function tick() {
     tickStaff(c);
     tickRecruiting(c);
     tickRivals(c);
+    tickCapital(c);
 
     // trésorerie négative
     if (c.cash < 0) {

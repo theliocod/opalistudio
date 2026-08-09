@@ -140,6 +140,110 @@ de six mois**, assortie d'une prime de croissance et d'une décote de jeunesse. 
 saute donc plus d'un mois à l'autre — moins de 3 % de variation mensuelle sur une
 activité stable — exactement comme un repreneur regarderait tes comptes.
 
+## Financer sans se financer soi-même
+
+Une entreprise qui grandit demande plus d'argent qu'elle n'en gagne. Trois portes,
+qui ne coûtent pas la même chose.
+
+### Les tours de table
+
+Quatre étages — **amorçage, série A, série B, série C** — et on ne saute pas une
+marche. Chacun a ses conditions d'entrée en clients, en chiffre d'affaires mensuel,
+en croissance et en ancienneté ; l'interface dit précisément ce qui manque.
+
+Ouvrir un tour coûte de l'énergie et ne garantit rien : les fonds répondent selon
+leur appétit pour ta croissance, ta qualité, ta réputation et la taille de ton
+marché. Ceux qui répondent posent chacun leur **term sheet** — valorisation
+pré-money, montant, pourcentage, siège au conseil ou non.
+
+Six fonds, avec chacun leur façon de faire :
+
+| Fonds | Ce qu'il apporte | Ce qu'il coûte |
+|---|---|---|
+| Cercle Montaigne (angels) | deux contacts de haut niveau | petit chèque |
+| Kairos Ventures (capital-risque) | de la crédibilité, un effet de notoriété | un siège au conseil |
+| Northbridge Capital (croissance) | ses opérationnels remettent tes process d'équerre | des objectifs trimestriels serrés |
+| Vantage Partners (agressif) | le plus gros chèque, une agence média pendant un an | ils négocient dur et s'impatientent vite |
+| Fonds Rivage (family office) | du temps, jamais de pression | ils mettent moins |
+| Altaïr Industries (stratégique) | son réseau de distribution élargit ton marché | il compte te racheter en entier |
+
+**Négocier** fait monter le prix de 8 à 22 % quand ça marche — d'autant plus qu'il y
+a d'autres prétendants autour de la table — et peut faire partir le fonds quand ça
+rate. Deux tentatives par offre.
+
+### Ce que les investisseurs attendent ensuite
+
+L'argent pris aujourd'hui devient une exigence demain. Chaque tour fixe une
+trajectoire, et le conseil se réunit tous les trois mois pour comparer les chiffres
+à la promesse. Quand la patience s'épuise : d'abord une réunion tendue, puis un
+directeur général qu'on t'impose, puis une cession forcée en dessous du prix. Trois
+issues à chaque fois, dont racheter leur part avec ton argent personnel. Un business
+angel mécontent te le dit ; seul un fonds qui siège au conseil peut te mettre au
+pied du mur.
+
+### La dette bancaire
+
+La banque ne regarde ni ton rêve ni ta croissance : douze mois de comptes
+bénéficiaires, et elle prête jusqu'à environ 2,6 fois ton résultat annuel. Elle ne
+prend pas de capital — mais l'échéance tombe les mauvais mois aussi, et **le
+remboursement du capital sort de la trésorerie sans jamais apparaître dans ton
+profit**, ce qui est exactement ce qui surprend le plus quand on s'endette. Les
+intérêts, eux, passent bien en charge.
+
+Une société qui finance vraiment de la R&D peut obtenir une **avance innovation** :
+deux ans sans rembourser le capital, taux réduit. C'est ce qui sauve une entreprise
+qui investit avant d'encaisser.
+
+### Le groupe
+
+Deux sociétés côte à côte ne font rien l'une pour l'autre. Trois niveaux
+d'intégration, chacun avec ses prérequis en nombre de sociétés et en compétences :
+
+1. **Direction commune** — −7 % de charges fixes partout.
+2. **Services mutualisés** — −14 %, et tes sociétés se passent des clients entre
+   elles, d'autant plus qu'elles s'adressent au même monde.
+3. **Groupe intégré** — −20 %, ventes croisées renforcées, les meilleurs salariés
+   tirent les autres vers le haut, et une société en manque de trésorerie est
+   renflouée par ses sœurs avant le dépôt de bilan.
+
+Une petite société dans un grand groupe reçoit beaucoup ; la locomotive du groupe ne
+reçoit presque rien. C'est le poids relatif qui compte, pas la taille absolue.
+
+## Les concurrents
+
+Chaque marché est déjà occupé quand tu arrives : trois ou quatre entreprises, tirées
+parmi cinq archétypes — leader historique, casseur de prix, acteur premium,
+concurrent financé, petit indépendant. Elles grandissent, ajustent leurs prix,
+soignent leur produit, et **s'agacent quand tu prends des parts**.
+
+Ce qui te gêne n'est pas leur taille mais leur rapport qualité/prix : un géant
+médiocre et cher pèse moins qu'un petit excellent et bon marché. Tu peux payer une
+étude pour savoir à qui tu as affaire, lancer une campagne comparative, ou racheter
+un concurrent — tu récupères alors 60 à 82 % de ses clients, le reste part pendant
+la fusion.
+
+## Ta vie personnelle
+
+Un conjoint avec son propre caractère — patient, ambitieux, exigeant, complice,
+fragile — et donc sa propre exigence en heures. Des enfants qui grandissent et se
+détachent si tu n'es jamais là. Des amis qui s'éloignent.
+
+Tout se joue dans le planning : « Famille » est une ligne d'emploi du temps comme
+les autres, et l'écart entre ce qu'on attend de toi et ce que tu donnes se paie
+chaque jour. Une relation au-dessus de 60 te rend du moral et de l'énergie ; en
+dessous de 22, la rupture s'annonce au lieu de tomber du ciel. Le mariage coûte une
+bague, le divorce entre 30 et 45 % du patrimoine.
+
+## Le guide et les finances
+
+Un encart « Quoi faire maintenant » lit ta situation réelle et sort les deux ou
+trois choses qui comptent, en distinguant l'urgent du souhaitable. Il se referme
+quand tu n'en veux plus.
+
+Un onglet **Finances** trace l'historique de chaque société : chiffre d'affaires
+contre coûts, décomposition des charges, clients, trésorerie, effectif — en
+graphiques dessinés à la main, sans aucune dépendance.
+
 ## Le réseau
 
 En allouant des heures au réseautage, tu rencontres des gens : entrepreneurs
@@ -153,9 +257,9 @@ de ton produit. Un service consomme du capital relationnel.
 
 ## Les événements
 
-46 événements, dont 11 qui se construisent à partir de ta situation réelle
+55 événements, dont 21 qui se construisent à partir de ta situation réelle
 (le salarié qui demande une augmentation est un vrai salarié de ton équipe, avec
-son nom, son ancienneté et son salaire). 118 choix au total, avec des conséquences
+son nom, son ancienneté et son salaire). 145 choix au total, avec des conséquences
 mécaniques : compte publicitaire suspendu, client qui pèse 40 % du chiffre, associé
 qui veut sortir, cabinet qui te démarche, marché du travail qui se tend, salarié qui
 craque, ancien employé qui te copie, réglementation nouvelle.
@@ -227,8 +331,12 @@ logement, et débloquent les grandes soirées.
 | `social.js` | lieux et événements, soirées, actifs de luxe, profils rencontrés, décors isométriques |
 | `scene.js` | le téléphone, les scènes isométriques et les conversations |
 | `people.js` | génération des candidats et des contacts, traits de caractère |
-| `events.js` | les 46 événements et leurs conséquences |
+| `events.js` | les 55 événements et leurs conséquences |
 | `game.js` | le moteur : tick journalier, économie, équipes, marché du travail, apprentissage |
+| `rivals.js` | les concurrents : archétypes, croissance, pression concurrentielle, rachats |
+| `family.js` | conjoint, enfants, amis, et ce que les heures leur doivent |
+| `capital.js` | tours de table, fonds nommés, dette bancaire, synergies de groupe |
+| `finance.js` | graphiques financiers et guide contextuel |
 | `ui.js` | rendu des écrans et interactions |
 | `styles.css` | habillage, aux couleurs d'OpalStudio |
 

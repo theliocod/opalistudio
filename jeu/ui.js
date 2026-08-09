@@ -534,6 +534,7 @@ function renderReseau() {
 function renderBusiness() {
   return `
   <div class="grid">
+    ${renderGroup()}
     ${S.companies.length ? `
     <section class="card wide">
       <h2><i class="fas fa-sitemap"></i> Tes entreprises</h2>
@@ -993,29 +994,41 @@ function renderRecrutement(c) {
 
 function renderCapital(c) {
   const val = valuation(c);
+  const dette = companyDebt(c);
+  const mood = boardMood(c);
+  const rows = capTable(c);
+
   return `
   <div class="company-cols">
     <div>
-      <h4>Structure</h4>
-      <div class="metric"><span>Ta part</span><b>${Math.round(c.equity * 100)}%</b></div>
-      ${c.staff.filter(e => e.equity).map(e => `<div class="metric"><span>${e.name}</span><b>${Math.round(e.equity * 100)}%</b></div>`).join('')}
-      ${c.equity + c.staff.reduce((a, e) => a + (e.equity || 0), 0) < 0.999
-        ? `<div class="metric"><span>Investisseurs</span><b>${Math.round((1 - c.equity - c.staff.reduce((a, e) => a + (e.equity || 0), 0)) * 100)}%</b></div>` : ''}
-      <div class="metric"><span>Valorisation</span><b class="accent">${fmt(val)}</b></div>
+      <h4>Table de capitalisation</h4>
+      ${rows.map(r => `
+        <div class="metric"><span>${r.name}${r.board ? ' <i class="fas fa-gavel" title="siège au conseil"></i>' : ''}</span>
+        <b class="${r.cls || ''}">${(r.pct * 100).toFixed(1)}%</b></div>`).join('')}
+      <div class="cap-sep"></div>
+      <div class="metric"><span>Valeur d'entreprise</span><b>${fmt(val)}</b></div>
       <div class="metric"><span>Trésorerie</span><b class="${c.cash < 0 ? 'neg' : ''}">${fmt(c.cash)}</b></div>
-      ${c.board ? '<p class="row-sub">Un investisseur siège à ton conseil.</p>' : ''}
-    </div>
-    <div>
-      <h4>Opérations</h4>
+      ${dette ? `<div class="metric"><span>Dette bancaire</span><b class="neg">-${fmt(dette)}</b></div>` : ''}
+      <div class="metric"><span>Ce que vaut ta part</span><b class="accent">${fmt(equityValue(c))}</b></div>
+      ${mood ? `<div class="alert ${mood.patience <= 1 ? '' : 'soft'}"><i class="fas fa-gavel"></i>
+        ${getFund(mood.fundId).name} siège à ton conseil. ${mood.patience >= 4 ? "Pour l'instant ils te suivent."
+          : mood.patience >= 2 ? "Leur patience s'effrite : la trajectoire promise n'y est pas."
+          : "Ils sont à bout. Ils vont te demander des comptes."}</div>` : ''}
+
+      <h4 style="margin-top:16px">Opérations</h4>
       <div class="btn-row">
         <button class="btn btn-sm" data-act="dividend" data-id="${c.uid}"><i class="fas fa-hand-holding-dollar"></i> Sortir des dividendes</button>
         <button class="btn btn-sm btn-ghost" data-act="inject" data-id="${c.uid}"><i class="fas fa-syringe"></i> Injecter du cash</button>
       </div>
       <div class="btn-row">
-        <button class="btn btn-sm" data-act="raise" data-id="${c.uid}"><i class="fas fa-seedling"></i> Lever des fonds (-18%)</button>
-        <button class="btn btn-sm btn-danger" data-act="sell" data-id="${c.uid}"><i class="fas fa-file-signature"></i> Vendre (${fmt((val + c.cash) * c.equity)})</button>
+        <button class="btn btn-sm btn-danger" data-act="sell" data-id="${c.uid}"><i class="fas fa-file-signature"></i> Vendre (${fmt(equityValue(c))})</button>
       </div>
-      <p class="row-sub">Ton niveau en finance améliore la valorisation, réduit la fiscalité des dividendes et le coût de ta dette.</p>
+      <p class="row-sub">Ton niveau en finance fait monter les valorisations qu'on t'offre, baisser le taux des banques et la fiscalité des dividendes.</p>
+    </div>
+    <div>
+      ${renderRounds(c)}
+      <div class="cap-sep"></div>
+      ${renderLoans(c)}
     </div>
   </div>`;
 }
@@ -1024,7 +1037,7 @@ function renderCapital(c) {
 
 function renderPatrimoine() {
   const pv = portfolioValue(S);
-  const compVal = S.companies.reduce((a, c) => a + (valuation(c) + c.cash) * c.equity, 0);
+  const compVal = S.companies.reduce((a, c) => a + equityValue(c), 0);
   const nw = netWorth(S);
   const maxDebt = debtCeiling(S);
 
@@ -1330,10 +1343,25 @@ function handleAction(act, d) {
       break;
     }
     case 'inject': askNumber('Injecter du cash', `Tes liquidités : ${fmtFull(S.money)}.`, v => transfer(id, -v)); break;
-    case 'raise': raiseFunds(id); break;
+
+    case 'openRound': openRound(id); break;
+    case 'offerNeg': negotiateOffer(id, d.sid); break;
+    case 'offerOk': {
+      const c = S.companies.find(x => x.uid === id);
+      const o = c.offers.find(x => x.id === d.sid);
+      const f = getFund(o.fundId);
+      confirmBox(`Signer avec ${f.name} ?`,
+        `${fmt(o.amount)} entrent dans ${c.name} contre ${Math.round(o.pct * 100)}% du capital. Tu passeras de ${Math.round(c.equity * 100)}% à ${Math.round((c.equity - o.pct) * 100)}%${o.board ? ', et ils prendront un siège à ton conseil' : ''}. C'est irréversible.`,
+        () => acceptOffer(id, d.sid));
+      break;
+    }
+    case 'roundSkip': declineRound(id); break;
+    case 'loan': takeLoan(id, d.kind, +d.amount); break;
+    case 'loanEarly': repayLoanEarly(id, d.sid); break;
+    case 'groupUp': structureGroup(); break;
     case 'sell': {
       const c = S.companies.find(x => x.uid === id);
-      confirmBox(`Vendre ${c.name} ?`, `Tu récupères ${fmtFull((valuation(c) + c.cash) * c.equity)}.`, () => sellCompany(id));
+      confirmBox(`Vendre ${c.name} ?`, `Tu récupères ${fmtFull(equityValue(c))}.`, () => sellCompany(id));
       break;
     }
 

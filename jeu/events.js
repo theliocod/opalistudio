@@ -741,6 +741,200 @@ const EVENTS = [
     ]
   },
 
+  /* ===================== CONSEIL D'ADMINISTRATION ===================== */
+
+  {
+    id: 'board_pression', title: "Conseil d'administration",
+    text: null,
+    dynamic: s => {
+      const c = s.companies.find(x => (x.investors || []).some(i => i.board));
+      if (!c) return null;
+      const inv = c.investors.filter(i => i.board).sort((a, b) => a.patience - b.patience)[0];
+      const f = getFund(inv.fundId);
+      const p = Math.round(investorProgress(c, inv) * 100);
+      return {
+        text: `Conseil trimestriel de ${c.name}. ${f.name} projette une courbe au tableau : tu es à ${p}% de la trajectoire promise au moment du tour. « On ne va pas se mentir, ça ne va pas assez vite. »`,
+        ref: { c, inv, f }
+      };
+    },
+    cond: s => s.companies.some(c => (c.investors || []).some(i => i.board && i.patience <= 3)),
+    global: true, cooldown: 200,
+    choices: [
+      {
+        label: "Accepter leur plan : couper les coûts, viser la rentabilité",
+        custom: (s, ref) => {
+          const c = ref.c;
+          CHANNELS.forEach(ch => c.budgets[ch.id] = Math.round((c.budgets[ch.id] || 0) * 0.6));
+          c.rd = Math.round(c.rd * 0.5);
+          if (c.staff.length > 2) {
+            const out = c.staff.sort((a, b) => a.skill - b.skill).slice(0, Math.ceil(c.staff.length * 0.2));
+            c.staff = c.staff.filter(e => !out.includes(e));
+            c.staff.forEach(e => e.morale = clamp(e.morale - 12, 0, 100));
+            addLog(s, `${c.name} : ${out.length} départ(s) et des budgets coupés pour rassurer le conseil.`, 'warn');
+          }
+          ref.inv.patience += 1.5;
+          addHappiness(-5);
+        }
+      },
+      {
+        label: "Défendre ta trajectoire, chiffres à l'appui",
+        custom: (s, ref) => {
+          const ok = Math.random() < clamp(0.3 + s.skills.finance / 200 + s.skills.social / 300 + (ref.c.growth || 0) * 0.4, 0.1, 0.85);
+          if (ok) {
+            ref.inv.patience += 1;
+            ref.inv.baseRevenue *= 1.1;   // ils révisent leurs attentes
+            addLog(s, `Ton conseil te laisse deux trimestres de plus. Tu les as convaincus, pas rassurés.`, 'good');
+          } else {
+            ref.inv.patience -= 1;
+            addLog(s, `${ref.f.name} n'a rien voulu entendre. La prochaine réunion sera plus rude.`, 'bad');
+          }
+        }
+      },
+      {
+        label: "Racheter leur part avec ton argent personnel",
+        cond: s => true,
+        custom: (s, ref) => {
+          const price = Math.round(valuation(ref.c) * ref.inv.pct * 1.25);
+          if (s.money < price) {
+            addLog(s, `Il te faudrait ${fmt(price)} pour les sortir. Tu ne les as pas, et tout le monde l'a bien vu.`, 'bad');
+            ref.inv.patience -= 0.5;
+            return;
+          }
+          s.money -= price;
+          ref.c.equity = +clamp(ref.c.equity + ref.inv.pct, 0, 1).toFixed(4);
+          ref.c.investors = ref.c.investors.filter(i => i !== ref.inv);
+          ref.c.board = ref.c.investors.some(i => i.board);
+          addLog(s, `Tu rachètes la part de ${ref.f.name} pour ${fmt(price)}. Tu redeviens maître chez toi.`, 'good');
+          addHappiness(10);
+        }
+      }
+    ]
+  },
+
+  {
+    id: 'board_ceo', title: "Ils veulent un directeur général",
+    text: null,
+    dynamic: s => {
+      const c = s.companies.find(x => (x.investors || []).some(i => i.board && i.patience <= 1));
+      if (!c) return null;
+      const inv = c.investors.filter(i => i.board).sort((a, b) => a.patience - b.patience)[0];
+      const f = getFund(inv.fundId);
+      return {
+        text: `${f.name} a fait passer des entretiens sans t'en parler. Ils te proposent de recruter un directeur général « expérimenté » pour ${c.name}, et de te concentrer sur le produit. Le message est clair.`,
+        ref: { c, inv, f }
+      };
+    },
+    cond: s => s.companies.some(c => (c.investors || []).some(i => i.board && i.patience <= 1)),
+    global: true, cooldown: 400,
+    choices: [
+      {
+        label: "Accepter le DG qu'ils imposent",
+        custom: (s, ref) => {
+          const c = ref.c;
+          const dg = makeCandidate('manager', 0.9);
+          dg.name = randomName();
+          dg.ask = Math.round(marketSalary('manager', dg.skill) * 2.4);
+          c.staff.push(hireFrom(dg));
+          c.costMod = Math.max(0.8, (c.costMod || 1) * 0.93);
+          ref.inv.patience = getFund(ref.inv.fundId).patience;
+          s.plan = s.plan.filter(p => !(p.act === 'biz' && p.ref === c.uid));
+          addHappiness(-12);
+          addLog(s, `${dg.name} prend la direction de ${c.name} à ${fmt(dg.ask)} par mois. Tu n'y passes plus tes journées.`, 'warn');
+        }
+      },
+      {
+        label: "Refuser net et parier sur les six prochains mois",
+        custom: (s, ref) => {
+          ref.inv.patience -= 1;
+          ref.c.hype = Math.max(ref.c.hype || 1, 1.1);
+          addHappiness(4);
+          addLog(s, `Tu refuses. Ton conseil te laisse faire, en notant soigneusement la date.`, 'warn');
+        }
+      },
+      {
+        label: "Proposer un compromis : un directeur des opérations, pas un DG",
+        custom: (s, ref) => {
+          const ok = Math.random() < clamp(0.35 + s.skills.social / 200 + s.reputation / 300, 0.15, 0.85);
+          const c = ref.c;
+          if (ok) {
+            const cand = makeCandidate('ops', 0.85);
+            c.staff.push(hireFrom(cand));
+            ref.inv.patience += 1.5;
+            addLog(s, `Accord trouvé : ${cand.name} prend les opérations, tu gardes la direction.`, 'good');
+          } else {
+            ref.inv.patience -= 1;
+            addLog(s, `${ref.f.name} refuse le compromis. Ils veulent quelqu'un au-dessus de toi, pas à côté.`, 'bad');
+          }
+        }
+      }
+    ]
+  },
+
+  {
+    id: 'board_sortie', title: "Le conseil veut sortir",
+    text: null,
+    dynamic: s => {
+      const c = s.companies.find(x => (x.investors || []).some(i => i.board && i.patience <= 0));
+      if (!c) return null;
+      const inv = c.investors.filter(i => i.board && i.patience <= 0)[0];
+      const f = getFund(inv.fundId);
+      const offer = Math.round(valuation(c) * 0.8);
+      return {
+        text: `${f.name} a un acheteur pour ${c.name} à ${fmt(offer)}. C'est en dessous de ce que la société vaut, mais leur fonds arrive en fin de vie et ils ont le droit de forcer la vente. Ils préfèrent que tu signes de bon cœur.`,
+        ref: { c, inv, f, offer }
+      };
+    },
+    cond: s => s.companies.some(c => (c.investors || []).some(i => i.board && i.patience <= 0)),
+    global: true, cooldown: 500,
+    choices: [
+      {
+        label: "Vendre et passer à autre chose",
+        custom: (s, ref) => {
+          const price = Math.round(Math.max(0, ref.offer + ref.c.cash - companyDebt(ref.c)) * ref.c.equity);
+          s.money += price;
+          s.exits.push({ name: ref.c.name, price, day: s.day });
+          s.companies = s.companies.filter(x => x.uid !== ref.c.uid);
+          s.plan = s.plan.filter(p => !(p.act === 'biz' && p.ref === ref.c.uid));
+          addLog(s, `Cession forcée de ${ref.c.name} : ${fmt(price)} pour ta part.`, 'warn');
+        }
+      },
+      {
+        label: "Trouver un autre acheteur toi-même",
+        custom: (s, ref) => {
+          const ok = Math.random() < clamp(0.25 + s.skills.finance / 180 + s.contacts.filter(k => k.kind === 'investor').length * 0.08, 0.1, 0.8);
+          if (ok) {
+            const price = Math.round(Math.max(0, valuation(ref.c) * 1.15 + ref.c.cash - companyDebt(ref.c)) * ref.c.equity);
+            s.money += price;
+            s.exits.push({ name: ref.c.name, price, day: s.day });
+            s.companies = s.companies.filter(x => x.uid !== ref.c.uid);
+            s.plan = s.plan.filter(p => !(p.act === 'biz' && p.ref === ref.c.uid));
+            s.reputation = clamp(s.reputation + 5, 0, 100);
+            addLog(s, `Tu montes ton propre processus de cession et vends ${ref.c.name} ${fmt(price)}, bien au-dessus de leur offre.`, 'good');
+          } else {
+            ref.inv.patience = -1;
+            addLog(s, `Personne d'autre ne s'est positionné. Le conseil reprend la main sur le dossier.`, 'bad');
+          }
+        }
+      },
+      {
+        label: "Racheter leur part pour garder la société",
+        custom: (s, ref) => {
+          const price = Math.round(valuation(ref.c) * ref.inv.pct * 1.35);
+          if (s.money < price) {
+            addLog(s, `Sortir ${ref.f.name} coûterait ${fmt(price)}. Tu ne les as pas.`, 'bad');
+            return;
+          }
+          s.money -= price;
+          ref.c.equity = +clamp(ref.c.equity + ref.inv.pct, 0, 1).toFixed(4);
+          ref.c.investors = ref.c.investors.filter(i => i !== ref.inv);
+          ref.c.board = ref.c.investors.some(i => i.board);
+          addHappiness(8);
+          addLog(s, `Tu sors ${ref.f.name} du capital pour ${fmt(price)}. ${ref.c.name} reste à toi.`, 'good');
+        }
+      }
+    ]
+  },
+
   /* ===================== ACQUISITION & PRODUIT ===================== */
 
   {

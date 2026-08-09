@@ -980,3 +980,28 @@ body.no-scroll { overflow: hidden; }
 .kid .mini-av .avatar { border-radius: 50%; }
 .kid > div { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
 .kid b { font-size: .87rem; }
+
+/* ---------- Financement ---------- */
+.cap-sep { height: 1px; background: var(--line-soft); margin: 14px 0; }
+
+.offer { padding: 14px; margin-bottom: 12px; background: var(--card-2); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); }
+.offer-head { display: flex; align-items: center; gap: 12px; }
+.offer-head > i { font-size: 1.1rem; color: var(--orange-light); width: 26px; text-align: center; }
+.offer-head > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.offer-head b { font-size: .93rem; }
+.offer-terms { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0; }
+.offer-terms span { font-size: .74rem; padding: 4px 9px; border-radius: 999px; background: var(--card); border: 1px solid var(--line-soft); color: var(--txt-2); }
+.offer-terms span.warn { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, transparent); }
+.offer-terms span.ok { color: var(--pos); border-color: color-mix(in srgb, var(--pos) 40%, transparent); }
+
+.round-hist { margin-top: 14px; display: flex; flex-direction: column; gap: 7px; }
+.round-done { display: flex; align-items: center; gap: 10px; font-size: .8rem; padding: 8px 11px; background: var(--card-2); border-radius: var(--radius-sm); }
+.round-done > i { color: var(--pos); }
+.round-done .row-sub { margin-left: auto; text-align: right; }
+
+.loan { padding: 12px; margin-bottom: 10px; background: var(--card-2); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); }
+.loan .btn { margin-top: 9px; }
+
+.group-next { margin-top: 12px; padding: 13px; background: var(--card-2); border: 1px solid var(--line-soft); border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.group-next b { font-size: .9rem; }
+.alert.soft { background: color-mix(in srgb, var(--warn) 8%, transparent); }
