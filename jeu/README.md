@@ -295,8 +295,10 @@ investisseurs, chacun avec son prix d'entrée, son niveau de fréquentation et s
 conditions d'accès. Ils apparaissent dans ton agenda à des dates précises ; tu
 t'inscris, et le jour venu la simulation s'arrête pour te demander si tu y vas.
 
-Quand tu y vas, **tu vois la salle** : une scène isométrique avec le décor du
-lieu et les gens présents, chacun avec son visage. Tu cliques sur quelqu'un pour
+Quand tu y vas, **tu vois la salle**. Pas un fond d'écran : un vrai volume,
+construit en CSS 3D, avec son sol, ses deux murs qui portent leur décoration
+dans leur propre plan, son mobilier à trois faces éclairées, et les gens qui
+bougent dedans. Tu cliques sur quelqu'un pour
 l'aborder, et tu choisis ton approche — aller droit au but, le faire parler de
 lui, sortir tes chiffres, raconter ton histoire, rentrer dans la technique,
 détendre avec une vanne. Chaque approche teste une compétence différente contre
@@ -313,6 +315,27 @@ Tu peux aussi **recevoir chez toi**. Cinq formats, du dîner à six couverts à 
 soirée rooftop, chacun demandant un logement à la hauteur. La fête d'entreprise,
 elle, remonte le moral de toutes tes équipes d'un coup.
 
+### Huit décors, aucun identique
+
+| Lieu | Ce qu'on y voit |
+|---|---|
+| Arrière-salle de bar | parquet, mur de briques, néon « BIÈRES », comptoir de zinc et son étagère de bouteilles, tabourets, mange-debout avec les verres dessus, suspensions qui éclairent le zinc |
+| Coworking | béton ciré, grande verrière, îlots de bureaux avec écrans allumés, chaises, tableau blanc, coin café, canapé et plantes |
+| Salon professionnel | moquette, deux allées de stands aux couleurs des exposants, écrans, kakémonos, îlot café, projecteurs au plafond |
+| Auditorium | grand écran LED animé, scène, pupitre et micro, quatre rangées de sièges, faisceaux mobiles dans la fumée |
+| Gala | marbre sombre, tentures et filet doré, tapis rouge, tables rondes nappées avec chaises, bougies et compositions florales, lustre, pyramide de coupes |
+| Chez toi | parquet, tapis, canapé et sa table basse, télé allumée, bibliothèque, îlot de cuisine, lampadaire, cadres aux murs |
+| Club privé | murs en égaliseur qui battent la mesure, néon CLUB, boule à facettes, mur d'images du DJ, piste de dalles lumineuses, enceintes qui respirent avec la basse, bar au néon, carré VIP, confettis |
+| Rooftop | terrasse en bois, garde-corps vitré, guirlandes d'ampoules, skyline de la ville dont les fenêtres s'allument, piscine éclairée, brasero, bains de soleil, parasol, salon extérieur |
+
+Les gens ne sont pas des figurines posées : chaque salle définit **où l'on se
+tient et ce qu'on y fait**. On danse sur la piste, on boit au bar, on discute
+en cercle, on traîne dans le carré VIP — et chaque posture a son animation.
+Passer la souris sur la scène fait bouger la caméra de quelques degrés.
+
+Tout est dessiné en CSS : pas une image, pas une bibliothèque 3D, pas un
+octet téléchargé.
+
 ## Le train de vie
 
 Douze actifs, de la citadine d'occasion au jet privé, en passant par les montres,
@@ -328,8 +351,10 @@ logement, et débloquent les grandes soirées.
 |---|---|
 | `avatar.js` | générateur d'avatars SVG (visages, corps, coiffures, tenues) |
 | `data.js` | origines, logements, emplois, formations, types d'entreprise, canaux, postes, placements, objectifs |
-| `social.js` | lieux et événements, soirées, actifs de luxe, profils rencontrés, décors isométriques |
-| `scene.js` | le téléphone, les scènes isométriques et les conversations |
+| `social.js` | lieux et événements, soirées, actifs de luxe, profils rencontrés |
+| `scene.js` | le téléphone, le rendu des scènes et les conversations |
+| `scene3d.js` | le moteur de décors : primitives 3D, catalogue des huit salles, effets |
+| `scene.css` | l'habillage des scènes isométriques |
 | `people.js` | génération des candidats et des contacts, traits de caractère |
 | `events.js` | les 55 événements et leurs conséquences |
 | `game.js` | le moteur : tick journalier, économie, équipes, marché du travail, apprentissage |

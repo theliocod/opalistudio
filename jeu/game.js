@@ -1425,15 +1425,9 @@ function openScene(kind, id) {
   const guests = [];
   const n = def.crowd;
 
-  // placement en cercle irrégulier pour éviter la grille
-  for (let i = 0; i < n; i++) {
-    const g = makeGuest(def.prestige);
-    const a = (i / n) * Math.PI * 2 + rand(-0.25, 0.25);
-    const r = rand(24, 34);
-    g.x = clamp(50 + Math.cos(a) * r * 1.15, 12, 88);
-    g.y = clamp(52 + Math.sin(a) * r * 0.85, 20, 84);
-    guests.push(g);
-  }
+  for (let i = 0; i < n; i++) guests.push(makeGuest(def.prestige));
+  // chacun se place là où la salle prévoit qu'on se tienne, dans la posture qui va avec
+  placeGuests(def.room, guests);
   // on croise parfois une connaissance
   if (S.contacts.length && Math.random() < 0.45) {
     const k = pick(S.contacts);

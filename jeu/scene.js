@@ -315,73 +315,130 @@ function closeScenePanel() {
   document.body.classList.remove('no-scroll');
 }
 
-function renderScene() {
-  const sc = S.scene;
-  const el = $('#scene');
-  if (!sc) { closeScenePanel(); return; }
+/* Couleur d'ambiance d'un profil, pour la pastille de son étiquette */
+const GUEST_DOT = {
+  fondateur: '#f97316', investisseur: '#22c55e', client: '#38bdf8', talent: '#a855f7',
+  media: '#e879a8', mentor: '#e8c46a', concurrent: '#ef4444', ami: '#94a3b8'
+};
 
-  const room = ROOMS[sc.room];
-  const remaining = sc.guests.filter(g => !g.talked).length;
+function guestHTML(g) {
+  return `
+    <button class="iso-person pose-${g.pose || 'idle'} ${g.flip ? 'flip' : ''} ${g.talked ? 'done' : ''}"
+            data-scene="talk" data-id="${g.id}"
+            style="left:${g.x}%; top:${g.y}%; --d:${g.delay || 0}s">
+      <span class="iso-shadow"></span>
+      <span class="iso-billboard">
+        <span class="iso-tag" style="--gc:${GUEST_DOT[g.type] || '#94a3b8'}">
+          <i class="dot"></i>${g.name.split(' ')[0]}${g.known ? ' ★' : ''}${g.talked ? ' ✓' : ''}
+        </span>
+        <span class="iso-body">${personBody(g, 58)}</span>
+      </span>
+    </button>`;
+}
 
-  el.classList.remove('hidden');
-  document.body.classList.add('no-scroll');
-  el.innerHTML = `
-    <div class="scene-wrap">
-      <div class="scene-head">
-        <div>
-          <h2><i class="fas fa-location-dot"></i> ${sc.title}</h2>
-          <span>${room.name} · ${remaining} personne${remaining > 1 ? 's' : ''} à aborder</span>
-        </div>
-        <button class="btn btn-primary" data-scene="leave"><i class="fas fa-door-open"></i> Rentrer</button>
-      </div>
-
-      <div class="iso-stage">
-        <div class="iso-room" style="--floor:${room.floor};--floor2:${room.floor2};--wall:${room.wall};--accent:${room.accent}">
-          <div class="iso-floor"></div>
-          <div class="iso-wall iso-wall-l"></div>
-          <div class="iso-wall iso-wall-r"></div>
-          ${room.props.map(p => `
-            <div class="iso-prop" style="
-              left:${p.x}%; top:${p.y}%; width:${p.w}%; height:${p.h}%;
-              --ph:${p.h3}px; --pc:${p.color};">
-              <div class="prop-top"></div><div class="prop-side"></div><div class="prop-front"></div>
-              ${p.label ? `<span class="prop-label">${p.label}</span>` : ''}
-            </div>`).join('')}
-
-          ${sc.guests.map(g => `
-            <button class="iso-person ${g.talked ? 'done' : ''}" data-scene="talk" data-id="${g.id}"
-                    style="left:${g.x}%; top:${g.y}%; z-index:${Math.round(g.y)}">
-              <span class="iso-shadow"></span>
-              <span class="iso-billboard">
-                <span class="iso-tag">${g.name.split(' ')[0]}${g.known ? ' ★' : ''}${g.talked ? ' ✓' : ''}</span>
-                ${personBody(g, 54)}
-              </span>
-            </button>`).join('')}
-
-          <div class="iso-person iso-me" style="left:50%; top:90%; z-index:95">
-            <span class="iso-shadow"></span>
-            <span class="iso-billboard">
-              <span class="iso-tag me">Toi</span>
-              ${avatarBody(S.look, 58)}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      ${sc.log.length ? `
-      <div class="scene-log">
+function sceneFoot(sc) {
+  return sc.log.length
+    ? `<div class="scene-log">
         ${sc.log.slice(0, 4).map(l => `
           <div class="scene-line ${l.win ? 'win' : 'fail'}">
             <b>${l.name}</b> — ${l.text}
             ${l.reward ? `<span class="scene-reward">${l.reward}</span>` : ''}
           </div>`).join('')}
-      </div>` : `<p class="scene-hint">Clique sur quelqu'un pour l'aborder. Tu ne peux parler qu'une fois à chaque personne.</p>`}
-    </div>`;
+      </div>`
+    : `<p class="scene-hint">Clique sur quelqu'un pour l'aborder. Tu ne peux parler qu'une fois à chaque personne.</p>`;
+}
 
+function renderScene() {
+  const sc = S.scene;
+  const el = $('#scene');
+  if (!sc) { closeScenePanel(); return; }
+
+  const room = ROOMS[sc.room] || ROOMS.bar;
+  const remaining = sc.guests.filter(g => !g.talked).length;
+  const key = sc.kind + ':' + sc.id + ':' + sc.room;
+
+  el.classList.remove('hidden');
+  document.body.classList.add('no-scroll');
+
+  /* La salle n'est reconstruite que lorsqu'on change de lieu : sinon on
+     mettrait à zéro toutes les animations à chaque conversation. */
+  if (el.dataset.key !== key) {
+    el.dataset.key = key;
+    const me = playerSpot(sc.room);
+    const people = sc.guests.map(guestHTML).join('') + `
+      <div class="iso-person iso-me" style="left:${me.x}%; top:${me.y}%">
+        <span class="iso-shadow"></span>
+        <span class="iso-billboard">
+          <span class="iso-tag me">Toi</span>
+          <span class="iso-body">${avatarBody(S.look, 62)}</span>
+        </span>
+      </div>`;
+
+    el.innerHTML = `
+      <div class="scene-wrap">
+        <div class="scene-head">
+          <div class="scene-title">
+            <h2><i class="fas fa-location-dot"></i> ${sc.title}</h2>
+            <div class="scene-sub">
+              <span class="scene-chip"><i class="fas fa-map-pin"></i> ${room.name}</span>
+              <span class="scene-chip live"><i class="fas fa-user-group"></i> <b id="sc-left">${remaining}</b>&nbsp;à aborder</span>
+              <span class="scene-chip"><i class="fas fa-clock"></i> ${dateLabel(S)}</span>
+            </div>
+          </div>
+          <button class="btn btn-primary" data-scene="leave"><i class="fas fa-door-open"></i> Rentrer</button>
+        </div>
+        <div class="iso-stage" style="--amb:${room.tint}">${stageHTML(sc.room, people)}</div>
+        <div class="scene-foot">${sceneFoot(sc)}</div>
+      </div>`;
+
+    bindScene();
+    bindSceneCamera();
+    return;
+  }
+
+  /* Sinon on ne rafraîchit que ce qui a bougé. */
+  const left = el.querySelector('#sc-left');
+  if (left) left.textContent = remaining;
+  sc.guests.forEach(g => {
+    const node = el.querySelector(`.iso-person[data-id="${g.id}"]`);
+    if (!node) return;
+    node.classList.toggle('done', !!g.talked);
+    const tag = node.querySelector('.iso-tag');
+    if (tag) tag.innerHTML = `<i class="dot"></i>${g.name.split(' ')[0]}${g.known ? ' ★' : ''}${g.talked ? ' ✓' : ''}`;
+  });
+  const foot = el.querySelector('.scene-foot');
+  if (foot) foot.innerHTML = sceneFoot(sc);
+}
+
+function bindScene() {
   $$('#scene [data-scene]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.scene === 'leave') return leaveScene();
     if (b.dataset.scene === 'talk') openTalk(b.dataset.id);
   }));
+}
+
+/* La caméra suit doucement la souris : quelques degrés suffisent
+   à donner l'impression d'être dans la pièce plutôt que devant. */
+function bindSceneCamera() {
+  const stage = $('#scene .iso-stage');
+  const room = $('#scene .iso-room');
+  if (!stage || !room) return;
+  let raf = null;
+  stage.addEventListener('pointermove', e => {
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = null;
+      const r = stage.getBoundingClientRect();
+      const dx = (e.clientX - r.left) / r.width - 0.5;
+      const dy = (e.clientY - r.top) / r.height - 0.5;
+      room.style.setProperty('--tx', (57 - dy * 7).toFixed(2) + 'deg');
+      room.style.setProperty('--tz', (-45 - dx * 7).toFixed(2) + 'deg');
+    });
+  });
+  stage.addEventListener('pointerleave', () => {
+    room.style.setProperty('--tx', '57deg');
+    room.style.setProperty('--tz', '-45deg');
+  });
 }
 
 function openTalk(guestId) {
