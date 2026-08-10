@@ -948,3 +948,50 @@ body.no-scroll { overflow: hidden; }
 .contact.is-mentor { border-color: color-mix(in srgb, var(--orange) 40%, var(--line-soft)); }
 .owed { margin: 6px 0 2px; display: flex; flex-direction: column; gap: 4px; }
 .owed span { font-size: .72rem; color: var(--txt-3); text-transform: uppercase; letter-spacing: .04em; }
+
+/* Un canal qui ne s'achète pas : pas de curseur, un état */
+.field.effort {
+  background: var(--card-2); border: 1px dashed var(--line);
+  border-radius: var(--radius-sm); padding: 12px 13px;
+}
+.field.effort .budget-label { color: var(--orange-light); }
+
+/* ---------- Monde : villes et immobilier ---------- */
+.city-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 9px;
+}
+.city-stats > div {
+  padding: 10px 12px; background: var(--card-2); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 3px;
+}
+.city-stats span { font-size: .7rem; color: var(--txt-3); text-transform: uppercase; letter-spacing: .04em; }
+.city-stats b { font-size: .95rem; }
+
+.cities { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
+.city {
+  padding: 14px; background: var(--card-2); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 8px;
+}
+.city.here { border-color: color-mix(in srgb, var(--orange) 45%, var(--line-soft)); background: color-mix(in srgb, var(--orange) 6%, var(--card-2)); }
+.city.locked { opacity: .62; }
+.city-head { display: flex; align-items: center; gap: 11px; }
+.city-head > i { font-size: 1.15rem; color: var(--orange-light); width: 24px; text-align: center; }
+.city-head > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.city-head b { font-size: .96rem; }
+.city-mini { display: flex; flex-wrap: wrap; gap: 8px; }
+.city-mini span {
+  font-size: .73rem; padding: 3px 9px; border-radius: 999px;
+  background: var(--card); border: 1px solid var(--line-soft); color: var(--txt-2);
+}
+
+.props { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 12px; }
+.prop {
+  padding: 14px; background: var(--card-2); border: 1px solid var(--line-soft);
+  border-radius: var(--radius-sm); display: flex; flex-direction: column; gap: 6px;
+}
+.prop.lived { border-color: color-mix(in srgb, var(--pos) 40%, var(--line-soft)); }
+.prop-head { display: flex; align-items: center; gap: 11px; }
+.prop-head > i { font-size: 1.1rem; color: var(--orange-light); width: 24px; text-align: center; }
+.prop-head > div { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.prop-head b { font-size: .93rem; }
+.prop .metric em { font-weight: 500; }

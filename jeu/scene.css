@@ -69,7 +69,7 @@
    LE SOL
    --------------------------------------------------------- */
 .iso-floor {
-  position: absolute; inset: 0; border-radius: 4px;
+  position: absolute; inset: 0; border-radius: 4px; pointer-events: none;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, .05),
     0 60px 90px rgba(0, 0, 0, .75);
@@ -130,7 +130,7 @@
    directement dedans, en coordonnées 2D classiques.
    --------------------------------------------------------- */
 .iso-wall {
-  position: absolute; width: 100%; height: var(--wh);
+  position: absolute; width: 100%; height: var(--wh); pointer-events: none;
   transform-origin: bottom left; transform-style: preserve-3d;
   background: var(--wc); overflow: hidden;
   box-shadow: inset 0 -40px 70px rgba(0, 0, 0, .5), inset 0 1px 0 rgba(255, 255, 255, .07);
@@ -790,8 +790,8 @@
 .iso-person {
   position: absolute; width: 40px; height: 40px;
   transform: translate(-50%, -50%) translateZ(3px);
-  transform-style: preserve-3d; background: none; border: none; cursor: pointer;
-  padding: 0; font-family: inherit;
+  transform-style: preserve-3d; background: none; border: none;
+  padding: 0; font-family: inherit; pointer-events: none;
 }
 .iso-shadow {
   position: absolute; left: 50%; top: 50%; width: 40px; height: 40px;
@@ -806,7 +806,10 @@
   transform-origin: bottom center;
   filter: drop-shadow(0 10px 12px rgba(0, 0, 0, .65));
   transition: filter .2s ease;
+  pointer-events: auto; cursor: pointer;
 }
+.iso-person.done .iso-billboard { cursor: default; }
+.iso-me .iso-billboard { pointer-events: none; }
 .iso-body { display: block; animation: idle 3.4s ease-in-out infinite; animation-delay: var(--d, 0s); }
 .pose-idle  .iso-body { animation: idle 3.4s ease-in-out infinite; }
 .pose-talk  .iso-body { animation: talk 2.6s ease-in-out infinite; }
@@ -878,3 +881,25 @@
   .iso-body, .df-grid i, .fx-disco .db-ball, .fx-discofloor::before, .fx-lasers::before,
   .pt, .fx-strobe, .fx-scan, .w-eq i { animation: none !important; }
 }
+
+/* ---------- Qui est là ---------- */
+.scene-roster {
+  display: flex; flex-wrap: wrap; gap: 8px; justify-content: center;
+  margin-bottom: 14px;
+}
+.roster {
+  display: flex; align-items: center; gap: 8px; padding: 5px 12px 5px 5px;
+  background: rgba(21, 29, 46, .8); border: 1px solid var(--line);
+  border-radius: 999px; cursor: pointer; font-family: inherit;
+  transition: transform .15s ease, border-color .15s ease;
+}
+.roster:hover { transform: translateY(-2px); border-color: var(--orange); }
+.roster-av { display: flex; }
+.roster-av .avatar { border-radius: 50%; }
+.roster-name {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: .78rem; font-weight: 700; color: var(--txt); white-space: nowrap;
+}
+.roster-name .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--gc); box-shadow: 0 0 6px var(--gc); }
+.roster.done { opacity: .45; cursor: default; }
+.roster.done:hover { transform: none; border-color: var(--line); }

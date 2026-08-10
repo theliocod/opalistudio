@@ -336,8 +336,23 @@ function guestHTML(g) {
     </button>`;
 }
 
+/* Tout le monde n'est pas forcément visible : un invité peut en cacher
+   un autre. Cette rangée garantit qu'on peut aborder n'importe qui. */
+function sceneRoster(sc) {
+  return `
+    <div class="scene-roster">
+      ${sc.guests.map(g => `
+        <button class="roster ${g.talked ? 'done' : ''}" data-scene="talk" data-id="${g.id}" title="${g.name}">
+          <span class="roster-av">${personAvatar(g, 34, { bg: 'rgba(255,255,255,.08)' })}</span>
+          <span class="roster-name" style="--gc:${GUEST_DOT[g.type] || '#94a3b8'}">
+            <i class="dot"></i>${g.name.split(' ')[0]}${g.known ? ' ★' : ''}${g.talked ? ' ✓' : ''}
+          </span>
+        </button>`).join('')}
+    </div>`;
+}
+
 function sceneFoot(sc) {
-  return sc.log.length
+  return sceneRoster(sc) + (sc.log.length
     ? `<div class="scene-log">
         ${sc.log.slice(0, 4).map(l => `
           <div class="scene-line ${l.win ? 'win' : 'fail'}">
@@ -345,7 +360,7 @@ function sceneFoot(sc) {
             ${l.reward ? `<span class="scene-reward">${l.reward}</span>` : ''}
           </div>`).join('')}
       </div>`
-    : `<p class="scene-hint">Clique sur quelqu'un pour l'aborder. Tu ne peux parler qu'une fois à chaque personne.</p>`;
+    : `<p class="scene-hint">Clique sur quelqu'un — dans la salle ou dans la liste ci-dessus. Tu ne peux parler qu'une fois à chaque personne.</p>`);
 }
 
 function renderScene() {
@@ -407,7 +422,11 @@ function renderScene() {
     if (tag) tag.innerHTML = `<i class="dot"></i>${g.name.split(' ')[0]}${g.known ? ' ★' : ''}${g.talked ? ' ✓' : ''}`;
   });
   const foot = el.querySelector('.scene-foot');
-  if (foot) foot.innerHTML = sceneFoot(sc);
+  if (foot) {
+    foot.innerHTML = sceneFoot(sc);
+    foot.querySelectorAll('[data-scene="talk"]').forEach(b =>
+      b.addEventListener('click', () => openTalk(b.dataset.id)));
+  }
 }
 
 function bindScene() {

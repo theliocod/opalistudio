@@ -672,16 +672,24 @@ function particles(n, kind) {
 function placeGuests(roomId, guests) {
   const room = ROOMS[roomId] || ROOMS.bar;
   const zones = room.zones || [{ x: 50, y: 55, r: 22, pose: 'idle', w: 1 }];
-  // on remplit les zones proportionnellement à leur poids
   const slots = [];
   zones.forEach(z => { for (let i = 0; i < (z.w || 1); i++) slots.push(z); });
 
+  /* En vue isométrique, l'axe horizontal de l'écran suit (x + y) et la
+     profondeur suit (y - x). Deux personnes séparées en profondeur se
+     masquent l'une l'autre ; séparées horizontalement, jamais. On étale
+     donc les gens le long de (1, 1) et on ne décale la profondeur qu'à
+     peine. */
+  const perZone = {};
   guests.forEach((g, i) => {
     const z = slots[i % slots.length];
-    const a = (i * 2.399) % (Math.PI * 2);          // angle d'or : ça ne s'aligne jamais
-    const rr = z.r * (0.35 + ((i * 37) % 60) / 100);
-    g.x = clamp(z.x + Math.cos(a) * rr, 8, 92);
-    g.y = clamp(z.y + Math.sin(a) * rr * 0.8, 14, 90);
+    const key = z.x + ':' + z.y;
+    const n = perZone[key] = (perZone[key] || 0) + 1;
+    const spread = (n - 1.5) * 0.62;                 // -0,9 … +0,9 selon le rang
+    const u = spread * z.r * 1.25;                   // le long de l'axe écran
+    const v = ((i % 3) - 1) * z.r * 0.22;            // un soupçon de profondeur
+    g.x = clamp(z.x + u - v, 8, 92);
+    g.y = clamp(z.y + u + v, 13, 88);
     g.pose = z.pose;
     g.flip = (i % 3 === 0);
     g.delay = ((i * 313) % 100) / 100;

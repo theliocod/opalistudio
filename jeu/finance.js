@@ -132,7 +132,7 @@ function renderFinances() {
       <h2><i class="fas fa-user"></i> Ton budget personnel</h2>
       <table class="table">
         <tr><td>Salaire</td><td class="right ${S.job ? 'pos' : 'muted'}">${S.job ? '+' + fmt(S.job.salary) : '—'}</td></tr>
-        <tr><td>Logement</td><td class="right neg">-${fmt(housing(S).cost)}</td></tr>
+        <tr><td>Logement — ${housing(S).name}</td><td class="right neg">-${fmt(rentOf(housing(S)))}</td></tr>
         ${S.lifeCost ? `<tr><td>Charges de famille</td><td class="right neg">-${fmt(S.lifeCost)}</td></tr>` : ''}
         ${luxuryUpkeep(S) ? `<tr><td>Entretien du train de vie</td><td class="right neg">-${fmt(luxuryUpkeep(S))}</td></tr>` : ''}
         ${debtCost ? `<tr><td>Dette personnelle (${fmt(S.debt)})</td><td class="right neg">-${fmt(debtCost)}</td></tr>` : ''}
@@ -306,10 +306,23 @@ const GUIDE_STEPS = [
   }
 ];
 
+/* Une étape franchie l'est pour de bon : revendre sa dernière société ne
+   doit pas faire réapparaître « lance ta première entreprise ». Seules les
+   alertes — trésorerie, santé, produit — reviennent quand le problème revient. */
 function guideAdvice() {
-  const urgent = GUIDE_STEPS.filter(g => g.urgent && !g.done(S));
-  const next = GUIDE_STEPS.filter(g => !g.urgent && !g.done(S));
-  return { urgent, next: next.slice(0, 2), doneCount: GUIDE_STEPS.filter(g => g.done(S)).length };
+  S.guideDone = S.guideDone || {};
+  const settled = g => {
+    if (g.urgent) return g.done(S);
+    if (S.guideDone[g.id]) return true;
+    let ok = false;
+    try { ok = g.done(S); } catch (_) { ok = false; }
+    if (ok) S.guideDone[g.id] = true;
+    return ok;
+  };
+  const urgent = GUIDE_STEPS.filter(g => g.urgent && !settled(g));
+  const next = GUIDE_STEPS.filter(g => !g.urgent && !settled(g));
+  const doneCount = GUIDE_STEPS.filter(g => settled(g)).length;
+  return { urgent, next: next.slice(0, 2), doneCount };
 }
 
 function renderGuide() {

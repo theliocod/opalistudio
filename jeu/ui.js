@@ -139,7 +139,7 @@ function render() {
 
   const map = {
     vie: renderVie, carriere: renderCarriere, business: renderBusiness,
-    reseau: renderReseau, finances: renderFinances, patrimoine: renderPatrimoine,
+    reseau: renderReseau, finances: renderFinances, patrimoine: renderPatrimoine, monde: renderWorld,
     journal: renderJournal
   };
   $('#tab-content').innerHTML = map[TAB]();
@@ -206,6 +206,7 @@ function renderTabs() {
     ['business', 'Entreprises', 'fa-rocket', S.companies.length],
     ['finances', 'Finances', 'fa-chart-column', 0],
     ['reseau', 'Réseau', 'fa-address-book', networkTodo()],
+    ['monde', 'Monde', 'fa-earth-europe', (S.props || []).filter(p => p.mode === 'rent' && !p.tenant).length],
     ['patrimoine', 'Patrimoine', 'fa-chart-line', 0],
     ['journal', 'Journal', 'fa-book-open', 0]
   ];
@@ -289,7 +290,7 @@ function renderVie() {
       <table class="table">
         <tr><td>Salaire</td><td class="right ${S.job ? 'pos' : 'muted'}">${S.job ? '+' + fmt(S.job.salary) : '—'}</td></tr>
         <tr><td>Profit de tes entreprises</td><td class="right ${monthlyBusinessProfit(S) ? 'pos' : 'muted'}">${monthlyBusinessProfit(S) ? '+' + fmt(monthlyBusinessProfit(S)) : '—'}</td></tr>
-        <tr><td>Logement — ${h.name}</td><td class="right neg">-${fmt(h.cost)}</td></tr>
+        <tr><td>Logement — ${h.name}</td><td class="right neg">-${fmt(rentOf(h))}</td></tr>
         ${S.lifeCost ? `<tr><td>Charges supplémentaires</td><td class="right neg">-${fmt(S.lifeCost)}</td></tr>` : ''}
         ${S.debt ? `<tr><td>Dette (${fmt(S.debt)})</td><td class="right neg">-${fmt(S.debt * CONFIG.debtInterest * 30 + Math.max(200, S.debt * 0.012))}</td></tr>` : ''}
       </table>
@@ -320,14 +321,14 @@ function renderVie() {
     <section class="card">
       <h2><i class="fas fa-house"></i> Logement</h2>
       <div class="list">
-        ${HOUSING.map(x => `
+        ${HOUSING.slice().sort((a, b) => a.cost - b.cost).map(x => `
           <div class="row ${x.id === S.housingId ? 'row-active' : ''}">
             <div class="row-main">
               <div class="row-title"><i class="fas ${x.icon}"></i> ${x.name}</div>
               <div class="row-sub">${x.desc} · récupération ×${x.rest} · moral ${x.happy >= 0 ? '+' : ''}${x.happy}</div>
             </div>
             <div class="row-side">
-              <span class="price">${fmt(x.cost)}/mois</span>
+              <span class="price">${fmt(rentOf(x))}/mois</span>
               ${x.id === S.housingId ? '<span class="tag">Actuel</span>' :
                 `<button class="btn btn-sm" data-act="housing" data-id="${x.id}">Emménager</button>`}
             </div>
@@ -947,11 +948,36 @@ function renderPilotage(c) {
         </div>`;
       })()}
       <p class="row-sub">Chaque canal sature séparément : répartir coûte moins cher que tout mettre au même endroit.
-      Ton niveau en ${skillName('marketing')} et en ${skillName('social')} change directement leur rendement.</p>
+      Ton niveau en ${skillName('marketing')} et en ${skillName('social')} change directement leur rendement.
+      La prospection sortante, elle, ne s'achète pas : elle dépend de ton équipe commerciale.</p>
       ${CHANNELS.map(ch => {
         const blocked = c.blocked && c.blocked.channel === ch.id;
         const eff = channelEfficiency(c, ch);
         const out = channelOutput(c, ch);
+
+        /* La prospection n'a pas de curseur : elle ne se paie pas en
+           publicité, elle se paie en gens et en heures. */
+        if (ch.paid === false) {
+          const sellers = c.staff.filter(e => e.role === 'sales').length;
+          const founder = planEntry('biz', c.uid);
+          const mine = founder && founder.role === 'sales' ? founder.hours : 0;
+          return `
+          <div class="field effort ${blocked ? 'blocked' : ''}">
+            <span class="field-head">
+              <b><i class="fas ${ch.icon}"></i> ${ch.name}</b>
+              <em class="budget-label">${out.toFixed(2)} client${out >= 2 ? 's' : ''}/jour</em>
+            </span>
+            <span class="row-sub">
+              ${blocked ? `<b class="neg">Canal bloqué encore ${c.blocked.days} jours.</b>` : `
+                <b>Aucun budget ici</b> — ce canal ne s'achète pas. Il vaut exactement ce que vaut
+                le temps commercial que tu y mets : ${sellers} commercial${sellers > 1 ? 'aux' : ''} salarié${sellers > 1 ? 's' : ''}
+                et ${mine}h/jour de ton temps au poste « Vente ». Efficacité ×${eff.toFixed(2)}.
+                <br>Pour en amener plus : recrute des commerciaux, monte ton niveau en ${skillName('social')},
+                ou occupe toi-même le poste de vente dans ton planning. Leur salaire est déjà dans ta masse salariale.`}
+            </span>
+          </div>`;
+        }
+
         const maxB = Math.max(t.fixedCost * 4, Math.round(c.cash * 0.6), Math.round(projectedRevenue(c) * 0.7));
         return `
         <label class="field ${blocked ? 'blocked' : ''}">
@@ -1636,6 +1662,39 @@ function handleAction(act, d) {
           if (uid !== 'cancel') hireFriend(id, uid);
         }));
       }
+      break;
+    }
+
+    case 'tripBox': tripBox(id); break;
+    case 'move': {
+      const c = getCity(id);
+      confirmBox(`S'installer à ${c.name} ?`,
+        `${fmt(moveCost(c))} de déménagement. Ton coût de la vie passe à ×${c.cost.toFixed(2)}, ton marché à ×${c.market.toFixed(2)}, et tu devras reconstruire ton réseau sur place — la moitié de tes contacts deviendront lointains.`,
+        () => moveTo(id));
+      break;
+    }
+    case 'buyProp': {
+      const t = PROPERTY_TYPES.find(x => x.id === id);
+      const city = currentCity(S);
+      const price = propPrice(id, city.id);
+      const loan = d.loan === '1';
+      confirmBox(`Acheter : ${t.name} à ${city.name} ?`,
+        loan
+          ? `${fmt(price)} dont ${fmt(Math.round(price * 0.2) + Math.round(price * 0.08))} d'apport et de frais, le reste sur 20 ans à ${(mortgageRate(S) * 100).toFixed(2)}%.`
+          : `${fmt(price + Math.round(price * 0.08))} tout compris, frais de notaire inclus.`,
+        () => buyProperty(id, city.id, loan));
+      break;
+    }
+    case 'moveIn': moveIntoProp(id); break;
+    case 'rentOut': rentOut(id); break;
+    case 'stopRent': stopRenting(id); break;
+    case 'renovate': renovate(id); break;
+    case 'sellProp': {
+      const p = propOf(id);
+      const t = propType(p);
+      confirmBox(`Revendre ton ${t.name.toLowerCase()} ?`,
+        `Valeur ${fmtFull(p.value)}, moins 6 % de frais${p.loan ? `, moins ${fmtFull(p.loan.principal)} de crédit restant` : ''}${S.housingId === 'prop:' + p.id ? '. Tu devras te reloger.' : ''}`,
+        () => sellProperty(id));
       break;
     }
 

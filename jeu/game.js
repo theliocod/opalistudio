@@ -129,6 +129,10 @@ function newGame(name, originId, look) {
     mentors: [],
     mentoring: [],
     friends: null,
+    cityId: 'paris',
+    props: [],
+    away: null,
+    travelBack: 0,
     portfolio: {},
     prices: {},
     housingId: 'parents',
@@ -293,7 +297,7 @@ function capacity(c) {
 }
 
 function marketSize(c) {
-  return getType(c).market * (c.marketBonus || 1);
+  return getType(c).market * (c.marketBonus || 1) * cityMarket(S);
 }
 
 function marketShare(c) {
@@ -332,6 +336,19 @@ function channelEfficiency(c, ch) {
   return eff;
 }
 
+/* L'effort commercial : ce n'est pas une ligne budgétaire, ce sont des
+   gens. Des commerciaux salariés — déjà payés dans la masse salariale —
+   et le fondateur quand il occupe lui-même le poste de vente. */
+function salesEffort(c) {
+  let effort = roleForce(c, 'sales') * 2.4;
+  const founder = planEntry('biz', c.uid);
+  if (founder && founder.role === 'sales') {
+    const skill = (S.skills.social + S.skills.business) / 2;
+    effort += founder.hours * (0.16 + skill / 420) * efficiency();
+  }
+  return effort;
+}
+
 /* Clients apportés par un canal, en clients par jour.
    Modèle : budget / coût d'acquisition, avec un plafond propre au canal
    (il ne capte au mieux qu'une fraction du marché chaque mois).
@@ -340,19 +357,38 @@ function channelEfficiency(c, ch) {
 function channelOutput(c, ch) {
   if (c.blocked && c.blocked.channel === ch.id) return 0;
   const t = getType(c);
-  // On paie le budget du mois, mais ce sont les euros déjà « installés »
-  // qui rapportent : une campagne, une audience ou un fichier de prospects
-  // mettent des semaines à produire leur plein effet.
-  const spendDay = c.stock[ch.id] || 0;
-  if (spendDay <= 0) return 0;
 
   let power = ch.power * channelEfficiency(c, ch);
   if (ch.id === 'influence') power *= 0.5 + S.reputation / 70;
-
   const cacEff = t.cac / Math.max(0.05, power);
-  const raw = spendDay / cacEff;                                     // clients/jour sans plafond
   const satDay = marketSize(c) * ch.satShare / DAYS_PER_MONTH;       // plafond du canal
+
+  // La prospection ne se règle pas au curseur : elle vaut ce que vaut
+  // le temps commercial qu'on y met. On la convertit en équivalent
+  // d'euros prospectés par jour pour la comparer aux autres canaux.
+  if (ch.paid === false) {
+    const effort = salesEffort(c);
+    if (effort <= 0) return 0;
+    const raw = (effort * 52) / cacEff;
+    return raw / (1 + raw / satDay);
+  }
+
+  // Sur les canaux payants, on paie le budget du mois, mais ce sont les
+  // euros déjà « installés » qui rapportent : une campagne ou une audience
+  // mettent des semaines à produire leur plein effet.
+  const spendDay = c.stock[ch.id] || 0;
+  if (spendDay <= 0) return 0;
+  const raw = spendDay / cacEff;
   return raw / (1 + raw / satDay);
+}
+
+/* Ce qui vient réellement de ce qu'on achète en publicité. */
+function paidChannelPower(c) {
+  return CHANNELS.filter(ch => ch.paid !== false).reduce((a, ch) => a + channelOutput(c, ch), 0);
+}
+function paidShare(c) {
+  const total = totalChannelPower(c);
+  return total > 0 ? paidChannelPower(c) / total : 0;
 }
 
 function totalChannelPower(c) {
@@ -381,15 +417,8 @@ function dailyAcquisition(c) {
   // bouche-à-oreille : proportionnel à la qualité et à la base installée
   acq += Math.pow(Math.max(0, c.clients), 0.7) * (c.quality / 100) * 0.004;
 
-  // commerciaux salariés
-  acq += base * roleForce(c, 'sales') * 1.6;
-
-  // le fondateur qui vend lui-même
-  const founder = planEntry('biz', c.uid);
-  if (founder && founder.role === 'sales') {
-    const skill = (S.skills.social + S.skills.business) / 2;
-    acq += base * (0.3 + skill / 70) * (founder.hours / 8) * efficiency();
-  }
+  // L'équipe commerciale et le fondateur qui vend sont désormais comptés
+  // une seule fois, dans le canal « prospection sortante ».
 
   acq = acq
     * priceDemandFactor(c)
@@ -438,7 +467,7 @@ function clientValue(c) {
 
 // Ce que te coûte réellement un client acquis, budgets d'acquisition compris
 function realCAC(c) {
-  const perMonth = dailyAcquisition(c) * DAYS_PER_MONTH;
+  const perMonth = dailyAcquisition(c) * DAYS_PER_MONTH * paidShare(c);
   if (perMonth <= 0.01) return Infinity;
   return adSpendMonthly(c) / perMonth;
 }
@@ -471,7 +500,7 @@ function payrollMonthly(c) {
 }
 
 function adSpendMonthly(c) {
-  return CHANNELS.reduce((a, ch) => a + (c.budgets[ch.id] || 0), 0);
+  return CHANNELS.filter(ch => ch.paid !== false).reduce((a, ch) => a + (c.budgets[ch.id] || 0), 0);
 }
 
 function projectedRevenue(c) {
@@ -496,7 +525,7 @@ function projectedCosts(c) {
 
 function projectedProfit(c) {
   const p = projectedRevenue(c) - projectedCosts(c);
-  const taxRate = Math.max(0.18, 0.25 - S.skills.finance / 800);
+  const taxRate = clamp(0.25 - S.skills.finance / 800 + cityTax(S), 0.04, 0.42);
   return p > 0 ? p * (1 - taxRate) : p;
 }
 
@@ -540,9 +569,22 @@ function portfolioValue(s) {
 }
 function netWorth(s) {
   const comp = s.companies.reduce((a, c) => a + equityValue(c), 0);
-  return s.money - s.debt + comp + portfolioValue(s) + luxuryValue(s);
+  return s.money - s.debt + comp + portfolioValue(s) + luxuryValue(s) + propertyEquity(s);
 }
 function housing(s) {
+  // un bien qu'on possède : plus de loyer, et le confort de son standing
+  if (String(s.housingId).startsWith('prop:')) {
+    const p = (s.props || []).find(x => x.id === s.housingId.slice(5));
+    if (p) {
+      const t = PROPERTY_TYPES.find(x => x.id === p.typeId);
+      return {
+        id: s.housingId, name: `${t.name} (à toi)`, icon: t.icon, cost: 0,
+        rest: +(t.rest * (0.86 + p.cond / 700)).toFixed(2),
+        happy: Math.round(t.happy * (0.7 + p.cond / 330)),
+        desc: t.desc
+      };
+    }
+  }
   const h = HOUSING.find(x => x.id === s.housingId);
   if (h) return h;
   const lux = LUXURY.find(l => l.id === s.housingId);
@@ -550,15 +592,24 @@ function housing(s) {
   return HOUSING[0];
 }
 
+/* Un loyer se paie au prix de la ville où l'on vit. */
+function rentOf(h, s = S) { return Math.round(h.cost * cityCostFactor(s)); }
+
 /* Niveau de standing du logement, utilisé pour savoir quelles
    soirées on peut recevoir chez soi. */
 function housingTier(s) {
-  const i = HOUSING.findIndex(h => h.id === s.housingId);
-  if (i >= 0) return i;
+  if (String(s.housingId).startsWith('prop:')) {
+    const p = (s.props || []).find(x => x.id === s.housingId.slice(5));
+    if (p) return (PROPERTY_TYPES.find(x => x.id === p.typeId) || {}).tier || 0;
+  }
+  const h = HOUSING.find(x => x.id === s.housingId);
+  if (h) return h.tier || 0;
   const lux = LUXURY.find(l => l.id === s.housingId);
   return lux && lux.housing ? 5 : 0;
 }
-function totalLifeCost(s) { return housing(s).cost + (s.lifeCost || 0); }
+function totalLifeCost(s) {
+  return rentOf(housing(s), s) + (s.lifeCost || 0) * cityCostFactor(s);
+}
 function debtCeiling(s) {
   return Math.max(15000, netWorth(s) * 0.5 + monthlyBusinessProfit(s) * 24 + (s.job ? s.job.salary * 20 : 0));
 }
@@ -622,9 +673,10 @@ function startTraining(id) {
 
 function setHousing(id) {
   const h = HOUSING.find(x => x.id === id);
-  if (h.cost > 1000 && S.money < h.cost * 2) return toast("Il te faut au moins 2 mois de loyer d'avance.");
+  const rent = rentOf(h);
+  if (rent > 1000 && S.money < rent * 2) return toast("Il te faut au moins 2 mois de loyer d'avance.");
   S.housingId = id;
-  addLog(S, `Déménagement : ${h.name} (${fmt(h.cost)}/mois).`, 'info');
+  addLog(S, `Déménagement : ${h.name} (${fmt(rent)}/mois).`, 'info');
   render();
 }
 
@@ -652,6 +704,8 @@ function foundCompany(typeId, name) {
 function setBudget(uid, channel, value) {
   const c = S.companies.find(x => x.uid === uid);
   if (!c) return;
+  const ch = CHANNELS.find(x => x.id === channel);
+  if (ch && ch.paid === false) return;   // la prospection ne s'achète pas
   c.budgets[channel] = Math.max(0, Math.round(value));
 }
 function setCompanyField(uid, field, value) {
@@ -680,7 +734,7 @@ function transfer(uid, amount) {
     const a = Math.min(amount, Math.floor(c.cash));
     if (a <= 0) return toast("Trésorerie vide.");
     c.cash -= a;
-    const flat = Math.max(0.22, 0.3 - S.skills.finance / 700);
+    const flat = clamp(0.3 - S.skills.finance / 700 + cityTax(S), 0.08, 0.45);
     const net = Math.round(a * c.equity * (1 - flat));
     S.money += net;
     addLog(S, `${c.name} : ${fmt(a)} de dividendes, ${fmt(net)} nets.`, 'info');
@@ -993,7 +1047,7 @@ function tick() {
     // comptes
     const revenue = projectedRevenue(c) / D;
     const costs = projectedCosts(c) / D;
-    const taxRate = Math.max(0.18, 0.25 - S.skills.finance / 800);
+    const taxRate = clamp(0.25 - S.skills.finance / 800 + cityTax(S), 0.04, 0.42);
     let profit = revenue - costs;
     if (profit > 0) profit *= (1 - taxRate);
     c.lastRevenue = revenue * D;
@@ -1129,6 +1183,7 @@ function tick() {
 
   tickFamily(S);
   tickNetwork(S);
+  tickWorld(S);
 
   /* ---------- Objectifs, temps, fin ---------- */
   GOALS.forEach(g => {
@@ -1306,11 +1361,22 @@ function gameOver(reason) {
 function save() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch (_) {}
 }
+/* Les parties d'avant pouvaient poser un budget sur la prospection :
+   on le rend à l'entreprise plutôt que de le laisser brûler. */
+function migrateChannels(s) {
+  (s.companies || []).forEach(c => {
+    CHANNELS.filter(ch => ch.paid === false).forEach(ch => {
+      if (c.budgets && c.budgets[ch.id]) { c.budgets[ch.id] = 0; c.stock[ch.id] = 0; }
+    });
+  });
+}
+
 function load() {
   try {
     const raw = localStorage.getItem(SAVE_KEY);
     if (!raw) return null;
     S = JSON.parse(raw);
+    migrateChannels(S);
     return S;
   } catch (_) { return null; }
 }

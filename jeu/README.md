@@ -38,10 +38,15 @@ Dans chaque entreprise, tu choisis **le poste que tu occupes toi-même** :
 
 Chaque société se règle sur une dizaine de variables :
 
-- **Quatre canaux d'acquisition** — contenu organique, publicité payante, influence,
-  prospection sortante. Chacun a son coût par client, son plafond propre et sa
-  dépendance à une compétence. Comme chaque canal sature séparément, répartir coûte
-  moins cher que tout mettre au même endroit.
+- **Trois canaux qu'on achète** — contenu organique, publicité payante, influence.
+  Chacun a son coût par client, son plafond propre et sa dépendance à une
+  compétence. Comme chaque canal sature séparément, répartir coûte moins cher
+  que tout mettre au même endroit.
+- **Un canal qu'on ne peut pas acheter** : la prospection sortante. Aucun curseur,
+  aucun budget — elle vaut exactement ce que vaut le temps commercial qu'on y met,
+  c'est-à-dire tes commerciaux salariés et tes propres heures au poste de vente.
+  Leur salaire est déjà dans la masse salariale ; le coût d'acquisition affiché ne
+  compte donc que les clients réellement venus de la publicité.
 - **Le niveau de prix** (60 % à 160 % du prix marché) : mais le prix ne se décide pas
   seul, voir plus bas.
 - **Le budget R&D**, qui fait monter la qualité.
@@ -417,6 +422,55 @@ Passer la souris sur la scène fait bouger la caméra de quelques degrés.
 Tout est dessiné en CSS : pas une image, pas une bibliothèque 3D, pas un
 octet téléchargé.
 
+## Le monde
+
+Où l'on vit n'est pas un décor. Douze villes, de Marseille à Singapour, et
+chacune change **six choses à la fois** : ce que coûte une journée, ce qu'on
+paie d'impôts, la taille du marché qu'on adresse, le vivier de profils qu'on
+peut recruter, le niveau des gens qu'on croise en réseautant, et le prix de la
+pierre.
+
+Bali coûte trois fois moins cher que Paris et rend heureux — et divise le
+marché par trois. New York multiplie le marché par presque deux et le coût de
+la vie par deux également. Dubaï enlève seize points de fiscalité. Berlin a le
+meilleur vivier technique d'Europe pour des loyers tenables. Aucune n'est
+meilleure : elles arbitrent différemment.
+
+### Partir, et s'installer
+
+**Voyager** fait passer de vrais jours de calendrier : la boîte tourne sans toi
+pendant ce temps-là, les échéances tombent, les salaires sortent. On revient
+avec de l'énergie, du moral, parfois une rencontre qu'on n'aurait jamais faite
+et une idée claire pour le produit. Quatre formats, du week-end aux deux mois
+de rupture.
+
+**S'installer** est autre chose. Ça se paie en argent, et surtout socialement :
+la moitié de ton carnet devient lointain, tes amis perdent en proximité, ton
+couple encaisse. Certaines villes demandent une réputation ou une avance avant
+de te laisser entrer.
+
+## La pierre
+
+Dix logements en location, du studio à la villa — et surtout la possibilité de
+**devenir propriétaire**. Dix types de biens, du studio au domaine, en passant
+par l'immeuble de rapport qu'on n'habite pas et qu'on exploite.
+
+- **Acheter** comptant ou à crédit : 20 % d'apport, 8 % de frais de notaire et
+  d'agence, et la banque qui suit tant que tes mensualités restent sous un
+  tiers de tes revenus. Ton niveau en finance fait baisser le taux.
+- **Habiter** dedans : plus de loyer, et un confort qui dépend de l'état du
+  bien.
+- **Louer** : un locataire arrive avec un nom et une fiabilité. Il paie, ou il
+  ne paie pas ; il reste des années, ou il part ; il casse quelque chose de
+  temps en temps.
+- **Entretenir** : la pierre se dégrade toute seule, plus vite quand elle est
+  louée. Des travaux redonnent de l'état et de la valeur.
+- **Revendre** : 6 % de frais, et une plus-value taxée si tu as détenu peu de
+  temps — exonérée si c'était ta résidence.
+
+La valeur suit la ville, avec un cycle : de 2 % par an à Londres à 5,5 % à
+Bali. Tout apparaît dans un menu unique, où chaque bien se pilote comme on veut.
+
 ## Le train de vie
 
 Douze actifs, de la citadine d'occasion au jet privé, en passant par les montres,
@@ -443,6 +497,7 @@ logement, et débloquent les grandes soirées.
 | `rivals.js` | les concurrents : archétypes, croissance, pression concurrentielle, rachats |
 | `family.js` | conjoint, enfants, amis, et ce que les heures leur doivent |
 | `capital.js` | tours de table, fonds nommés, dette bancaire, synergies de groupe |
+| `world.js` | villes, voyages, déménagements, achat et gestion des biens immobiliers |
 | `finance.js` | graphiques financiers et guide contextuel |
 | `ui.js` | rendu des écrans et interactions |
 | `styles.css` | habillage, aux couleurs d'OpalStudio |

@@ -51,7 +51,7 @@ function socialStanding(s = S) {
 
 /* Ce que quelqu'un pense de toi quand il te croise pour la première fois. */
 function reachableLevel(s = S, bonus = 0) {
-  return clamp(socialStanding(s) + bonus + rand(-6, 10), 8, 99);
+  return clamp(socialStanding(s) + bonus + cityNet(s) + rand(-6, 10), 8, 99);
 }
 
 /* ---------------------------------------------------------

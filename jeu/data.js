@@ -88,12 +88,16 @@ const ORIGINS = [
    LOGEMENTS
    --------------------------------------------------------- */
 const HOUSING = [
-  { id: 'parents', name: 'Chez tes parents', cost: 150, rest: 0.9, happy: -1, icon: 'fa-bed', desc: "Gratuit ou presque. Ta mère entre sans frapper." },
-  { id: 'coloc', name: 'Colocation', cost: 550, rest: 1.0, happy: 1, icon: 'fa-users', desc: "Bruyant mais vivant." },
-  { id: 'studio', name: 'Studio en ville', cost: 1100, rest: 1.1, happy: 2, icon: 'fa-door-closed', desc: "25m², au calme, proche de tout." },
-  { id: 'appart', name: 'Grand appartement', cost: 2600, rest: 1.2, happy: 5, icon: 'fa-city', desc: "De l'espace pour travailler et respirer." },
-  { id: 'maison', name: 'Maison avec jardin', cost: 5200, rest: 1.3, happy: 8, icon: 'fa-house-chimney', desc: "Le rêve classique, version réussie." },
-  { id: 'villa', name: 'Villa avec piscine', cost: 14000, rest: 1.45, happy: 12, icon: 'fa-hotel', desc: "Tu as gagné. Tout le monde le sait." }
+  { id: 'parents', name: 'Chez tes parents', tier: 0, cost: 150, rest: 0.9, happy: -1, icon: 'fa-bed', desc: "Gratuit ou presque. Ta mère entre sans frapper." },
+  { id: 'coloc', name: 'Colocation', tier: 1, cost: 550, rest: 1.0, happy: 1, icon: 'fa-users', desc: "Bruyant mais vivant." },
+  { id: 'studio', name: 'Studio en ville', tier: 1, cost: 1100, rest: 1.1, happy: 2, icon: 'fa-door-closed', desc: "25m², au calme, proche de tout." },
+  { id: 'appart', name: 'Grand appartement', tier: 3, cost: 2600, rest: 1.2, happy: 5, icon: 'fa-city', desc: "De l'espace pour travailler et respirer." },
+  { id: 'maison', name: 'Maison avec jardin', tier: 4, cost: 5200, rest: 1.3, happy: 8, icon: 'fa-house-chimney', desc: "Le rêve classique, version réussie." },
+  { id: 'villa', name: 'Villa avec piscine', tier: 5, cost: 14000, rest: 1.45, happy: 12, icon: 'fa-hotel', desc: "Tu as gagné. Tout le monde le sait." },
+  { id: 'chambre', name: 'Chambre chez l\'habitant', tier: 0, cost: 380, rest: 0.95, happy: -2, icon: 'fa-bed', desc: "Une porte, un lit, et des règles qui ne sont pas les tiennes." },
+  { id: 'loft', name: 'Loft en meublé', tier: 2, cost: 1800, rest: 1.15, happy: 4, icon: 'fa-industry', desc: "Du volume, de la lumière, et un chauffage qui n'y arrive pas." },
+  { id: 'duplex', name: 'Duplex avec terrasse', tier: 3, cost: 3800, rest: 1.26, happy: 7, icon: 'fa-stairs', desc: "Deux niveaux, une terrasse plein sud. Le palier avant la maison." },
+  { id: 'penthouseloc', name: 'Penthouse en location', tier: 5, cost: 9500, rest: 1.4, happy: 14, icon: 'fa-city', desc: "Dernier étage, vue dégagée, et un loyer qui pique tous les cinq du mois." }
 ];
 
 /* ---------------------------------------------------------
@@ -187,18 +191,18 @@ const SKILL_CAPS = { auto: 38, paid: 78, field: 88, mentor: 100 };
    que tout mettre sur un seul levier.
    --------------------------------------------------------- */
 const CHANNELS = [
-  { id: 'organic', name: 'Contenu organique', icon: 'fa-seedling', power: 1.4, satShare: 0.004,
+  { id: 'organic', name: 'Contenu organique', icon: 'fa-seedling', paid: true, power: 1.4, satShare: 0.004,
     skill: 'marketing', rampDays: 150,
     desc: "Le moins cher au client acquis, mais il faut des mois pour l'installer." },
-  { id: 'paid', name: 'Publicité payante', icon: 'fa-rectangle-ad', power: 1.0, satShare: 0.012,
+  { id: 'paid', name: 'Publicité payante', icon: 'fa-rectangle-ad', paid: true, power: 1.0, satShare: 0.012,
     skill: 'marketing', rampDays: 35,
     desc: "Immédiat et scalable. Coupe le budget, tout s'arrête." },
-  { id: 'influence', name: 'Influence & partenariats', icon: 'fa-star', power: 1.1, satShare: 0.007,
+  { id: 'influence', name: 'Influence & partenariats', icon: 'fa-star', paid: true, power: 1.1, satShare: 0.007,
     skill: 'social', rampDays: 80,
     desc: "Dépend de ta réputation. Très rentable quand on te connaît." },
-  { id: 'outbound', name: 'Prospection sortante', icon: 'fa-phone-volume', power: 0.8, satShare: 0.006,
+  { id: 'outbound', name: 'Prospection sortante', icon: 'fa-phone-volume', paid: false, power: 0.8, satShare: 0.006,
     skill: 'social', rampDays: 50,
-    desc: "Du dur, du direct. Marche même sans notoriété." }
+    desc: "Ça ne s'achète pas : ce sont des gens qui décrochent leur téléphone. Ton équipe commerciale et tes propres heures de vente." }
 ];
 
 /* ---------------------------------------------------------
