@@ -205,7 +205,7 @@ function renderTabs() {
     ['carriere', 'Carrière', 'fa-briefcase', 0],
     ['business', 'Entreprises', 'fa-rocket', S.companies.length],
     ['finances', 'Finances', 'fa-chart-column', 0],
-    ['reseau', 'Réseau', 'fa-address-book', S.contacts.length],
+    ['reseau', 'Réseau', 'fa-address-book', networkTodo()],
     ['patrimoine', 'Patrimoine', 'fa-chart-line', 0],
     ['journal', 'Journal', 'fa-book-open', 0]
   ];
@@ -481,52 +481,285 @@ function renderCarriere() {
 
 /* ================= Onglet RÉSEAU ================= */
 
+/* Ce qui attend vraiment une action de ta part dans l'onglet Réseau. */
+function networkTodo() {
+  let n = (S.mentors || []).filter(m => S.day >= m.nextSession - mentorStyle(m).rhythm * 0.5).length;
+  n += (S.friends || []).filter(f => f.closeness < 30 || f.envy > 45).length;
+  n += S.contacts.filter(k => k.relation >= 45 && S.day - k.lastSeen > 240 && !k.away).length;
+  return n;
+}
+
 function renderReseau() {
-  const net = planEntry('network');
   return `
   <div class="grid">
-    <section class="card wide">
-      <h2><i class="fas fa-address-book"></i> Ton réseau</h2>
-      <p class="muted">
-        Alloue des heures au réseautage dans ton planning pour rencontrer de nouvelles personnes
-        (${net ? `${net.hours}h/jour actuellement` : 'aucune heure allouée'}).
-        Un contact de haut niveau est la seule façon de dépasser ${SKILL_CAPS.field} dans une compétence —
-        et il faut entretenir la relation pour ça.
-      </p>
-      ${S.contacts.length ? `
-      <div class="contacts">
-        ${S.contacts.slice().sort((a, b) => b.relation - a.relation).map(k => {
-          const kind = contactKind(k);
-          const cool = S.day - k.lastSeen < 20;
-          return `
-          <div class="contact">
-            <div class="contact-head">
-              <span class="mini-av">${personAvatar(k, 46)}</span>
-              <div>
-                <b>${k.name}</b>
-                <span class="row-sub"><i class="fas ${kind.icon}"></i> ${kind.name} · niveau ${k.level}</span>
-              </div>
-            </div>
-            <p class="row-sub">${kind.desc}</p>
+    ${renderMentors()}
+    ${renderFriends()}
+    ${renderContacts()}
+    ${renderApprentices()}
+  </div>`;
+}
+
+/* ---------- Mentors ---------- */
+
+function renderMentors() {
+  const mentors = S.mentors || [];
+  const candidates = S.contacts.filter(k => couldMentor(k) && !isMentor(k.id))
+    .sort((a, b) => mentorOdds(b) - mentorOdds(a)).slice(0, 4);
+
+  return `
+  <section class="card wide">
+    <h2><i class="fas fa-user-graduate"></i> Mentorat</h2>
+    <p class="muted">
+      Un mentor est la seule façon de dépasser ${SKILL_CAPS.field} dans une compétence.
+      Ça ne se demande pas à n'importe qui, et ça ne se garde pas sans venir aux séances.
+      ${mentors.length ? `Tu peux en suivre ${maxMentors()} à la fois.` : ''}
+    </p>
+
+    ${mentors.map(m => {
+      const k = mentorContact(m); if (!k) return '';
+      const st = mentorStyle(m);
+      const due = m.nextSession - S.day;
+      const ready = due <= st.rhythm * 0.5;
+      const g = m.goal;
+      const gLeft = g ? g.due - S.day : 0;
+      return `
+      <div class="mentor">
+        <div class="mentor-head">
+          <span class="mini-av">${personAvatar(k, 58)}</span>
+          <div class="mentor-id">
+            <b>${k.name}</b>
+            <span class="row-sub"><i class="fas ${st.icon}"></i> ${st.name} · niveau ${k.level} · ${m.sessions} séance${m.sessions > 1 ? 's' : ''}</span>
+            <span class="row-sub">${st.line}</span>
+          </div>
+          <div class="mentor-stat">
+            <span class="chip ok">palier ${m.level}</span>
+            ${m.missed ? `<span class="chip ko">${m.missed}/${st.patience} absence${m.missed > 1 ? 's' : ''}</span>` : ''}
+          </div>
+        </div>
+
+        <div class="mentor-body">
+          <div>
+            <div class="metric"><span>Prochaine séance</span>
+              <b class="${ready ? 'pos' : ''}">${ready ? 'maintenant' : `dans ${due} j`}</b></div>
+            <div class="metric"><span>Il t'apprend</span><b>${m.domain.map(skillName).join(', ')}</b></div>
             <div class="metric"><span>Relation</span><b>${Math.round(k.relation)}/100</b></div>
             ${bar(k.relation, 100, 'rep')}
-            <div class="req">
-              ${kind.skills.map(s => `<span class="chip ${k.relation >= 30 ? 'ok' : ''}">${skillName(s)} jusqu'à ${k.level - 4}</span>`).join('')}
-              ${k.favors ? `<span class="chip">${k.favors} service${k.favors > 1 ? 's' : ''} rendu${k.favors > 1 ? 's' : ''}</span>` : ''}
+          </div>
+          <div>
+            ${g ? `
+              <div class="mentor-goal ${gLeft < 0 ? 'late' : ''}">
+                <span class="row-sub">Ce qu'il attend de toi</span>
+                <b>${g.label}</b>
+                <span class="row-sub">${gLeft < 0 ? `en retard de ${-gLeft} jours` : `il te reste ${gLeft} jours`}</span>
+                ${bar(clamp(100 - (gLeft / Math.max(1, g.due - g.given)) * 100, 0, 100), 100, gLeft < 0 ? 'health' : 'happy')}
+              </div>` : '<p class="row-sub">Il ne t\'a pas encore fixé d\'objectif.</p>'}
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn btn-sm ${ready ? 'btn-primary' : 'btn-ghost'}" data-act="session" data-id="${k.id}" ${ready ? '' : 'disabled'}>
+            <i class="fas fa-chalkboard-user"></i> Faire une séance
+          </button>
+          <button class="btn btn-sm btn-ghost" data-act="endMentor" data-id="${k.id}">Mettre fin à l'accompagnement</button>
+        </div>
+      </div>`;
+    }).join('')}
+
+    ${mentors.length < maxMentors() ? (candidates.length ? `
+      <h4 style="margin-top:${mentors.length ? '18px' : '4px'}">Qui pourrait t'accompagner</h4>
+      <div class="mentor-cands">
+        ${candidates.map(k => {
+          const odds = Math.round(mentorOdds(k) * 100);
+          const wait = S.day - (k.refusedAt || -9999) < 300;
+          return `
+          <div class="mentor-cand">
+            <span class="mini-av">${personAvatar(k, 44)}</span>
+            <div>
+              <b>${k.name}</b>
+              <span class="row-sub">${contactKind(k).name} · niveau ${k.level} · relation ${Math.round(k.relation)}</span>
+              <span class="row-sub ${odds > 55 ? 'ok' : odds > 25 ? '' : 'muted'}">${wait ? "t'a dit non récemment" : `${odds}% de chances qu'il accepte`}</span>
             </div>
-            <div class="btn-row">
-              <button class="btn btn-sm" data-act="meet" data-id="${k.id}" ${cool ? 'disabled' : ''}>
-                <i class="fas fa-mug-hot"></i> ${cool ? 'Vu récemment' : 'Passer du temps'}
-              </button>
-              <button class="btn btn-sm btn-ghost" data-act="favor" data-id="${k.id}" ${k.relation >= 45 ? '' : 'disabled'}>
-                <i class="fas fa-hand-holding-heart"></i> Demander un service
-              </button>
-            </div>
+            <button class="btn btn-sm" data-act="askMentor" data-id="${k.id}" ${wait || k.relation < 45 ? 'disabled' : ''}>Lui demander</button>
           </div>`;
         }).join('')}
-      </div>` : `<div class="empty-inline"><i class="fas fa-user-plus"></i> Tu ne connais encore personne. Mets des heures sur « Réseautage ».</div>`}
-    </section>
-  </div>`;
+      </div>
+      <p class="row-sub">Ce qui pèse : votre relation, ce que tu as déjà construit, ta réputation — et les services que tu lui as rendus.</p>`
+      : `<p class="row-sub">Personne dans ton carnet n'a le parcours pour t'accompagner. Il faut monter plus haut : sors, fais-toi présenter.</p>`) : ''}
+  </section>`;
+}
+
+/* ---------- Transmettre ---------- */
+
+function renderApprentices() {
+  if (!canMentorOthers() && !(S.mentoring || []).length) return '';
+  const list = S.mentoring || [];
+  return `
+  <section class="card wide">
+    <h2><i class="fas fa-seedling"></i> Ceux que tu accompagnes</h2>
+    <p class="muted">Expliquer oblige à comprendre. Et ceux qui percent se souviennent de qui les a aidés au départ.</p>
+    ${list.length ? `<div class="mentor-cands">
+      ${list.map(a => {
+        const cool = S.day - a.lastSeen < 40;
+        return `
+        <div class="mentor-cand">
+          <span class="mini-av">${personAvatar(a, 44)}</span>
+          <div>
+            <b>${a.name}</b>
+            <span class="row-sub">${skillName(a.field)} · niveau ${Math.round(a.level)} · ${a.sessions} séance${a.sessions > 1 ? 's' : ''}</span>
+            ${bar(a.level, 100, 'happy')}
+          </div>
+          <button class="btn btn-sm" data-act="appSession" data-id="${a.id}" ${cool ? 'disabled' : ''}>${cool ? 'Vu récemment' : 'Le voir'}</button>
+        </div>`;
+      }).join('')}
+    </div>` : ''}
+    ${list.length < 3 ? `<button class="btn btn-sm btn-ghost" data-act="apprentice"><i class="fas fa-user-plus"></i> Accompagner quelqu'un qui démarre</button>` : ''}
+  </section>`;
+}
+
+/* ---------- Amis ---------- */
+
+function renderFriends() {
+  const list = initFriends(S);
+  const social = planEntry('social');
+  return `
+  <section class="card wide">
+    <h2><i class="fas fa-users"></i> Tes amis</h2>
+    <p class="muted">
+      Ils ne servent à rien, et sans eux on ne tient pas. Ils se nourrissent des heures
+      « Vie sociale » de ton planning (${social ? `${social.hours}h/jour` : 'aucune heure allouée'}),
+      réparties entre eux. Ceux qu'on ne voit plus finissent par ne plus rappeler.
+    </p>
+    ${list.length ? `
+    <div class="friends">
+      ${list.slice().sort((a, b) => b.closeness - a.closeness).map(f => {
+        const v = friendVibe(f);
+        const cool = S.day - f.lastSeen < 10;
+        const years = Math.floor((S.day - f.since) / DAYS_PER_YEAR);
+        return `
+        <div class="friend ${f.envy > 55 ? 'strained' : ''}">
+          <div class="friend-head">
+            <span class="mini-av">${personAvatar(f, 46)}</span>
+            <div>
+              <b>${f.name}</b>
+              <span class="row-sub">${v.name} · ${f.origin === 'enfance' ? "ami d'enfance" : `${years} an${years > 1 ? 's' : ''} que vous vous connaissez`}${f.hired ? ' · travaille avec toi' : ''}</span>
+            </div>
+          </div>
+          <p class="row-sub">${v.desc}</p>
+          <div class="metric"><span>Proximité</span><b class="${f.closeness > 55 ? 'pos' : f.closeness > 25 ? '' : 'neg'}">${Math.round(f.closeness)}/100</b></div>
+          ${bar(f.closeness, 100, f.closeness > 40 ? 'happy' : 'health')}
+          ${f.envy > 30 ? `<p class="row-sub neg"><i class="fas fa-triangle-exclamation"></i> L'écart entre vos vies commence à peser (${Math.round(f.envy)}/100).</p>` : ''}
+          <div class="btn-row">
+            <button class="btn btn-sm" data-act="seeFriend" data-id="${f.id}" ${cool ? 'disabled' : ''}>
+              <i class="fas fa-beer-mug-empty"></i> ${cool ? 'Vu récemment' : 'Passer une soirée'}
+            </button>
+            <button class="btn btn-sm btn-ghost" data-act="helpFriend" data-id="${f.id}">Lui donner un coup de main</button>
+            ${S.companies.length && !f.hired && f.closeness >= 55
+              ? `<button class="btn btn-sm btn-ghost" data-act="hireFriend" data-id="${f.id}">L'embaucher</button>` : ''}
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`
+    : `<div class="empty-inline"><i class="fas fa-user-slash"></i> Tu n'as plus un seul ami. Sors : mets des heures sur « Vie sociale ».</div>`}
+  </section>`;
+}
+
+/* ---------- Carnet d'adresses ---------- */
+
+function renderContacts() {
+  const net = planEntry('network');
+  const standing = Math.round(socialStanding(S));
+  const debt = S.contacts.reduce((a, k) => a + owedOf(k), 0);
+  const strong = S.contacts.filter(k => k.relation >= 55).length;
+
+  return `
+  <section class="card wide">
+    <h2><i class="fas fa-address-book"></i> Ton carnet d'adresses</h2>
+    <div class="net-sum">
+      <div><span>Ce que tu pèses socialement</span><b class="accent">${standing}/100</b></div>
+      <div><span>Relations de confiance</span><b>${strong}</b></div>
+      <div><span>Services que tu dois</span><b class="${debt > 120 ? 'neg' : ''}">${Math.round(debt / 26)}</b></div>
+      <div><span>Réseautage</span><b>${net ? net.hours + 'h/jour' : '—'}</b></div>
+    </div>
+    <p class="muted">
+      En réseautant à froid, tu ne croises que des gens de ton propre niveau (${standing} environ).
+      Pour monter plus haut, il faut se faire <b>présenter</b> — et pour ça, avoir une vraie relation
+      avec quelqu'un. Chaque service demandé creuse une dette ; au-delà d'un certain solde, on ne
+      te rappelle plus.
+    </p>
+
+    ${S.contacts.length ? `
+    <div class="contacts">
+      ${S.contacts.slice().sort((a, b) => b.relation - a.relation).map(k => {
+        const kind = contactKind(k);
+        const circle = circleOf(k);
+        const cool = S.day - k.lastSeen < 14;
+        const idle = S.day - k.lastSeen;
+        const owed = owedOf(k);
+        const fav = canAskFavor(k);
+        return `
+        <div class="contact ${k.away ? 'away' : ''} ${isMentor(k.id) ? 'is-mentor' : ''}">
+          <div class="contact-head">
+            <span class="mini-av">${personAvatar(k, 46)}</span>
+            <div>
+              <b>${k.name}${isMentor(k.id) ? ' <i class="fas fa-user-graduate" title="ton mentor"></i>' : ''}</b>
+              <span class="row-sub"><i class="fas ${kind.icon}"></i> ${kind.name} · niveau ${k.level}</span>
+              <span class="row-sub">${k.metWhere || 'croisé un jour'}${k.away ? ' · à l\'étranger' : ''}</span>
+            </div>
+          </div>
+          <div class="metric"><span><i class="fas ${circle.icon}"></i> ${circle.name}</span><b>${Math.round(k.relation)}/100</b></div>
+          ${bar(k.relation, 100, k.relation >= 55 ? 'rep' : 'health')}
+          <p class="row-sub">${idle > 300 ? `Tu ne l'as pas vu depuis ${Math.round(idle / 30)} mois. Le lien se défait.` : circle.desc}</p>
+          ${owed ? `<div class="owed"><span>Ce que tu lui dois</span>${bar(owed, 60, owed > 40 ? 'health' : 'happy')}</div>` : ''}
+          ${k.helped ? `<span class="chip ok">${k.helped} service${k.helped > 1 ? 's' : ''} rendu${k.helped > 1 ? 's' : ''}</span>` : ''}
+          ${k.favors ? `<span class="chip">${k.favors} service${k.favors > 1 ? 's' : ''} demandé${k.favors > 1 ? 's' : ''}</span>` : ''}
+          <div class="btn-row">
+            <button class="btn btn-sm" data-act="meet" data-id="${k.id}" ${cool || k.away ? 'disabled' : ''}>
+              <i class="fas fa-mug-hot"></i> ${k.away ? 'Absent' : cool ? 'Vu récemment' : 'Le voir'}
+            </button>
+            <button class="btn btn-sm btn-ghost" data-act="intro" data-id="${k.id}" ${k.relation >= 55 && owed < 45 ? '' : 'disabled'}>
+              <i class="fas fa-people-arrows"></i> Se faire présenter
+            </button>
+            <button class="btn btn-sm btn-ghost" data-act="favor" data-id="${k.id}" ${fav.ok ? '' : 'disabled'} title="${fav.ok ? '' : fav.why}">
+              <i class="fas fa-hand-holding-heart"></i> Demander
+            </button>
+            <button class="btn btn-sm btn-ghost" data-act="help" data-id="${k.id}">
+              <i class="fas fa-gift"></i> Rendre service
+            </button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>` : `<div class="empty-inline"><i class="fas fa-user-plus"></i> Tu ne connais encore personne. Mets des heures sur « Réseautage », et sors.</div>`}
+  </section>`;
+}
+
+/* Choisir quel service rendre à quelqu'un */
+function helpBox(id) {
+  const k = S.contacts.find(x => x.id === id);
+  if (!k) return;
+  const m = $('#modal');
+  m.innerHTML = `
+    <div class="modal-box">
+      <h2>Rendre service à ${k.name}</h2>
+      <p class="muted">Tu lui dois ${owedOf(k)} points de capital relationnel. Rendre service, c'est ce qui permet de demander plus tard.</p>
+      <div class="talk-choices">
+        ${HELP_KINDS.map(h => {
+          const ok = h.need(S);
+          const price = h.cost.money ? h.cost.money(S) : 0;
+          return `
+          <button class="talk-btn" data-help="${h.id}" ${ok ? '' : 'disabled'}>
+            <span><i class="fas ${h.icon}"></i> ${h.name}<em class="row-sub" style="display:block">${h.desc}</em></span>
+            <em class="chip ${ok ? 'ok' : 'ko'}">${price ? fmt(price) : `${h.cost.energy} d'énergie`}</em>
+          </button>`;
+        }).join('')}
+        <button class="btn btn-ghost btn-sm" data-help="cancel">Une autre fois</button>
+      </div>
+    </div>`;
+  m.classList.remove('hidden');
+  $$('#modal [data-help]').forEach(b => b.addEventListener('click', () => {
+    const h = b.dataset.help;
+    closeModal();
+    if (h !== 'cancel') helpContact(id, h);
+  }));
 }
 
 /* ================= Onglet ENTREPRISES ================= */
@@ -1362,6 +1595,47 @@ function handleAction(act, d) {
     case 'sell': {
       const c = S.companies.find(x => x.uid === id);
       confirmBox(`Vendre ${c.name} ?`, `Tu récupères ${fmtFull(equityValue(c))}.`, () => sellCompany(id));
+      break;
+    }
+
+    case 'intro': askIntro(id); break;
+    case 'help': helpBox(id); break;
+    case 'askMentor': {
+      const k = S.contacts.find(x => x.id === id);
+      confirmBox(`Demander à ${k.name} de t'accompagner ?`,
+        `Il regardera ce que tu as construit, ta réputation et ce que vous avez déjà vécu. Un refus se paie d'une année d'attente.`,
+        () => askMentor(id));
+      break;
+    }
+    case 'session': mentorSession(id); break;
+    case 'endMentor': {
+      const k = S.contacts.find(x => x.id === id);
+      confirmBox(`Arrêter avec ${k.name} ?`, "Tu perdras l'accès au-delà du plafond de terrain dans ses domaines.", () => endMentorship(id));
+      break;
+    }
+    case 'apprentice': takeApprentice(); break;
+    case 'appSession': apprenticeSession(id); break;
+    case 'seeFriend': seeFriend(id); break;
+    case 'helpFriend': {
+      const f = S.friends.find(x => x.id === id);
+      const cost = Math.round(clamp(netWorth(S) * 0.008, 800, 60000));
+      confirmBox(`Aider ${f.name} ?`, `Cela te coûtera ${fmtFull(cost)}, et vous rapprochera durablement.`, () => helpFriend(id));
+      break;
+    }
+    case 'hireFriend': {
+      if (S.companies.length === 1) hireFriend(id, S.companies[0].uid);
+      else {
+        const f = S.friends.find(x => x.id === id);
+        const m = $('#modal');
+        m.innerHTML = `<div class="modal-box"><h2>Dans quelle société ?</h2>
+          <div class="talk-choices">${S.companies.map(c => `<button class="talk-btn" data-hf="${c.uid}"><span>${c.name}</span></button>`).join('')}
+          <button class="btn btn-ghost btn-sm" data-hf="cancel">Annuler</button></div></div>`;
+        m.classList.remove('hidden');
+        $$('#modal [data-hf]').forEach(b => b.addEventListener('click', () => {
+          const uid = b.dataset.hf; closeModal();
+          if (uid !== 'cancel') hireFriend(id, uid);
+        }));
+      }
       break;
     }
 

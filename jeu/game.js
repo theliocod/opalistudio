@@ -126,6 +126,9 @@ function newGame(name, originId, look) {
     jobWarnings: 0,
     companies: [],
     contacts: [],
+    mentors: [],
+    mentoring: [],
+    friends: null,
     portfolio: {},
     prices: {},
     housingId: 'parents',
@@ -158,6 +161,7 @@ function newGame(name, originId, look) {
   ASSETS.forEach(a => S.prices[a.id] = a.price);
   S.look = look || defaultLook();
   refreshCalendar();
+  initFriends(S);
   if (S.flags.includes('connected')) { S.contacts.push(makeContact(45)); S.contacts.push(makeContact(35)); }
   addLog(S, `${S.name}, ${CONFIG.startAge} ans. ${o.name}. Tout commence maintenant.`, 'info');
   addLog(S, o.perk, 'info');
@@ -180,8 +184,9 @@ function gainSkill(obj, mult = 1, source = 'field', hardCap = 100) {
   const cap = Math.min(skillCapFor(source), hardCap);
   Object.entries(obj).forEach(([k, v]) => {
     const cur = S.skills[k];
-    // courbe très dure en haut de tableau
-    let decay = Math.pow(Math.max(0, 1 - cur / 100), 2.9);
+    // Courbe très dure en haut de tableau — sauf avec un mentor : c'est
+    // exactement ce qu'on vient chercher chez quelqu'un qui sait déjà.
+    let decay = Math.pow(Math.max(0, 1 - cur / 100), source === 'mentor' ? 1.15 : 2.9);
     // au-delà du plafond de la source, la progression est quasi nulle
     if (cur >= cap) decay *= 0.04;
     S.skills[k] = clamp(cur + v * mult * bonus * decay * efficiency(), 0, 100);
@@ -623,66 +628,6 @@ function setHousing(id) {
   render();
 }
 
-/* ----- Contacts ----- */
-
-function meetContact(id) {
-  const k = S.contacts.find(x => x.id === id);
-  if (!k) return;
-  if (S.day - k.lastSeen < 20) return toast("Tu l'as vu récemment. Laisse passer un peu de temps.");
-  if (!spendEnergy(8)) return;
-  k.lastSeen = S.day;
-  const gain = 6 + S.skills.social / 12;
-  k.relation = clamp(k.relation + gain, 0, 100);
-
-  const kind = contactKind(k);
-  if (k.relation >= 30) {
-    const obj = {};
-    kind.skills.forEach(sk => obj[sk] = 0.9 + k.level / 45);
-    gainSkill(obj, 1, 'mentor', k.level - 4);
-    addLog(S, `Déjeuner avec ${k.name} : il te transmet ce qu'il sait (${kind.skills.map(skillName).join(', ')}).`, 'good');
-  } else {
-    addLog(S, `Tu revois ${k.name}. La relation se construit (${Math.round(k.relation)}/100).`, 'info');
-  }
-  render();
-}
-
-function askFavor(id) {
-  const k = S.contacts.find(x => x.id === id);
-  if (!k || k.relation < 45) return toast("Votre relation n'est pas assez solide pour ça.");
-  if (!spendEnergy(6)) return;
-  k.relation = clamp(k.relation - 18, 0, 100);
-  k.favors++;
-  const kind = contactKind(k);
-  const c = biggest(S);
-
-  if (kind.id === 'investor' && c) {
-    const cash = Math.round(valuation(c) * 0.1 * (0.6 + k.level / 100));
-    c.equity -= 0.08; c.cash += cash;
-    addLog(S, `${k.name} investit ${fmt(cash)} dans ${c.name} contre 8%.`, 'good');
-  } else if (kind.id === 'recruiter' && c) {
-    const cand = makeCandidate(pick(ROLES).id, 0.5 + k.level / 200);
-    cand.revealed = true; c.applicants.push(cand);
-    addLog(S, `${k.name} t'envoie ${cand.name}, niveau ${cand.skill}.`, 'good');
-  } else if (kind.id === 'client' && c) {
-    const n = Math.max(1, Math.round(capacity(c) * 0.1 * (k.level / 60)));
-    c.clients += n;
-    addLog(S, `${k.name} te signe ${n} client${n > 1 ? 's' : ''} chez ${c.name}.`, 'good');
-  } else if (kind.id === 'closer' && c) {
-    c.loyalty = (c.loyalty || 1) * 1.08;
-    addLog(S, `${k.name} forme ton équipe commerciale. Tes clients restent plus longtemps.`, 'good');
-  } else if (kind.id === 'cto' && c) {
-    c.quality = clamp(c.quality + 8 + k.level / 12, 0, 100);
-    addLog(S, `${k.name} audite ton produit et corrige ce qui coince.`, 'good');
-  } else if (kind.id === 'marketer' && c) {
-    c.stock.organic = (c.stock.organic || 0) + 0.6;
-    addLog(S, `${k.name} refait ta stratégie de contenu. L'organique décolle.`, 'good');
-  } else {
-    S.reputation = clamp(S.reputation + 6, 0, 100);
-    addLog(S, `${k.name} parle de toi en bien autour de lui.`, 'good');
-  }
-  render();
-}
-
 /* ================= Entreprises ================= */
 
 function foundCompany(typeId, name) {
@@ -988,13 +933,21 @@ function tick() {
   if (hours.network) {
     gainSkill({ social: hours.network * 0.05 }, 1, 'field');
     S.reputation = clamp(S.reputation + hours.network * 0.012, 0, 100);
-    // rencontrer quelqu'un de nouveau
-    const chance = hours.network * 0.006 * (1 + S.reputation / 120);
-    if (Math.random() < chance && S.contacts.length < 14) {
-      const k = makeContact(15 + S.reputation / 2.2);
+    // Le démarchage à froid ne fait rencontrer que des gens de son
+    // propre niveau social : pour monter plus haut, il faut se faire
+    // présenter par quelqu'un.
+    const chance = hours.network * 0.0105 * (1 + S.reputation / 140);
+    if (Math.random() < chance && S.contacts.length < 26) {
+      const k = makeContact(1);
+      k.level = Math.round(reachableLevel(S, -12));
+      k.metWhere = 'rencontré en réseautant';
       S.contacts.push(k);
       addLog(S, `Tu rencontres ${k.name} — ${contactKind(k).name.toLowerCase()}, niveau ${k.level}.`, 'good');
     }
+    // Réseauter, ce n'est pas que rencontrer : c'est aussi recroiser.
+    // Les liens les plus forts s'entretiennent d'eux-mêmes tant qu'on sort.
+    S.contacts.filter(k => !k.away).sort((a, b) => b.relation - a.relation)
+      .slice(0, 5).forEach(k => k.relation = clamp(k.relation + hours.network * 0.02, 0, 100));
   }
 
   /* ---------- Entreprises ---------- */
@@ -1175,6 +1128,7 @@ function tick() {
   if (S.contrarian) { S.contrarian--; if (!S.contrarian) S.companies.forEach(c => c.hype = 1.1); }
 
   tickFamily(S);
+  tickNetwork(S);
 
   /* ---------- Objectifs, temps, fin ---------- */
   GOALS.forEach(g => {
@@ -1524,6 +1478,8 @@ function talkTo(guestId, approachId) {
         const k = makeContact(Math.max(15, g.level - 15));
         k.name = g.name; k.level = g.level; k.look = g.look;
         k.relation = clamp(22 + S.skills.social / 5, 0, 60);
+        k.trust = 58;
+        k.metWhere = `rencontré à « ${S.scene ? S.scene.title : 'une soirée'} »`;
         S.contacts.push(k);
         reward = `${g.name} entre dans ton carnet d'adresses.`;
         break;

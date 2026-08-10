@@ -342,7 +342,7 @@ const GOALS = [
   { id: 'firstclient', name: 'Premier client', desc: "Décrocher ton tout premier client.", check: s => s.companies.some(c => c.clients >= 1) },
   { id: 'firsthire', name: 'Premier salarié', desc: "Embaucher quelqu'un dans une de tes boîtes.", check: s => s.companies.some(c => c.staff.length > 0) },
   { id: 'quitjob', name: 'Quitter le salariat', desc: "Vivre de tes entreprises sans employeur.", check: s => !s.job && s.companies.length > 0 && monthlyBusinessProfit(s) > 2500 },
-  { id: 'mentor', name: 'Trouver un mentor', desc: "Nouer une relation forte avec un contact de haut niveau.", check: s => s.contacts.some(c => c.relation >= 70 && c.level >= 70) },
+  { id: 'mentor', name: 'Trouver un mentor', desc: "Convaincre quelqu'un qui a déjà fait le chemin de t'accompagner.", check: s => (s.mentors || []).length > 0 },
   { id: 'k10', name: '10 000€ / mois', desc: "Générer 10 000€ de profit mensuel.", check: s => monthlyBusinessProfit(s) >= 10000 },
   { id: 'first100k', name: '100 000€ de patrimoine', desc: "Franchir les six chiffres.", check: s => netWorth(s) >= 100000 },
   { id: 'team10', name: 'Une vraie équipe', desc: "Employer 10 personnes en même temps.", check: s => s.companies.reduce((a, c) => a + c.staff.length, 0) >= 10 },

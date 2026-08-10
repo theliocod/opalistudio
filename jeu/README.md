@@ -246,14 +246,95 @@ graphiques dessinés à la main, sans aucune dépendance.
 
 ## Le réseau
 
-En allouant des heures au réseautage, tu rencontres des gens : entrepreneurs
-confirmés, experts acquisition, ingénieurs, investisseurs, closers, chasseurs de
-têtes, grands comptes. Chacun a un niveau et une relation qui se construit en
-passant du temps avec lui.
+Un carnet d'adresses n'est pas une collection : c'est un ensemble de gens qui
+t'oublient si tu ne les vois plus, qui comptent ce que tu leur demandes, et qui
+ne répondent pas si tu n'es personne.
 
-Au-delà de 30 de relation, il te transmet son savoir. Au-delà de 45, tu peux lui
-demander un service : un investissement, un client signé, un profil rare, un audit
-de ton produit. Un service consomme du capital relationnel.
+### Quatre cercles, et une érosion permanente
+
+| Cercle | Ce que ça veut dire |
+|---|---|
+| Croisé une fois | Il se souvient vaguement de toi. |
+| Connaissance | Il répond à tes messages. Sans plus. |
+| Relation de confiance | Il décroche quand tu appelles, et il te présente des gens. |
+| Proche | Il se déplacerait pour toi. Ça se rend. |
+
+**Chaque lien se refroidit tout seul**, d'autant plus vite qu'on ne se voit plus.
+Un lien fort résiste longtemps, un lien faible s'éteint en quelques mois. Les
+heures de réseautage entretiennent tes cinq relations les plus solides ; pour
+construire, il faut aller voir les gens un par un.
+
+### Tu ne rencontres que des gens de ton niveau
+
+Ce que tu pèses socialement se calcule sur ta réputation, ta meilleure
+compétence, ce que tu as construit et tes cessions. **En réseautant à froid, tu
+ne croises que des gens de ce niveau-là.** Pour monter plus haut, il n'y a qu'une
+route : te faire **présenter** par quelqu'un qui te fait confiance. Une
+présentation te fait démarrer à 30 de relation au lieu de 10, et peut t'ouvrir
+des gens bien au-dessus de ton propre niveau.
+
+### La réciprocité, qui est le cœur du système
+
+Chaque service demandé creuse une dette. Au bout de trois demandes sans rien
+rendre, on cesse de te rappeler — et une présentation devient impossible. Pour
+rouvrir le robinet, il faut **rendre service** : présenter quelqu'un, donner
+deux jours de ton temps, dépanner financièrement, envoyer une affaire que tu
+aurais pu garder. C'est ce qui distingue un réseau d'un fichier de contacts.
+
+Les gens de ton carnet vivent leur vie : ils montent en grade, partent à
+l'étranger, reviennent, et parfois t'appellent sans rien demander.
+
+## Le mentorat
+
+Un mentor n'est pas un contact avec une grosse jauge. C'est quelqu'un qui a déjà
+fait le chemin et qui **accepte** de te consacrer du temps — ou pas.
+
+- **Ça se demande.** Il regarde votre relation, sa confiance, ta réputation, ce
+  que tu as construit, et les services que tu lui as rendus. Un refus coûte une
+  année d'attente.
+- **Cinq façons d'accompagner** : exigeant, socratique, opérateur, financier,
+  bienveillant. Chacune a son rythme de séances, sa patience et sa vitesse de
+  transmission. L'exigeant te fait progresser vite et ne repasse pas les plats ;
+  le bienveillant te garde en vie quand tout va mal.
+- **Il te fixe un objectif** lu dans l'état réel de ta partie : doubler ton
+  chiffre d'affaires, sortir de l'opérationnel, remonter ta santé, construire
+  cinq relations de confiance, mener une cession. Un objectif tenu fait franchir
+  un palier et débloque un vrai saut de compétence.
+- **Il faut venir aux séances.** Ne pas venir est la seule façon sûre de le
+  perdre : au bout de deux à quatre absences, il arrête.
+- C'est **la seule route au-delà de 88** dans une compétence. Avec un bon mentor
+  et une trentaine de séances, on passe de 88 à 96 — ce qu'aucun livre et aucune
+  formation ne permettront jamais.
+
+Deux mentors en même temps au maximum, et seulement à partir de 70 en social.
+
+### Transmettre à son tour
+
+Passé un certain niveau, ou après une première cession, tu peux accompagner des
+gens qui démarrent. Expliquer oblige à comprendre, ça rapporte de la réputation
+et du moral — et ceux qui percent entrent dans ton carnet **en tant qu'égaux**,
+avec une relation qu'aucun déjeuner n'aurait achetée.
+
+## Les amis
+
+Ils ne servent à rien, et sans eux on ne tient pas. Ce ne sont plus un compteur
+mais des personnes, avec un nom, un visage et un caractère : fidèle, fêtard,
+ambitieux, posé, ou franc — le seul qui te dise en face que tu es en train de te
+planter.
+
+Tu commences la partie avec deux amis d'enfance. Les heures « Vie sociale » se
+répartissent entre eux : plus tu en as, moins chacun en reçoit. Un ami proche te
+rend du moral et de l'énergie tous les jours, et **quand ton moral s'effondre, il
+débarque sans prévenir**.
+
+Deux façons de les perdre. Le silence : on finit par ne plus rappeler. Et
+**l'écart de vie** : plus ton patrimoine grimpe pendant que tu ne les vois plus,
+plus l'envie monte chez ceux que ça travaille — jusqu'à ce qu'ils coupent les
+ponts. « Tu n'es plus le même. » Ils n'ont pas toujours tort.
+
+Tu peux les voir, les dépanner quand ça va mal, et en faire entrer un dans une de
+tes sociétés : loyal, motivé, moins cher que le marché — et impossible à
+licencier sans casse.
 
 ## Les événements
 
@@ -356,6 +437,7 @@ logement, et débloquent les grandes soirées.
 | `scene3d.js` | le moteur de décors : primitives 3D, catalogue des huit salles, effets |
 | `scene.css` | l'habillage des scènes isométriques |
 | `people.js` | génération des candidats et des contacts, traits de caractère |
+| `network.js` | cercles et érosion des liens, réciprocité, présentations, mentors, amis |
 | `events.js` | les 55 événements et leurs conséquences |
 | `game.js` | le moteur : tick journalier, économie, équipes, marché du travail, apprentissage |
 | `rivals.js` | les concurrents : archétypes, croissance, pression concurrentielle, rachats |

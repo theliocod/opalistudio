@@ -118,10 +118,6 @@ function tickFamily(s) {
     else if (k.bond < 30) addHappiness(-(30 - k.bond) / 100 * 0.07);
   });
 
-  /* ---- Les amis ---- */
-  f.friends = clamp(f.friends + (social - 0.8) * 0.06 - overwork * 0.008, 0, 100);
-  if (f.friends > 65) addHappiness((f.friends - 65) / 100 * 0.05);
-  else if (f.friends < 25) addHappiness(-(25 - f.friends) / 100 * 0.06);
 }
 
 /* Certains moments de vie doivent arriver tout de suite, pas dans trois mois */
@@ -203,9 +199,9 @@ function renderFamily() {
       <h2><i class="fas fa-heart"></i> Ta vie personnelle</h2>
       <p class="muted">Tu es seul. Les rencontres se font en sortant : mets des heures sur « Vie sociale »
       et vas aux événements. Pour l'instant, tes amis sont ta seule attache.</p>
-      <div class="metric" style="margin-top:12px"><span>Amitiés</span><b>${Math.round(f.friends)}/100</b></div>
-      ${bar(f.friends, 100, 'happy')}
-      <p class="row-sub">${f.friends > 65 ? "Tu es bien entouré." : f.friends > 35 ? "Tes amis existent encore, mais tu les vois peu." : "Tu as laissé filer à peu près tout le monde."}</p>
+      <div class="metric" style="margin-top:12px"><span>Amitiés</span><b>${Math.round(friendsScore(S))}/100</b></div>
+      ${bar(friendsScore(S), 100, 'happy')}
+      <p class="row-sub">${(S.friends || []).length ? `${S.friends.length} ami${S.friends.length > 1 ? 's' : ''} — ils sont dans l'onglet Réseau.` : "Tu n'as plus personne à appeler un dimanche soir."}</p>
     </section>`;
   }
 
@@ -250,7 +246,8 @@ function renderFamily() {
         </div>`).join('')}
     </div>` : ''}
 
-    <div class="metric" style="margin-top:14px"><span>Amitiés</span><b>${Math.round(f.friends)}/100</b></div>
-    ${bar(f.friends, 100, 'happy')}
+    <div class="metric" style="margin-top:14px"><span>Amitiés</span><b>${Math.round(friendsScore(S))}/100</b></div>
+    ${bar(friendsScore(S), 100, 'happy')}
+    <p class="row-sub">${(S.friends || []).length ? `${S.friends.length} ami${S.friends.length > 1 ? 's' : ''}, à entretenir depuis l'onglet Réseau.` : "Plus personne. Ça se paie tous les jours."}</p>
   </section>`;
 }
