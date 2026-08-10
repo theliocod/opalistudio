@@ -271,6 +271,41 @@ function staffPerf(c, e) {
   return (skill / 100) * (0.45 + e.morale / 180) * t.perf * spanPenalty * variable;
 }
 
+/* Le niveau réel d'une équipe : la compétence, pondérée par ce que
+   chacun produit vraiment (moral, caractère, encadrement). */
+function teamQuality(c) {
+  if (!c.staff.length) return 50;
+  const w = c.staff.reduce((a, e) => a + staffPerf(c, e), 0);
+  if (w <= 0.01) return 20;
+  return clamp(c.staff.reduce((a, e) => a + e.skill * staffPerf(c, e), 0) / w, 0, 100);
+}
+
+/* Une bonne équipe gaspille moins : moins de reprises, moins d'erreurs,
+   moins de sous-traitance en urgence. Une mauvaise coûte tous les jours. */
+function teamEfficiency(c) {
+  if (!c.staff.length) return 1;
+  return clamp(1.16 - teamQuality(c) / 290, 0.8, 1.18);
+}
+
+/* Ce qu'un salarié apporte réellement, mesuré en le retirant de l'équipe. */
+function staffValue(c, e) {
+  const keep = c.staff;
+  c.staff = keep.filter(x => x !== e);
+  const acqOut = dailyAcquisition(c, true), capOut = capacity(c), churnOut = dailyChurn(c), costOut = projectedCosts(c), qOut = teamQuality(c);
+  c.staff = keep;
+  const acqIn = dailyAcquisition(c, true), capIn = capacity(c), churnIn = dailyChurn(c), costIn = projectedCosts(c), qIn = teamQuality(c);
+
+  const newClients = (acqIn - acqOut) * DAYS_PER_MONTH;
+  const kept = (churnOut - churnIn) * DAYS_PER_MONTH * c.clients;
+  const horizon = Math.max(1, Math.min(18, clientLifetime(c)));
+  const gain = (newClients + kept) * clientMargin(c) * horizon * 0.35;
+  const cost = costIn - costOut;
+  return {
+    clients: newClients, kept, cap: capIn - capOut,
+    gain, cost, net: gain - cost, team: qIn - qOut
+  };
+}
+
 function roleForce(c, roleId) {
   return c.staff.filter(e => e.role === roleId).reduce((a, e) => a + staffPerf(c, e), 0);
 }
@@ -407,7 +442,7 @@ function rampFactor(c) {
   return clamp(0.12 + (c.days / t.ramp) * 0.88, 0.12, 1);
 }
 
-function dailyAcquisition(c) {
+function dailyAcquisition(c, det) {
   const t = getType(c);
   const base = t.acqBase / DAYS_PER_MONTH;
 
@@ -429,7 +464,7 @@ function dailyAcquisition(c) {
     * (1 - occupiedShare(c))
     * clamp(1 - (marketPressure(c) - 0.5) * 0.9, 0.45, 1.45)
     * groupAcqFactor(c, S)
-    * rand(0.9, 1.1);
+    * (det ? 1 : rand(0.9, 1.1));
 
   // Une entreprise n'absorbe pas une croissance illimitée : recruter, livrer,
   // servir et structurer prennent du temps. Au-delà d'environ 18 % de croissance
@@ -485,6 +520,7 @@ function dailyChurn(c) {
   let churn = t.churn * (1.3 - c.quality / 180) / (c.loyalty || 1);
   churn *= clamp(Math.pow(priceRatio(c), 0.8), 0.7, 2.2);   // payer trop cher pour ce qu'on reçoit
   churn *= Math.max(0.45, 1 - roleForce(c, 'support') * 0.14);
+  if (c.staff.length) churn *= clamp(1.12 - teamQuality(c) / 460, 0.86, 1.18);
   churn *= Math.max(0.7, 1 - (c.support / DAYS_PER_MONTH) / Math.max(80, c.clients * 2) * 0.5);
   const cap = capacity(c);
   if (c.clients > cap) churn += ((c.clients - cap) / Math.max(1, c.clients)) * 0.5;
@@ -514,13 +550,13 @@ function projectedCosts(c) {
   // plus vite que la taille, et un bon gestionnaire les contient un peu.
   const fixed = t.fixedCost * Math.pow(c.level, 1.35)
     * Math.max(0.72, 1 - S.skills.business / 400)
-    * groupCostFactor(S);
+    * groupCostFactor(S) * teamEfficiency(c);
   return fixed
     + payrollMonthly(c)
     + adSpendMonthly(c)
     + c.rd + c.support
     + loanInterestMonthly(c)
-    + projectedRevenue(c) * t.varCost * (c.costMod || 1) * Math.max(0.8, 1 - S.skills.tech / 500);
+    + projectedRevenue(c) * t.varCost * (c.costMod || 1) * Math.max(0.8, 1 - S.skills.tech / 500) * teamEfficiency(c);
 }
 
 function projectedProfit(c) {
@@ -976,8 +1012,15 @@ function tick() {
     addHappiness(hours.sport * 0.05);
   }
   if (hours.social) {
-    addHappiness(hours.social * 0.32);
-    S.money -= hours.social * 8;
+    // Sortir, c'est bien. Sortir sans personne à voir, beaucoup moins :
+    // ces heures ne valent que ce que valent les gens qu'on retrouve.
+    const people = clamp(
+      ((S.friends || []).filter(f => f.closeness > 30).length
+        + (S.family && S.family.partner ? 1.2 : 0)
+        + S.contacts.filter(k => k.relation >= 40 && !k.away).length * 0.5) / 2.5,
+      0.2, 1.15);
+    addHappiness(hours.social * 0.32 * people);
+    // une seule fois : dayOutcome est déjà retranché du solde en fin de journée
     dayOutcome += hours.social * 8;
   }
   if (hours.family) {
@@ -1032,6 +1075,7 @@ function tick() {
     // la qualité redescend vers un plancher, pas vers zéro.
     let q = -0.055 * clamp((c.quality - 18) / 70, 0, 1.4);
     q += roleForce(c, 'product') * 0.085;
+    if (c.staff.length) q += (teamQuality(c) - 52) / 950;   // le niveau général de la maison
     q += (c.rd / Math.max(120, t.fixedCost)) * 0.18;   // un budget R&D égal aux charges fixes ≈ +5 qualité/mois
     const founder = planEntry('biz', c.uid);
     if (founder && founder.role === 'product') {
@@ -1446,6 +1490,17 @@ function openScene(kind, id) {
   const n = def.crowd;
 
   for (let i = 0; i < n; i++) guests.push(makeGuest(def.prestige));
+
+  // Célibataire, on ne va pas en soirée que pour réseauter : il y a
+  // toujours quelqu'un dans la pièce. Deux dans une vraie fête.
+  if (!initFamily(S).partner) {
+    const romances = kind === 'party' ? (Math.random() < 0.75 ? 2 : 1) : (Math.random() < 0.6 ? 1 : 0);
+    for (let i = 0; i < Math.min(romances, guests.length); i++) {
+      const g = guests[guests.length - 1 - i];
+      g.type = 'rencontre';
+      g.level = Math.round(clamp(g.level * 0.6 + rand(15, 45), 10, 92));
+    }
+  }
   // chacun se place là où la salle prévoit qu'on se tienne, dans la posture qui va avec
   placeGuests(def.room, guests);
   // on croise parfois une connaissance
@@ -1540,6 +1595,22 @@ function talkTo(guestId, approachId) {
   if (win) {
     gainSkill({ social: 0.35 }, 1, 'field');
     switch (t.gives) {
+      case 'romance': {
+        if (initFamily(S).partner) {
+          S.reputation = clamp(S.reputation + 1, 0, 100);
+          reward = `Vous parlez une heure. Tu es en couple, et tu le dis.`;
+          break;
+        }
+        const p = makePartner();
+        p.name = g.name; p.look = g.look;
+        initFamily(S).partner = p;
+        if (!S.flags.includes('couple')) S.flags.push('couple');
+        if (!planEntry('family')) setPlan('family', 1);
+        addHappiness(20);
+        reward = `Tu repars avec le numéro de ${g.name} — et quelques semaines plus tard, vous êtes ensemble. ${partnerTrait(p).name}.`;
+        addLog(S, `Tu es en couple avec ${g.name}. Pense à lui donner des heures dans ton planning.`, 'good');
+        break;
+      }
       case 'contact': {
         const k = makeContact(Math.max(15, g.level - 15));
         k.name = g.name; k.level = g.level; k.look = g.look;

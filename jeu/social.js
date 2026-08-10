@@ -173,6 +173,12 @@ const GUEST_TYPES = [
     gives: 'intel'
   },
   {
+    id: 'rencontre', name: "Quelqu'un qui te plaît", icon: 'fa-heart',
+    opening: "Je ne connais personne ici à part la personne qui m'a traînée. Toi tu es là pourquoi, au juste ?",
+    topics: ['social'],
+    gives: 'romance'
+  },
+  {
     id: 'ami', name: 'Vieille connaissance', icon: 'fa-face-smile',
     opening: "Ça fait un bail ! Tu as changé, dis donc. En bien, hein.",
     topics: ['social'],

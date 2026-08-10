@@ -741,6 +741,305 @@ const EVENTS = [
     ]
   },
 
+  /* ===================== RENCONTRES ===================== */
+
+  {
+    id: 'rencontre_sport', title: "Au club de sport",
+    text: "Vous prenez les mêmes créneaux depuis trois semaines. Aujourd'hui, la conversation a dépassé les deux phrases habituelles.",
+    cond: s => !initFamily(s).partner && (s.plan.find(p => p.act === 'sport') || {}).hours >= 1 && s.day > 90,
+    global: true, cooldown: 260,
+    choices: [
+      {
+        label: "Proposer un verre après la séance",
+        custom: (s) => {
+          const ok = Math.random() < clamp(0.4 + s.skills.social / 200 + s.happiness / 400, 0.2, 0.9);
+          if (ok) { startRelationship(s, "au club de sport"); }
+          else { addHappiness(-3); addLog(s, `Refus poli. On se recroisera au vestiaire, ce sera charmant.`, 'warn'); }
+        }
+      },
+      { label: "Rester sur le vélo", effects: { happiness: -1 } }
+    ]
+  },
+  {
+    id: 'rencontre_ami', title: "Un ami veut te présenter quelqu'un",
+    text: null,
+    dynamic: s => {
+      const f = pick((s.friends || []).filter(x => x.closeness > 45));
+      if (!f) return null;
+      return { text: `${f.name} t'appelle : « J'ai quelqu'un pour toi. Ne fais pas cette tête, écoute-moi deux minutes. »`, ref: { f } };
+    },
+    cond: s => !initFamily(s).partner && (s.friends || []).some(f => f.closeness > 45),
+    global: true, cooldown: 240,
+    choices: [
+      {
+        label: "Accepter le dîner",
+        custom: (s, ref) => {
+          const ok = Math.random() < clamp(0.5 + ref.f.closeness / 260 + s.skills.social / 260, 0.25, 0.92);
+          if (ok) { startRelationship(s, `présenté par ${ref.f.name}`); ref.f.closeness = clamp(ref.f.closeness + 5, 0, 100); }
+          else { addLog(s, `Le dîner a été long. ${ref.f.name} s'excuse encore.`, 'warn'); addHappiness(-2); }
+        }
+      },
+      {
+        label: "Décliner — tu n'as pas le temps",
+        custom: (s, ref) => { ref.f.closeness = clamp(ref.f.closeness - 4, 0, 100); addHappiness(-2); }
+      }
+    ]
+  },
+  {
+    id: 'rencontre_appli', title: "Une application, un soir de novembre",
+    text: "Tu t'es inscrit à 23 h en te disant que c'était ridicule. Trois jours plus tard, tu as un rendez-vous.",
+    cond: s => !initFamily(s).partner && s.day > 120,
+    global: true, cooldown: 200,
+    choices: [
+      {
+        label: "Y aller sans rien en attendre",
+        custom: (s) => {
+          const ok = Math.random() < clamp(0.34 + s.skills.social / 240 + s.reputation / 500 + s.happiness / 500, 0.15, 0.8);
+          if (ok) startRelationship(s, "rencontré sur une application");
+          else { addHappiness(-2); addLog(s, `Deux heures polies, aucun élan. Ça arrive, souvent.`, 'info'); }
+        }
+      },
+      {
+        label: "Annuler la veille", effects: { happiness: -3 },
+        text: "Tu inventes une réunion. Personne n'est dupe, à commencer par toi."
+      }
+    ]
+  },
+  {
+    id: 'rencontre_travail', title: "Quelqu'un dans l'immeuble",
+    text: "Vous vous croisez tous les matins dans l'ascenseur depuis des mois. Ce matin, l'ascenseur est tombé en panne entre deux étages.",
+    cond: s => !initFamily(s).partner && (s.job || s.companies.some(c => c.staff.length >= 2)) && s.day > 150,
+    global: true, cooldown: 300,
+    choices: [
+      {
+        label: "Profiter des vingt minutes d'attente",
+        custom: (s) => {
+          const ok = Math.random() < clamp(0.45 + s.skills.social / 200, 0.25, 0.9);
+          if (ok) startRelationship(s, "rencontré dans l'ascenseur");
+          else addLog(s, `Vingt minutes de silence gêné. Les pompiers ont mis du temps.`, 'info');
+        }
+      },
+      { label: "Répondre à tes mails sur ton téléphone", effects: { happiness: -2 } }
+    ]
+  },
+
+  /* ===================== VIE RELATIONNELLE ===================== */
+
+  {
+    id: 'ami_galere', title: "Un ami dans le mur",
+    text: null,
+    dynamic: s => {
+      const f = pick((s.friends || []).filter(x => x.closeness > 40));
+      if (!f) return null;
+      const need = Math.round(clamp(netWorth(s) * 0.02, 1500, 120000));
+      return { text: `${f.name} t'appelle un dimanche soir. Il ne demande jamais rien, et là il demande. Il lui faut ${fmt(need)}.`, ref: { f, need } };
+    },
+    cond: s => (s.friends || []).some(f => f.closeness > 40),
+    global: true, cooldown: 420,
+    choices: [
+      {
+        label: "Lui prêter sans conditions",
+        custom: (s, ref) => {
+          if (s.money < ref.need) { addLog(s, `Tu ne les as pas. Tu le lui dis, et ça vous coûte à tous les deux.`, 'bad'); ref.f.closeness = clamp(ref.f.closeness - 8, 0, 100); return; }
+          s.money -= ref.need;
+          ref.f.closeness = clamp(ref.f.closeness + 22, 0, 100);
+          ref.f.envy = clamp(ref.f.envy - 40, 0, 100);
+          ref.f.owes = (ref.f.owes || 0) + ref.need;
+          addHappiness(5);
+          addLog(s, `Tu prêtes ${fmt(ref.need)} à ${ref.f.name}. Il te le rendra, ou pas. Ce n'est pas la question.`, 'good');
+        }
+      },
+      {
+        label: "L'aider autrement qu'avec de l'argent",
+        custom: (s, ref) => {
+          ref.f.closeness = clamp(ref.f.closeness + 8, 0, 100);
+          gainSkill({ social: 1.4 }, 1, 'field');
+          addLog(s, `Tu passes trois week-ends à l'aider à s'en sortir. Ça vaut mieux qu'un chèque.`, 'good');
+        }
+      },
+      {
+        label: "Ne pas mélanger l'amitié et l'argent",
+        custom: (s, ref) => { ref.f.closeness = clamp(ref.f.closeness - 16, 0, 100); addHappiness(-5); }
+      }
+    ]
+  },
+  {
+    id: 'ami_jaloux', title: "Le dîner qui tourne mal",
+    text: null,
+    dynamic: s => {
+      const f = pick((s.friends || []).filter(x => x.envy > 45));
+      if (!f) return null;
+      return { text: `Au milieu du dîner, ${f.name} lâche : « Ça doit être facile, quand on a ce que tu as. » Le silence dure trois secondes de trop.`, ref: { f } };
+    },
+    cond: s => (s.friends || []).some(f => f.envy > 45),
+    global: true, cooldown: 300,
+    choices: [
+      {
+        label: "Encaisser et changer de sujet",
+        custom: (s, ref) => { ref.f.envy = clamp(ref.f.envy - 5, 0, 100); ref.f.closeness = clamp(ref.f.closeness - 3, 0, 100); }
+      },
+      {
+        label: "Mettre les choses à plat, franchement",
+        custom: (s, ref) => {
+          const ok = Math.random() < clamp(0.4 + s.skills.social / 190 + ref.f.closeness / 300, 0.2, 0.9);
+          if (ok) { ref.f.envy = clamp(ref.f.envy - 45, 0, 100); ref.f.closeness = clamp(ref.f.closeness + 10, 0, 100);
+            addLog(s, `Vous vous êtes tout dit. Vous êtes plus proches qu'avant.`, 'good'); }
+          else { ref.f.envy = clamp(ref.f.envy + 12, 0, 100); ref.f.closeness = clamp(ref.f.closeness - 12, 0, 100);
+            addLog(s, `La conversation a dérapé. Il est parti avant le dessert.`, 'bad'); }
+        }
+      },
+      {
+        label: "Payer l'addition sans rien dire",
+        custom: (s, ref) => { ref.f.envy = clamp(ref.f.envy + 14, 0, 100); addHappiness(-3);
+          addLog(s, `Tu paies. C'est exactement ce qu'il ne fallait pas faire.`, 'warn'); }
+      }
+    ]
+  },
+  {
+    id: 'contact_dette', title: "On vient encaisser",
+    text: null,
+    dynamic: s => {
+      const k = pick(s.contacts.filter(x => owedOf(x) > 40));
+      if (!k) return null;
+      return { text: `${k.name} t'appelle. Il ne tourne pas autour du pot : il a besoin de toi, maintenant, et il rappelle gentiment tout ce qu'il a fait pour toi.`, ref: { k } };
+    },
+    cond: s => s.contacts.some(k => owedOf(k) > 40),
+    global: true, cooldown: 260,
+    choices: [
+      {
+        label: "Tout lâcher et l'aider",
+        custom: (s, ref) => {
+          s.energy = clamp(s.energy - 22, 0, s.maxEnergy);
+          ref.k.owed = Math.max(0, ref.k.owed - 45);
+          ref.k.trust = clamp(ref.k.trust + 18, 0, 100);
+          ref.k.relation = clamp(ref.k.relation + 10, 0, 100);
+          addLog(s, `Tu passes une semaine sur son problème. La dette est effacée, et plus encore.`, 'good');
+        }
+      },
+      {
+        label: "Faire ce que tu peux, sans plus",
+        custom: (s, ref) => { ref.k.owed = Math.max(0, ref.k.owed - 15); ref.k.trust = clamp(ref.k.trust - 4, 0, 100); }
+      },
+      {
+        label: "Se défiler",
+        custom: (s, ref) => {
+          ref.k.relation = clamp(ref.k.relation - 30, 0, 100);
+          ref.k.trust = clamp(ref.k.trust - 35, 0, 100);
+          s.reputation = clamp(s.reputation - 4, 0, 100);
+          addLog(s, `Tu ne rappelles pas. Ça se saura — ce genre de chose se sait toujours.`, 'bad');
+        }
+      }
+    ]
+  },
+  {
+    id: 'ami_associe', title: "Un ami veut monter un truc avec toi",
+    text: null,
+    dynamic: s => {
+      const f = pick((s.friends || []).filter(x => x.closeness > 65 && !x.hired));
+      if (!f) return null;
+      return { text: `${f.name} a une idée. Il en parle depuis six mois, et cette fois il a fait le travail. Il veut que vous le montiez à deux.`, ref: { f } };
+    },
+    cond: s => (s.friends || []).some(f => f.closeness > 65 && !f.hired) && s.companies.length > 0,
+    global: true, cooldown: 500,
+    choices: [
+      {
+        label: "Le faire entrer dans une de tes sociétés",
+        custom: (s, ref) => {
+          const c = biggest(s);
+          if (!c) return;
+          hireFriend(ref.f.id, c.uid);
+          addLog(s, `${ref.f.name} rejoint ${c.name}. Vous verrez bien si l'amitié y survit.`, 'good');
+        }
+      },
+      {
+        label: "Lui donner de l'argent et le laisser faire seul",
+        custom: (s, ref) => {
+          const amount = Math.round(clamp(netWorth(s) * 0.03, 5000, 400000));
+          if (s.money < amount) { addLog(s, `Tu n'as pas de quoi. Il comprend, à moitié.`, 'warn'); return; }
+          s.money -= amount;
+          ref.f.closeness = clamp(ref.f.closeness + 14, 0, 100);
+          ref.f.venture = amount;
+          addLog(s, `Tu mets ${fmt(amount)} dans le projet de ${ref.f.name}. On verra dans quelques années.`, 'info');
+        }
+      },
+      {
+        label: "Refuser — ne jamais travailler avec ses amis",
+        custom: (s, ref) => { ref.f.closeness = clamp(ref.f.closeness - 10, 0, 100); }
+      }
+    ]
+  },
+  {
+    id: 'conjoint_ultimatum', title: "L'ultimatum",
+    text: null,
+    dynamic: s => {
+      const p = initFamily(s).partner;
+      if (!p) return null;
+      return { text: `${p.name} t'attend dans le salon, sans télévision allumée. « Je ne te demande pas de choisir. Je te demande d'être là. Je ne le redemanderai pas. »`, ref: { p } };
+    },
+    cond: s => { const p = initFamily(s).partner; return p && p.relation < 42 && plannedHours(s) > CONFIG.baseHours + 1; },
+    global: true, cooldown: 300,
+    choices: [
+      {
+        label: "Réduire vraiment ta charge de travail",
+        custom: (s, ref) => {
+          const biz = s.plan.filter(p => p.act === 'biz');
+          biz.forEach(p => setPlan('biz', Math.max(0, p.hours - 2), p.ref, p.role));
+          setPlan('family', ((s.plan.find(p => p.act === 'family') || {}).hours || 0) + 2);
+          ref.p.relation = clamp(ref.p.relation + 26, 0, 100);
+          addHappiness(8);
+          addLog(s, `Tu lèves le pied. Deux heures de moins par entreprise, deux de plus à la maison.`, 'good');
+        }
+      },
+      {
+        label: "Promettre que c'est bientôt fini",
+        custom: (s, ref) => {
+          ref.p.relation = clamp(ref.p.relation + 8, 0, 100);
+          ref.p.promised = (ref.p.promised || 0) + 1;
+          if (ref.p.promised >= 2) {
+            ref.p.relation = clamp(ref.p.relation - 22, 0, 100);
+            addLog(s, `Tu as déjà promis ça. ${ref.p.name} l'a noté.`, 'bad');
+          } else addLog(s, `Tu promets. Elle veut y croire.`, 'warn');
+        }
+      },
+      {
+        label: "Dire la vérité : ça ne changera pas",
+        custom: (s, ref) => {
+          ref.p.relation = clamp(ref.p.relation - 18, 0, 100);
+          addHappiness(-6);
+          s.reputation = clamp(s.reputation + 1, 0, 100);
+          addLog(s, `Au moins, c'est dit. Le silence après était très long.`, 'warn');
+        }
+      }
+    ]
+  },
+  {
+    id: 'contact_tuyau', title: "Un tuyau",
+    text: null,
+    dynamic: s => {
+      const k = pick(s.contacts.filter(x => x.relation > 60 && !x.away));
+      if (!k) return null;
+      return { text: `${k.name} t'appelle un mardi matin : « Je ne devrais pas te dire ça. » Ce qui suit vaut de l'argent.`, ref: { k } };
+    },
+    cond: s => s.contacts.some(k => k.relation > 60 && !k.away),
+    global: true, cooldown: 220,
+    choices: [
+      {
+        label: "Agir tout de suite",
+        custom: (s, ref) => {
+          const c = biggest(s);
+          if (c) { c.hype = Math.max(c.hype || 1, 1.3); c.clients += Math.round(c.clients * 0.06 + 4);
+            addLog(s, `Tu bouges avant tout le monde. ${c.name} en profite immédiatement.`, 'good'); }
+          else { s.reputation = clamp(s.reputation + 3, 0, 100); }
+          ref.k.owed = (ref.k.owed || 0) + 18;
+        }
+      },
+      {
+        label: "Le remercier et ne rien faire",
+        custom: (s, ref) => { ref.k.trust = clamp(ref.k.trust + 4, 0, 100); }
+      }
+    ]
+  },
+
   /* ===================== CONSEIL D'ADMINISTRATION ===================== */
 
   {

@@ -16,7 +16,7 @@ const PHONE_APPS = [
   { id: 'agenda', name: 'Agenda', icon: 'fa-calendar-days', color: '#e05a3a' },
   { id: 'sorties', name: 'Sorties', icon: 'fa-champagne-glasses', color: '#d94f8a' },
   { id: 'fetes', name: 'Recevoir', icon: 'fa-music', color: '#7b52d3' },
-  { id: 'luxe', name: 'Train de vie', icon: 'fa-gem', color: '#c9a227' },
+  { id: 'web', name: 'Navigateur', icon: 'fa-compass', color: '#0ea5e9' },
   { id: 'messages', name: 'Journal', icon: 'fa-comment-dots', color: '#1f9d6b' }
 ];
 
@@ -86,7 +86,7 @@ function phoneApp(id) {
     case 'agenda': return phoneAgenda();
     case 'sorties': return phoneSorties();
     case 'fetes': return phoneFetes();
-    case 'luxe': return phoneLuxe();
+    case 'web': return phoneWeb();
     case 'messages': return phoneMessages();
     default: return '';
   }
@@ -213,44 +213,6 @@ function phoneFetes() {
     </div>`;
 }
 
-function phoneLuxe() {
-  const cats = [...new Set(LUXURY.map(l => l.cat))];
-  return phoneHeader('Train de vie', 'fa-gem') + `
-    <div class="phone-sum">
-      <div><span>Entretien</span><b class="neg">${fmt(luxuryUpkeep(S))}/mois</b></div>
-      <div><span>Valeur</span><b class="accent">${fmt(luxuryValue(S))}</b></div>
-      <div><span>Réputation</span><b>+${luxuryRep(S)}</b></div>
-    </div>
-    <div class="phone-list">
-      ${cats.map(cat => `
-        <div class="phone-cat">${cat}</div>
-        ${LUXURY.filter(l => l.cat === cat).map(l => {
-          const owned = S.luxury.includes(l.id);
-          const canBuy = S.money >= l.price;
-          return `
-          <div class="phone-card ${owned ? 'owned' : canBuy ? '' : 'locked'}">
-            <b><i class="fas ${l.icon}"></i> ${l.name}</b>
-            <p>${l.desc}</p>
-            <div class="phone-meta">
-              <span>${fmt(l.price)}</span>
-              <span>${fmt(l.upkeep)}/mois</span>
-              <span>+${l.rep} rép.</span>
-              <span>+${l.joy} moral</span>
-            </div>
-            ${owned ? `
-              <div class="phone-btns">
-                ${l.housing ? `<button class="phone-go" data-act="liveIn" data-id="${l.id}" ${S.housingId === l.id ? 'disabled' : ''}>
-                  ${S.housingId === l.id ? 'Tu y habites' : 'Y habiter'}</button>` : ''}
-                <button class="phone-go ghost" data-act="sellLux" data-id="${l.id}">Revendre ${fmt(l.price * l.resale)}</button>
-              </div>`
-              : `<button class="phone-go wide" data-act="buyLux" data-id="${l.id}" ${canBuy ? '' : 'disabled'}>
-                   ${canBuy ? 'Acheter' : 'Hors de portée'}
-                 </button>`}
-          </div>`;
-        }).join('')}`).join('')}
-    </div>`;
-}
-
 function phoneMessages() {
   return phoneHeader('Journal', 'fa-comment-dots') + `
     <div class="phone-list phone-log">
@@ -263,6 +225,7 @@ function phoneMessages() {
 }
 
 function bindPhone() {
+  bindWeb();
   $$('#phone [data-act]').forEach(el => {
     el.addEventListener('click', e => {
       e.stopPropagation();
@@ -318,7 +281,8 @@ function closeScenePanel() {
 /* Couleur d'ambiance d'un profil, pour la pastille de son étiquette */
 const GUEST_DOT = {
   fondateur: '#f97316', investisseur: '#22c55e', client: '#38bdf8', talent: '#a855f7',
-  media: '#e879a8', mentor: '#e8c46a', concurrent: '#ef4444', ami: '#94a3b8'
+  media: '#e879a8', mentor: '#e8c46a', concurrent: '#ef4444', ami: '#94a3b8',
+  rencontre: '#f43f7e'
 };
 
 function guestHTML(g) {

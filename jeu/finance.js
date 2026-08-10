@@ -8,59 +8,161 @@
    PETITS GRAPHIQUES SVG
    --------------------------------------------------------- */
 
-function sparkPath(values, w, h, min, max) {
-  if (values.length < 2) return '';
-  const span = Math.max(1e-6, max - min);
-  return values.map((v, i) => {
-    const x = (i / (values.length - 1)) * w;
-    const y = h - ((v - min) / span) * h;
-    return `${i ? 'L' : 'M'}${x.toFixed(1)},${y.toFixed(1)}`;
-  }).join(' ');
+/* Un axe lisible : on arrondit les bornes à des valeurs rondes. */
+function niceScale(min, max) {
+  if (max === min) { max = min + 1; }
+  const span = max - min;
+  const step = Math.pow(10, Math.floor(Math.log10(span / 3)));
+  const mult = [1, 2, 2.5, 5, 10].find(m => span / (step * m) <= 4) || 10;
+  const s = step * mult;
+  return { lo: Math.floor(min / s) * s, hi: Math.ceil(max / s) * s, step: s };
 }
 
-/* Graphique en courbes, une ou plusieurs séries */
+/* Abrège proprement : 1,2 M, 340 k, -12 k */
+function axisLabel(v) {
+  const a = Math.abs(v);
+  if (a >= 1e9) return (v / 1e9).toFixed(1).replace('.', ',').replace(',0', '') + ' Md';
+  if (a >= 1e6) return (v / 1e6).toFixed(1).replace('.', ',').replace(',0', '') + ' M';
+  if (a >= 1e3) return Math.round(v / 1e3) + ' k';
+  return Math.round(v) + '';
+}
+
+/* Graphique en courbes : vraie grille, axes chiffrés, aire dégradée,
+   et surtout un repère non déformé — c'est ce qui rendait les anciens
+   graphiques illisibles. */
+let CHART_SEQ = 0;
 function lineChart(series, opts = {}) {
-  const w = 100, h = opts.height || 40;
-  const all = series.flatMap(s => s.values);
+  const all = series.flatMap(s => s.values).filter(v => isFinite(v));
   if (all.length < 2) return '<p class="row-sub">Pas encore assez d\'historique.</p>';
-  let min = Math.min(0, ...all), max = Math.max(...all, 1);
-  if (opts.symmetric) { const m = Math.max(Math.abs(min), Math.abs(max)); min = -m; max = m; }
-  const zeroY = h - ((0 - min) / Math.max(1e-6, max - min)) * h;
+
+  const H = opts.height || 150;
+  const W = 480;
+  const padL = 46, padR = 12, padT = 12, padB = opts.xLabels ? 22 : 10;
+  const iw = W - padL - padR, ih = H - padT - padB;
+
+  const sc = niceScale(Math.min(0, ...all), Math.max(...all, 1));
+  const n = Math.max(...series.map(s => s.values.length));
+  const X = i => padL + (n < 2 ? iw / 2 : (i / (n - 1)) * iw);
+  const Y = v => padT + ih - ((v - sc.lo) / (sc.hi - sc.lo)) * ih;
+
+  const ticks = [];
+  for (let v = sc.lo; v <= sc.hi + 1e-9; v += sc.step) ticks.push(v);
+
+  const uid = 'g' + (++CHART_SEQ);
+  const path = s => s.values.map((v, i) => `${i ? 'L' : 'M'}${X(i).toFixed(1)} ${Y(v).toFixed(1)}`).join(' ');
+  const area = s => `${path(s)} L${X(s.values.length - 1).toFixed(1)} ${Y(sc.lo).toFixed(1)} L${X(0).toFixed(1)} ${Y(sc.lo).toFixed(1)} Z`;
 
   return `
   <div class="chart">
-    <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
-      ${min < 0 ? `<line x1="0" y1="${zeroY}" x2="${w}" y2="${zeroY}" class="chart-zero"/>` : ''}
+    <svg viewBox="0 0 ${W} ${H}" class="chart-svg" role="img">
+      <defs>
+        ${series.map((s, i) => `
+          <linearGradient id="${uid}-${i}" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="${s.color}" stop-opacity="${s.fill === false ? 0 : .28}"/>
+            <stop offset="100%" stop-color="${s.color}" stop-opacity="0"/>
+          </linearGradient>`).join('')}
+      </defs>
+
+      ${ticks.map(v => `
+        <line x1="${padL}" y1="${Y(v).toFixed(1)}" x2="${W - padR}" y2="${Y(v).toFixed(1)}"
+              class="grid ${Math.abs(v) < 1e-9 ? 'grid-zero' : ''}"/>
+        <text x="${padL - 7}" y="${(Y(v) + 3.4).toFixed(1)}" class="axis-y">${axisLabel(v)}</text>`).join('')}
+
+      ${series.map((s, i) => `<path d="${area(s)}" fill="url(#${uid}-${i})"/>`).join('')}
       ${series.map(s => `
-        <path d="${sparkPath(s.values, w, h, min, max)}" fill="none"
-              stroke="${s.color}" stroke-width="${s.width || 1.3}"
-              ${s.dash ? 'stroke-dasharray="2 2"' : ''}/>`).join('')}
+        <path d="${path(s)}" fill="none" stroke="${s.color}" stroke-width="${s.width || 2}"
+              stroke-linejoin="round" stroke-linecap="round" ${s.dash ? 'stroke-dasharray="5 4"' : ''}/>`).join('')}
+      ${series.map(s => {
+        const i = s.values.length - 1;
+        return `<circle cx="${X(i).toFixed(1)}" cy="${Y(s.values[i]).toFixed(1)}" r="3.4" fill="${s.color}" class="chart-dot"/>`;
+      }).join('')}
+
+      ${opts.xLabels ? opts.xLabels.map((l, i) => {
+        const pos = Math.round(i * (n - 1) / Math.max(1, opts.xLabels.length - 1));
+        return `<text x="${X(pos).toFixed(1)}" y="${H - 6}" class="axis-x"
+                 text-anchor="${i === 0 ? 'start' : i === opts.xLabels.length - 1 ? 'end' : 'middle'}">${l}</text>`;
+      }).join('') : ''}
     </svg>
     <div class="chart-legend">
-      ${series.map(s => `<span><i style="background:${s.color}"></i>${s.name}</span>`).join('')}
-      <span class="chart-scale">${fmt(max)}</span>
+      ${series.map(s => `
+        <span><i style="background:${s.color}"></i>${s.name}
+          <b>${fmt(s.values[s.values.length - 1])}</b></span>`).join('')}
     </div>
   </div>`;
 }
 
-/* Graphique en barres empilées : la composition des coûts */
-function stackChart(rows, opts = {}) {
-  const total = rows.reduce((a, r) => a + Math.max(0, r.value), 0);
-  if (total <= 0) return '<p class="row-sub">Aucune dépense pour l\'instant.</p>';
+/* Barres verticales : une valeur par mois, positives et négatives. */
+function barChart(values, opts = {}) {
+  if (values.length < 2) return '<p class="row-sub">Pas encore assez d\'historique.</p>';
+  const H = opts.height || 130, W = 480;
+  const padL = 46, padR = 12, padT = 10, padB = 20;
+  const iw = W - padL - padR, ih = H - padT - padB;
+  const sc = niceScale(Math.min(0, ...values), Math.max(0, ...values, 1));
+  const Y = v => padT + ih - ((v - sc.lo) / (sc.hi - sc.lo)) * ih;
+  const bw = Math.max(2, iw / values.length - 2);
+  const ticks = [];
+  for (let v = sc.lo; v <= sc.hi + 1e-9; v += sc.step) ticks.push(v);
+
   return `
-  <div class="stack">
-    <div class="stack-bar">
-      ${rows.filter(r => r.value > 0).map(r => `
-        <div style="width:${(r.value / total * 100).toFixed(1)}%;background:${r.color}"
-             title="${r.name} : ${fmt(r.value)}"></div>`).join('')}
-    </div>
-    <div class="stack-legend">
-      ${rows.filter(r => r.value > 0).map(r => `
-        <span><i style="background:${r.color}"></i>${r.name}
-          <b>${fmt(r.value)}</b> <em>${Math.round(r.value / total * 100)}%</em></span>`).join('')}
+  <div class="chart">
+    <svg viewBox="0 0 ${W} ${H}" class="chart-svg">
+      ${ticks.map(v => `
+        <line x1="${padL}" y1="${Y(v).toFixed(1)}" x2="${W - padR}" y2="${Y(v).toFixed(1)}"
+              class="grid ${Math.abs(v) < 1e-9 ? 'grid-zero' : ''}"/>
+        <text x="${padL - 7}" y="${(Y(v) + 3.4).toFixed(1)}" class="axis-y">${axisLabel(v)}</text>`).join('')}
+      ${values.map((v, i) => {
+        const x = padL + i * (iw / values.length) + 1;
+        const y0 = Y(0), y1 = Y(v);
+        return `<rect x="${x.toFixed(1)}" y="${Math.min(y0, y1).toFixed(1)}"
+                 width="${bw.toFixed(1)}" height="${Math.max(1, Math.abs(y1 - y0)).toFixed(1)}"
+                 rx="1.5" fill="${v >= 0 ? (opts.pos || '#22c55e') : (opts.neg || '#ef4444')}" opacity=".9"/>`;
+      }).join('')}
+      ${opts.xLabels ? opts.xLabels.map((l, i) => {
+        const pos = Math.round(i * (values.length - 1) / Math.max(1, opts.xLabels.length - 1));
+        const x = padL + pos * (iw / values.length) + bw / 2;
+        return `<text x="${x.toFixed(1)}" y="${H - 5}" class="axis-x"
+                 text-anchor="${i === 0 ? 'start' : i === opts.xLabels.length - 1 ? 'end' : 'middle'}">${l}</text>`;
+      }).join('') : ''}
+    </svg>
+    ${opts.legend ? `<div class="chart-legend"><span>${opts.legend}</span></div>` : ''}
+  </div>`;
+}
+
+/* Répartition : un anneau, plus lisible qu'une barre écrasée. */
+function donutChart(rows) {
+  const data = rows.filter(r => r.value > 0);
+  const total = data.reduce((a, r) => a + r.value, 0);
+  if (total <= 0) return '<p class="row-sub">Aucune dépense pour l\'instant.</p>';
+
+  const R = 54, r = 34, cx = 62, cy = 62;
+  let acc = 0;
+  const arcs = data.map(d => {
+    const a0 = acc / total * Math.PI * 2 - Math.PI / 2;
+    acc += d.value;
+    const a1 = acc / total * Math.PI * 2 - Math.PI / 2;
+    const big = a1 - a0 > Math.PI ? 1 : 0;
+    const p = (rad, ang) => `${(cx + Math.cos(ang) * rad).toFixed(2)} ${(cy + Math.sin(ang) * rad).toFixed(2)}`;
+    return `<path d="M${p(R, a0)} A${R} ${R} 0 ${big} 1 ${p(R, a1)} L${p(r, a1)} A${r} ${r} 0 ${big} 0 ${p(r, a0)} Z"
+                  fill="${d.color}" opacity=".92"/>`;
+  }).join('');
+
+  return `
+  <div class="donut">
+    <svg viewBox="0 0 124 124" class="donut-svg">
+      ${arcs}
+      <text x="62" y="58" class="donut-total">${axisLabel(total)}</text>
+      <text x="62" y="72" class="donut-sub">par mois</text>
+    </svg>
+    <div class="donut-legend">
+      ${data.sort((a, b) => b.value - a.value).map(d => `
+        <span><i style="background:${d.color}"></i>${d.name}
+          <b>${fmt(d.value)}</b><em>${Math.round(d.value / total * 100)} %</em></span>`).join('')}
     </div>
   </div>`;
 }
+
+/* On garde le nom historique : c'est le même besoin, mieux servi. */
+function stackChart(rows) { return donutChart(rows); }
 
 /* ---------------------------------------------------------
    ONGLET FINANCES
@@ -73,6 +175,12 @@ const COST_COLORS = {
 
 function monthsOfHistory(c, n) {
   return c.history.slice(-n);
+}
+
+/* Repères de temps sous l'axe : « il y a 24 mois … aujourd'hui » */
+function monthLabels(n) {
+  if (n < 3) return null;
+  return [`il y a ${n} mois`, `il y a ${Math.round(n / 2)} mois`, "aujourd'hui"];
 }
 
 function renderFinances() {
@@ -109,10 +217,11 @@ function renderFinances() {
         <div><span>Reste personnel</span><b class="${perso >= 0 ? 'pos' : 'neg'}">${fmt(perso)}</b><em>hors dividendes</em></div>
       </div>
       ${consol.length > 2 ? lineChart([
-        { name: 'Chiffre d\'affaires', values: consol.map(x => x.rev), color: '#f97316', width: 1.6 },
-        { name: 'Charges', values: consol.map(x => x.cost), color: '#ef4444' },
-        { name: 'Résultat', values: consol.map(x => x.profit), color: '#22c55e' }
-      ], { height: 44, symmetric: false }) + `<p class="row-sub">Sur les ${consol.length} derniers mois, toutes sociétés confondues.</p>`
+        { name: 'Chiffre d\'affaires', values: consol.map(x => x.rev), color: '#f97316', width: 2.4 },
+        { name: 'Charges', values: consol.map(x => x.cost), color: '#ef4444', fill: false, width: 2 },
+        { name: 'Résultat', values: consol.map(x => x.profit), color: '#22c55e', width: 2 }
+      ], { height: 170, xLabels: monthLabels(consol.length) })
+      + `<p class="row-sub">Sur les ${consol.length} derniers mois, toutes sociétés confondues.</p>`
       : '<p class="row-sub">Lance une entreprise et laisse passer quelques mois pour voir apparaître tes comptes.</p>'}
     </section>
 
@@ -138,7 +247,8 @@ function renderFinances() {
         ${debtCost ? `<tr><td>Dette personnelle (${fmt(S.debt)})</td><td class="right neg">-${fmt(debtCost)}</td></tr>` : ''}
         <tr class="total"><td>Solde mensuel</td><td class="right ${perso >= 0 ? 'pos' : 'neg'}">${fmt(perso)}</td></tr>
       </table>
-      ${nwSeries.length > 2 ? lineChart([{ name: 'Patrimoine net', values: nwSeries, color: '#fb923c', width: 1.6 }], { height: 36 }) : ''}
+      ${nwSeries.length > 2 ? lineChart([{ name: 'Patrimoine net', values: nwSeries, color: '#fb923c', width: 2.4 }],
+        { height: 150, xLabels: monthLabels(nwSeries.length) }) : ''}
     </section>
    </div>
 
@@ -157,11 +267,21 @@ function renderFinances() {
           <div><span>Marge nette</span><b class="${marge >= 15 ? 'pos' : marge >= 0 ? '' : 'neg'}">${marge.toFixed(0)}%</b></div>
           <div><span>Trésorerie</span><b class="${c.cash < 0 ? 'neg' : ''}">${fmt(c.cash)}</b></div>
         </div>
-        ${h.length > 2 ? lineChart([
-          { name: 'CA', values: h.map(x => x.rev), color: '#f97316', width: 1.6 },
-          { name: 'Résultat', values: h.map(x => x.profit), color: '#22c55e' },
-          { name: 'Trésorerie', values: h.map(x => x.cash), color: '#38bdf8', dash: true }
-        ], { height: 40 }) : '<p class="row-sub">Les comptes apparaîtront après un mois d\'activité.</p>'}
+        ${h.length > 2 ? `
+          <h4 class="chart-title">Chiffre d'affaires et charges</h4>
+          ${lineChart([
+            { name: 'Chiffre d\'affaires', values: h.map(x => x.rev), color: '#f97316', width: 2.4 },
+            { name: 'Charges', values: h.map(x => x.cost), color: '#ef4444', fill: false, width: 2 }
+          ], { height: 150, xLabels: monthLabels(h.length) })}
+          <h4 class="chart-title">Résultat mensuel</h4>
+          ${barChart(h.map(x => x.profit), { height: 118, xLabels: monthLabels(h.length) })}
+          <h4 class="chart-title">Trésorerie et clients</h4>
+          ${lineChart([{ name: 'Trésorerie', values: h.map(x => x.cash), color: '#38bdf8', width: 2.4 }],
+            { height: 120, xLabels: monthLabels(h.length) })}
+          ${lineChart([{ name: 'Clients', values: h.map(x => x.clients), color: '#a855f7', width: 2.4 }],
+            { height: 120, xLabels: monthLabels(h.length) })}
+        ` : '<p class="row-sub">Les comptes apparaîtront après un mois d\'activité.</p>'}
+        <h4 class="chart-title">Où part l'argent</h4>
         ${stackChart([
           { name: 'Publicité', value: adSpendMonthly(c), color: COST_COLORS.ads },
           { name: 'Salaires', value: payrollMonthly(c), color: COST_COLORS.payroll },

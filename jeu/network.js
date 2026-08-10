@@ -133,6 +133,12 @@ function tickNetwork(s) {
     }
   }
 
+  // une dette relationnelle trop lourde finit toujours par se rappeler à toi
+  if (!s.forcedEvent && Math.random() < 0.0016) {
+    const k = s.contacts.find(x => owedOf(x) > 45 && s.day - (x.lastCall || 0) > 300);
+    if (k) { k.lastCall = s.day; s.forcedEvent = 'contact_dette'; }
+  }
+
   tickMentors(s);
   tickFriends(s);
 }
@@ -638,6 +644,19 @@ function apprenticeSession(id) {
   render();
 }
 
+/* Une rencontre qui prend : on part d'une vraie personne, avec son
+   caractère et ses exigences. */
+function startRelationship(s, where) {
+  const p = makePartner();
+  p.metWhere = where || 'rencontré un jour';
+  initFamily(s).partner = p;
+  if (!s.flags.includes('couple')) s.flags.push('couple');
+  if (!planEntry('family')) setPlan('family', 1);
+  addHappiness(18);
+  addLog(s, `Tu es en couple avec ${p.name} (${partnerTrait(p).name.toLowerCase()}, ${where}). Donne-lui des heures dans ton planning.`, 'good');
+  return p;
+}
+
 /* ---------------------------------------------------------
    LES AMIS
    Des gens qui ne servent à rien, et sans qui on ne tient pas.
@@ -718,6 +737,25 @@ function tickFriends(s) {
     if (f.closeness > 70) s.energy = clamp(s.energy + 0.06, 0, s.maxEnergy);
   });
 
+  /* La solitude. Ce n'est pas une punition arbitraire : quand il n'y a
+     personne à appeler, le moral descend tous les jours, et plus vite
+     encore si l'on n'a ni conjoint ni amis ni relation de confiance. */
+  const close = list.filter(f => f.closeness > 35).length;
+  const warm = s.contacts.filter(k => k.relation >= 40 && !k.away).length;
+  const partner = s.family && s.family.partner ? 1 : 0;
+  const attaches = close + Math.min(2, warm * 0.5) + partner * 1.5;
+  if (attaches < 2.5) {
+    const isolation = (2.5 - attaches) / 2.5;                 // 0 → 1
+    addHappiness(-0.17 * isolation);
+    s.energy = clamp(s.energy - 0.05 * isolation, 0, s.maxEnergy);
+    s.lonelyDays = (s.lonelyDays || 0) + 1;
+    if (s.lonelyDays % 180 === 0) {
+      addLog(s, attaches < 0.6
+        ? `Tu n'as appelé personne depuis des mois. Personne ne t'a appelé non plus.`
+        : `Tu te sens seul. Il faudrait voir du monde, vraiment.`, 'warn');
+    }
+  } else s.lonelyDays = 0;
+
   // Un ami proche voit quand ça ne va pas, et il appelle. C'est
   // exactement à ça que servent les gens qu'on garde.
   if (s.happiness < 26 && Math.random() < 0.01) {
@@ -729,6 +767,15 @@ function tickFriends(s) {
       f.lastSeen = s.day;
       addLog(s, `${f.name} a senti que ça n'allait pas et a débarqué sans prévenir. Ça remet debout.`, 'good');
     }
+  }
+
+  /* Les moments de relation ne tombent pas au hasard du tirage mensuel :
+     ils arrivent quand la situation les appelle. */
+  if (!s.forcedEvent) {
+    const jaloux = list.find(f => f.envy > 50 && s.day - (f.lastEvent || 0) > 300);
+    const galere = list.find(f => f.closeness > 40 && s.day - (f.lastEvent || 0) > 500 && Math.random() < 0.0009);
+    if (jaloux && Math.random() < 0.004) { jaloux.lastEvent = s.day; s.forcedEvent = 'ami_jaloux'; }
+    else if (galere) { galere.lastEvent = s.day; s.forcedEvent = 'ami_galere'; }
   }
 
   // on perd des amis, et ça se voit rarement venir

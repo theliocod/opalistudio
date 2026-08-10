@@ -108,6 +108,16 @@ recrutement pour obtenir trois profils sérieux immédiatement.
 Au-delà d'une certaine taille, il faut des managers : sans encadrement, la
 performance et le moral se dégradent pour tout le monde.
 
+### Le niveau de l'équipe se voit dans les comptes
+
+Ce n'est pas décoratif. À masse salariale comparable, une équipe forte fait
+huit fois le chiffre d'affaires d'une équipe faible, et vingt fois le résultat :
+elle gaspille moins (les charges fixes et variables baissent jusqu'à 15 %), elle
+tire le produit vers le haut, elle fait rester les clients plus longtemps.
+L'onglet Équipe affiche pour chaque salarié **ce qu'il rapporte réellement** —
+clients apportés, clients retenus, capacité ajoutée — face à ce qu'il coûte, en
+euros par mois. Certains sont largement rentables, d'autres non, et ça se lit.
+
 ## Les compétences
 
 Cinq compétences, avec un effet direct et chiffré sur le jeu :
@@ -363,16 +373,18 @@ sien d'une session à l'autre.
 
 ## Le téléphone
 
-Un smartphone accessible en permanence en bas à droite, avec six applications :
+Six applications. **Contacts**, pour voir et relancer ton carnet.
+**Agenda**, un calendrier mensuel où les sorties apparaissent à des dates
+précises. **Sorties**, la liste des événements accessibles selon ta réputation.
+**Recevoir**, pour organiser chez toi. **Journal**, le fil de ta vie.
 
-| App | Ce qu'elle fait |
-|---|---|
-| Contacts | ton réseau avec les visages, la relation, et les boutons pour voir quelqu'un ou lui demander un service |
-| Agenda | le calendrier du mois, les jours où il se passe quelque chose, et l'inscription aux événements |
-| Sorties | le catalogue des événements existants, leur prix, leur niveau et ce qu'il faut pour y entrer |
-| Recevoir | organiser une soirée chez toi, du simple apéro au rooftop privatisé |
-| Train de vie | acheter et revendre voitures, montres, immobilier, yacht, jet, art |
-| Journal | le fil des événements de ta vie |
+Et un **navigateur**, parce qu'on n'achète pas une supercar dans un menu
+« train de vie » : on la commande sur le site du concessionnaire, à trois heures
+du matin, dans son lit. Sept sites, chacun avec son univers visuel et son ton —
+Prestige Auto, Maison Horlogère, Oceanis Marine, Skybridge Aviation, Galerie
+Blanche, Demeures Privées, Atlas Immobilier. Barre d'adresse, favoris,
+recherche qui traverse tous les catalogues, et une page « ce que tu possèdes »
+depuis laquelle tout se revend.
 
 ## Sortir, en vrai
 
@@ -499,6 +511,7 @@ logement, et débloquent les grandes soirées.
 | `capital.js` | tours de table, fonds nommés, dette bancaire, synergies de groupe |
 | `world.js` | villes, voyages, déménagements, achat et gestion des biens immobiliers |
 | `finance.js` | graphiques financiers et guide contextuel |
+| `web.js` | le navigateur du téléphone et ses boutiques |
 | `ui.js` | rendu des écrans et interactions |
 | `styles.css` | habillage, aux couleurs d'OpalStudio |
 

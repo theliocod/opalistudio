@@ -102,10 +102,13 @@ function tickFamily(s) {
       addHappiness(-(35 - r) / 100 * 0.14);
     }
 
-    // La rupture ne tombe pas du ciel : elle s'annonce
+    // La rupture ne tombe pas du ciel : elle s'annonce, en deux temps
     if (r < 22 && s.day - f.partner.lastCrisis > 120 && Math.random() < 0.004) {
       f.partner.lastCrisis = s.day;
       queueFamilyEvent('crise_couple');
+    } else if (r < 42 && overwork > 1 && s.day - (f.partner.lastWarn || 0) > 260 && Math.random() < 0.005) {
+      f.partner.lastWarn = s.day;
+      queueFamilyEvent('conjoint_ultimatum');
     }
   }
 
