@@ -139,7 +139,7 @@ function travel(cityId, tripId) {
   const gain = trip.mult;
   addHappiness(9 * gain * (1 + city.joy / 40));
   S.health = clamp(S.health + 3 * gain * (1 + city.health / 30), 0, 100);
-  S.energy = clamp(S.energy + 22 * Math.min(2, gain), 0, S.maxEnergy);
+  S.energy = clamp(S.energy + 22 * Math.min(2, gain), 0, energyCeiling(S));
 
   // ce qu'on ramène
   if (Math.random() < 0.3 + trip.mult * 0.12) {
@@ -212,7 +212,7 @@ function moveTo(cityId) {
   });
   if (S.family.partner) S.family.partner.relation = clamp(S.family.partner.relation - 10, 0, 100);
   addHappiness(city.joy > old.joy ? 6 : -6);
-  S.energy = clamp(S.energy - 25, 0, S.maxEnergy);
+  S.energy = clamp(S.energy - 25, 0, energyCeiling(S));
 
   addLog(S, `Tu quittes ${old.name} pour ${city.name} (${fmt(cost)}). Il va falloir tout reconstruire sur place.`, 'warn');
   render();
@@ -316,7 +316,7 @@ function mortgageCapacity(s = S) {
   return Math.max(0, Math.round(free * (1 - Math.pow(1 + i, -n)) / i));
 }
 function mortgageRate(s = S) {
-  return +clamp(0.048 + currentCity(s).growth * 0.35 - s.skills.finance / 3000, 0.025, 0.085).toFixed(4);
+  return +clamp(0.048 + currentCity(s).growth * 0.35 - s.skills.finance / 3000 + ecoRate(s), 0.02, 0.11).toFixed(4);
 }
 
 function buyProperty(typeId, cityId, useLoan) {
@@ -443,7 +443,7 @@ function tickProperties(s) {
 
     // la pierre se dégrade et prend de la valeur
     p.cond = clamp(p.cond - (p.tenant ? 0.028 : 0.016), 0, 100);
-    const cycle = 1 + Math.sin(s.day / 900) * 0.15;
+    const cycle = ecoProperty(s) * (1 + Math.sin(s.day / 900) * 0.1);
     p.value = Math.round(p.value * (1 + (c.growth * cycle) / DAYS_PER_YEAR) * (1 - (p.cond < 40 ? 0.00006 : 0)));
 
     // charges, crédit

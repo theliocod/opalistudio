@@ -118,6 +118,42 @@ L'onglet Équipe affiche pour chaque salarié **ce qu'il rapporte réellement** 
 clients apportés, clients retenus, capacité ajoutée — face à ce qu'il coûte, en
 euros par mois. Certains sont largement rentables, d'autres non, et ça se lit.
 
+### Les carrières, les promotions et la fuite des talents
+
+Un salarié n'est pas une ligne de charges avec un niveau. Il porte un **titre** —
+junior, confirmé, senior, lead, directeur — qui change ce qu'il produit (de ×0,82
+à ×1,70), ce qu'il coûte, et combien de personnes il encadre sans toi : à partir
+de senior, les gradés portent une partie de l'encadrement, et c'est la seule façon
+de grandir sans empiler les managers.
+
+Quand quelqu'un a le niveau et l'ancienneté, il attend une promotion. Tu peux la
+lui donner, réaligner son salaire sur le marché sans changer son titre, ou lui
+dire que ce n'est pas le moment — et ça se paie, tout de suite et plus tard.
+
+**Personne ne travaille dans le vide.** Un salarié bon, sous-payé, sans
+perspective et déjà refusé une fois reçoit un appel tous les trois ou quatre
+mois. Il vient te le dire, il te laisse une douzaine de jours, et si tu ne fais
+rien il part. Tu peux t'aligner sur l'offre — ça marche une fois, la deuxième
+l'équipe comprend comment on obtient une augmentation ici — ou le promouvoir, ce
+qui coûte moins cher et vaut mieux.
+
+Un très bon élément qu'on a fait attendre trop longtemps ne va pas toujours chez
+le voisin. **Parfois il monte sa propre boîte**, il part avec quelques pour cent
+de tes clients, et il connaît chacun de tes défauts.
+
+### La culture d'entreprise
+
+Ce n'est pas une valeur affichée sur un mur, c'est la somme de ce que tu as fait
+à ceux qui sont restés : promotions tenues, salaires justes, gens toxiques gardés
+ou sortis, départs que tu as laissés arriver. Elle se lit de 0 à 100 et elle
+change deux choses très concrètes — **qui postule chez toi** (de ×0,55 à ×1,75
+de candidatures) et **qui accepte de rester** quand on l'appelle ailleurs.
+
+Sur douze ans à politique RH identique par ailleurs, promouvoir ses gens donne
+une équipe de leads et de directeurs et une culture au-dessus de 85 ; ne rien
+faire donne une équipe de juniors sans cesse remplacés ; refuser systématiquement
+donne une culture proche de zéro et six départs.
+
 ## Les compétences
 
 Cinq compétences, avec un effet direct et chiffré sur le jeu :
@@ -224,6 +260,91 @@ d'intégration, chacun avec ses prérequis en nombre de sociétés et en compét
 Une petite société dans un grand groupe reçoit beaucoup ; la locomotive du groupe ne
 reçoit presque rien. C'est le poids relatif qui compte, pas la taille absolue.
 
+## Entrer en bourse
+
+Vendre à un fonds, c'est traiter avec quelques personnes qu'on peut convaincre.
+S'introduire en bourse, c'est accepter que des milliers de gens qu'on ne
+rencontrera jamais votent chaque jour sur ce que l'on vaut.
+
+Il faut cocher toutes les cases — 90 000 € de chiffre d'affaires mensuel, trois
+ans d'historique, huit salariés, des résultats positifs sur la durée, 55 en
+finance — **et que le marché veuille bien acheter**. La fenêtre suit le cycle :
+grande ouverte en euphorie (×1,45), fermée en crise (×0,08). Les deux conditions
+ne sont réunies que quelques années par décennie.
+
+Tu choisis d'ouvrir 15 %, 25 % ou 40 % du capital. Les banques placent toujours
+un peu en dessous du prix — c'est la part que tu laisses à ceux qui achètent le
+matin de l'entrée — et prélèvent jusqu'à 7 % de frais. Ensuite :
+
+- **Tu ne peux rien vendre pendant six mois** (lock-up).
+- **Tes comptes deviennent publics tous les trimestres.** Le marché ne paie pas
+  ce que tu gagnes, il paie l'écart avec ce qu'il attendait — et chaque bon
+  trimestre relève la barre du suivant.
+- **Quand tu vends tes propres titres, c'est public** et le cours recule : quand
+  le fondateur vend, personne ne trouve ça rassurant.
+- **Un cours effondré attire un actionnaire activiste.** Il écrit une lettre
+  ouverte au conseil, la presse en reprend les passages les plus durs, et il a
+  parfois raison. Tu peux lui donner un siège, racheter des actions pour soutenir
+  le cours, ou lui répondre point par point.
+- **Si le cours reste au tapis et que tu détiens moins de la moitié du capital,
+  le conseil peut te démettre.** Environ quatre mois de titre à moins de 42 %
+  de son prix d'entrée suffisent. Tu récupères tes titres en argent et tu
+  apprends la nouvelle en même temps que la presse.
+
+## La conjoncture
+
+Le monde n'est pas plat et il ne revient pas à la normale. L'économie traverse
+**cinq phases** qui s'enchaînent avec une part de hasard : reprise, expansion,
+euphorie, retournement, crise. Chacune dure entre six mois et deux ans et demi,
+et change simultanément la demande, l'appétit des fonds, les valorisations, les
+salaires, le taux des banques, la facilité de recrutement et le prix de la pierre.
+
+En euphorie, les fonds signent 45 % plus facilement et les valorisations sont
+multipliées par 1,55 — mais les salaires explosent et plus personne ne veut
+changer de travail. En crise, l'argent se ferme presque entièrement (×0,28), les
+valorisations tombent de moitié, et les meilleurs profils cherchent du travail.
+Le moment où l'on lève, où l'on recrute, où l'on achète et où l'on vend compte
+au moins autant que ce que l'on fait.
+
+Quatre secteurs — technologie, commerce, services, restauration — ont en plus
+leur propre vague, plus lente et plus ample que le cycle, et peuvent partir en
+**bulle** : ça monte trop, tout le monde en parle, puis ça casse et ceux qui
+n'avaient que de la promesse disparaissent.
+
+On ne prévient jamais qu'une crise arrive. L'onglet Finances affiche des
+**signaux avancés** — « les salaires montent plus vite que la productivité »,
+« les tours de table prennent trois mois de plus qu'avant » — et c'est au joueur
+de les lire.
+
+## À qui tu vends
+
+Un marché n'est pas une masse uniforme. Chaque société vise **le grand public,
+les professionnels, les grands comptes, ou personne en particulier**, et ce choix
+change tout le reste :
+
+| | Grand public | Professionnels | Grands comptes |
+|---|---|---|---|
+| Prix acceptable | ×0,78 | ×1,12 | ×1,55 |
+| Revenu par client | ×0,86 | ×1,90 | ×5,20 |
+| Fidélité (churn) | ×1,35 | ×0,78 | ×0,42 |
+| Coût d'acquisition | ×0,62 | ×1,35 | ×2,60 |
+| Qualité exigée | 34 | 55 | 76 |
+| Clients servis par la même équipe | ×2,20 | ×1,00 | ×0,26 |
+| Vitesse de signature | ×1,30 | ×1,00 | ×0,40 |
+
+Chaque segment est un jeu différent. Le grand public est une machine à volume :
+il faut de la publicité, un produit simple et beaucoup de monde — la prospection
+n'y sert à rien. Les grands comptes rapportent dix fois plus par client, mais
+**un produit en dessous de leurs attentes ne signe tout simplement pas** : à 30
+points sous la barre, tu conclus une affaire sur dix et tu perds de l'argent.
+Ne pas choisir reste possible, on n'atteint alors que 66 % de chaque segment
+avec un discours qui ne porte nulle part — c'est confortable, et ça ne gagne
+jamais.
+
+Se repositionner coûte le chiffre d'affaires d'un mois et fait fuir une bonne
+partie des clients, qui n'étaient pas venus pour ça. Monter en gamme coûte plus
+cher que descendre.
+
 ## Les concurrents
 
 Chaque marché est déjà occupé quand tu arrives : trois ou quatre entreprises, tirées
@@ -248,6 +369,32 @@ les autres, et l'écart entre ce qu'on attend de toi et ce que tu donnes se paie
 chaque jour. Une relation au-dessus de 60 te rend du moral et de l'énergie ; en
 dessous de 22, la rupture s'annonce au lieu de tomber du ciel. Le mariage coûte une
 bague, le divorce entre 30 et 45 % du patrimoine.
+
+## Ton corps
+
+On ne s'use pas, on s'endette. La **dette de sommeil** se creuse dès qu'on dépasse
+douze heures et se comble avec les heures libres et le sport ; elle ne se voit pas
+dans le miroir, elle se voit dans les décisions qu'on prend à 19 h. L'**épuisement**
+monte avec le travail sans repos, sans plaisir et sans sommeil — les trois
+ensemble. À 100, tu ne te lèves pas : trois à sept semaines d'arrêt forcé, ton
+planning est vidé, tes sociétés tournent sans toi. À rythme de 17 h par jour, il
+faut environ un an pour taper dans le mur la première fois, puis de plus en plus vite.
+
+Sept **maladies chroniques** peuvent s'installer selon le terrain que tu as
+préparé : dos bloqué, insomnie, trouble anxieux, hypertension, ulcère, acouphènes,
+genou usé. Elles ne partent jamais. On peut les prendre en charge médicalement —
+les effets sont divisés par deux, et ça coûte tous les mois. L'hypertension ouvre
+en plus la porte à l'**accident cardiaque**, qui change tout le reste de la partie.
+
+La **condition physique** se gagne lentement et se perd toute seule : une heure de
+sport par jour amène vers 75, jamais au-delà. Et à partir de 30 ans, le **plafond
+d'énergie descend** un peu chaque année, quoi qu'on fasse.
+
+Quatre choses à faire pour soi : un bilan de santé complet (semestriel, il attrape
+ce qui commence), un psy, dix jours sans rien, un kiné. Sur quarante ans de partie,
+une vie équilibrée arrive à 58 ans sans arrêt maladie ; le grind permanent donne
+quarante murs, quinze pour cent de la carrière à l'arrêt, six maladies et un
+rendement réel tombé à la moitié.
 
 ## Le guide et les finances
 
@@ -504,12 +651,17 @@ logement, et débloquent les grandes soirées.
 | `scene.css` | l'habillage des scènes isométriques |
 | `people.js` | génération des candidats et des contacts, traits de caractère |
 | `network.js` | cercles et érosion des liens, réciprocité, présentations, mentors, amis |
-| `events.js` | les 55 événements et leurs conséquences |
+| `events.js` | les 73 événements et leurs conséquences |
 | `game.js` | le moteur : tick journalier, économie, équipes, marché du travail, apprentissage |
 | `rivals.js` | les concurrents : archétypes, croissance, pression concurrentielle, rachats |
 | `family.js` | conjoint, enfants, amis, et ce que les heures leur doivent |
 | `capital.js` | tours de table, fonds nommés, dette bancaire, synergies de groupe |
 | `world.js` | villes, voyages, déménagements, achat et gestion des biens immobiliers |
+| `economy.js` | le cycle économique, les vagues sectorielles et les bulles |
+| `market.js` | les segments de clientèle et le positionnement |
+| `health.js` | dette de sommeil, épuisement, maladies chroniques, vieillissement |
+| `careers.js` | échelons, promotions, culture d'entreprise, débauchage |
+| `bourse.js` | introduction en bourse, cours, trimestres, activistes |
 | `finance.js` | graphiques financiers et guide contextuel |
 | `web.js` | le navigateur du téléphone et ses boutiques |
 | `ui.js` | rendu des écrans et interactions |

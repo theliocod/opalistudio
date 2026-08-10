@@ -97,7 +97,7 @@ function tickFamily(s) {
     const r = f.partner.relation;
     if (r > 60) {
       addHappiness((r - 60) / 100 * 0.09 * t.boost);
-      s.energy = clamp(s.energy + (r - 60) / 100 * 0.5, 0, s.maxEnergy);
+      s.energy = clamp(s.energy + (r - 60) / 100 * 0.5, 0, energyCeiling(s));
     } else if (r < 35) {
       addHappiness(-(35 - r) / 100 * 0.14);
     }

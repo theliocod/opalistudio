@@ -58,7 +58,8 @@ function randomName() {
 function makeCandidate(roleId, quality) {
   const role = ROLES.find(r => r.id === roleId);
   // le vivier de la ville où l'on recrute change ce qui se présente
-  quality = clamp(quality * (typeof cityTalent === 'function' ? cityTalent() : 1), 0, 1.15);
+  quality = clamp(quality * (typeof cityTalent === 'function' ? cityTalent() : 1)
+    * (typeof ecoHiring === 'function' ? ecoHiring() : 1), 0, 1.25);
   const skill = clamp(Math.round(rand(10, 45) + quality * 55 + rand(-8, 8)), 5, 99);
 
   // les bons profils sont plus souvent porteurs de bons traits

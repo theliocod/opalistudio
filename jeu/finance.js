@@ -206,6 +206,7 @@ function renderFinances() {
   const perso = (S.job ? S.job.salary : 0) - life - debtCost;
 
   return `
+  ${renderEco()}
   <div class="cols">
    <div class="col">
     <section class="card">
@@ -423,6 +424,35 @@ const GUIDE_STEPS = [
     title: "Fais travailler ton argent",
     text: "Tu laisses dormir des liquidités. Un ETF rapporte environ 8 % par an sans rien faire — sur trente ans, c'est un multiple.",
     tab: 'patrimoine'
+  },
+  {
+    id: 'burnout',
+    done: s => initBody(s).burn < 65,
+    urgent: true,
+    title: "Tu vas taper dans le mur",
+    text: "Ton épuisement dépasse 65. À 100, ton corps t'arrête pour plusieurs semaines et tu ne choisis plus rien. Allège tes journées, mets du sport, vois du monde — ou prends dix jours de coupure avant qu'on te les impose.",
+    tab: 'vie'
+  },
+  {
+    id: 'segment',
+    done: s => !s.companies.some(c => focusOf(c) === 'tous' && c.days > 540 && c.clients > 60),
+    title: "Choisis à qui tu vends",
+    text: "Une de tes sociétés parle encore à tout le monde. Un concurrent qui choisit un segment aura toujours un meilleur produit, un meilleur prix ou un meilleur service que toi sur ce segment. Onglet Pilotage de la société.",
+    tab: 'business'
+  },
+  {
+    id: 'promo',
+    done: s => !s.companies.some(c => c.staff.some(e => nextGrade(e) && waitingMonths(e) > 14)),
+    title: "Quelqu'un attend depuis trop longtemps",
+    text: "Un de tes salariés a le niveau et l'ancienneté pour passer à l'échelon suivant, et ça fait plus d'un an que rien ne bouge. C'est exactement le profil qu'un concurrent appelle. Onglet Équipe.",
+    tab: 'business'
+  },
+  {
+    id: 'bourse',
+    done: s => !s.companies.some(c => !c.ipo && ipoReady(c) && ipoWindow(s) >= 1),
+    title: "La fenêtre est ouverte",
+    text: "Une de tes sociétés remplit les conditions d'une introduction en bourse, et le marché achète en ce moment. Ces deux choses ne sont vraies en même temps que quelques années par décennie. Onglet Capital de la société.",
+    tab: 'business'
   }
 ];
 

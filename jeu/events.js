@@ -909,7 +909,7 @@ const EVENTS = [
       {
         label: "Tout lâcher et l'aider",
         custom: (s, ref) => {
-          s.energy = clamp(s.energy - 22, 0, s.maxEnergy);
+          s.energy = clamp(s.energy - 22, 0, energyCeiling(s));
           ref.k.owed = Math.max(0, ref.k.owed - 45);
           ref.k.trust = clamp(ref.k.trust + 18, 0, 100);
           ref.k.relation = clamp(ref.k.relation + 10, 0, 100);
@@ -1836,6 +1836,374 @@ const EVENTS = [
         }
       },
       { label: "Rester discret", effects: { reputation: 3, happiness: 2 } }
+    ]
+  },
+
+  /* ===================== CONJONCTURE ===================== */
+
+  {
+    id: 'eco_crise', title: "Le marché se retourne pour de bon",
+    text: "En trois semaines, tout a changé de ton. Deux clients t'annoncent qu'ils « mettent le budget en pause ». " +
+      "Un fonds que tu avais au téléphone ne rappelle plus. Les journaux parlent de récession comme si tout le monde l'avait vue venir.",
+    global: true, cooldown: 900,
+    choices: [
+      {
+        label: "Couper dans le gras tout de suite",
+        custom: s => {
+          let cut = 0;
+          s.companies.forEach(c => {
+            CHANNELS.forEach(ch => { if (ch.paid !== false) { cut += (c.budgets[ch.id] || 0) * 0.45; c.budgets[ch.id] = Math.round((c.budgets[ch.id] || 0) * 0.55); } });
+            c.rd = Math.round(c.rd * 0.7);
+          });
+          addLog(s, `Tu coupes ${fmt(cut)} de budgets mensuels avant que ça ne fasse mal. La croissance s'arrête, la trésorerie tient.`, 'warn');
+          addHappiness(-3);
+        }
+      },
+      {
+        label: "Ne rien changer et traverser",
+        effects: { happiness: -2 },
+        custom: s => {
+          s.companies.forEach(c => { c.hype = Math.max(1, (c.hype || 1)); });
+          addLog(s, "Tu gardes le cap. Si le cash suit, tu sortiras de la crise avec les clients des autres.", 'info');
+        }
+      },
+      {
+        label: "Se mettre en chasse : tout est bradé",
+        cond: s => s.money > 20000,
+        custom: s => {
+          s.crisisHunter = s.day;
+          addLog(s, "Tu passes tes journées à regarder qui ne tiendra pas l'hiver. Les prix d'acquisition vont tomber.", 'info');
+          gainSkill({ finance: 2.5, business: 1.5 }, 1, 'field');
+        }
+      }
+    ]
+  },
+  {
+    id: 'eco_euphorie', title: "Tout le monde est devenu riche, sur le papier",
+    text: "Un concurrent sans le moindre euro de revenu vient de lever à une valorisation qui n'a aucun sens. " +
+      "Ton banquier te rappelle de lui-même. À une soirée, trois personnes t'expliquent que « cette fois c'est différent ».",
+    global: true, cooldown: 900,
+    choices: [
+      {
+        label: "Lever pendant que la fenêtre est ouverte",
+        cond: s => s.companies.length > 0,
+        custom: s => {
+          const c = biggest(s);
+          if (!c) return;
+          c.hotWindow = s.day + 240;
+          addLog(s, `Tu lances un tour sur ${c.name} pendant que les fonds signent vite. Va dans « Capital » : les termes ne seront jamais meilleurs.`, 'good');
+        }
+      },
+      {
+        label: "Vendre une partie et sécuriser",
+        cond: s => s.companies.some(c => (c.equity || 1) > 0.62),
+        custom: s => {
+          const c = biggest(s);
+          if (!c || (c.equity || 1) <= 0.62) return;
+          const part = Math.min(0.1, (c.equity || 1) - 0.52);
+          const cash = Math.round(valuation(c) * part * 1.15);
+          c.equity = +((c.equity || 1) - part).toFixed(4);
+          s.money += cash;
+          addLog(s, `Tu cèdes ${Math.round(part * 100)} % de ${c.name} pour ${fmt(cash)} au sommet du marché. Tu gardes le contrôle, et tu dors mieux.`, 'good');
+          addHappiness(4);
+        }
+      },
+      {
+        label: "Trouver ça ridicule et travailler",
+        effects: { reputation: -2 },
+        custom: s => {
+          gainSkill({ business: 2 }, 1, 'field');
+          addLog(s, "Tu retournes bosser. On te trouvera vieux jeu pendant six mois, puis visionnaire.", 'info');
+        }
+      }
+    ]
+  },
+
+  /* ===================== LE CORPS ===================== */
+
+  {
+    id: 'sante_mur', title: "Tu n'arrives pas à te lever",
+    text: "Ce n'est pas de la flemme et ce n'est pas triste. C'est le corps qui refuse, littéralement. " +
+      "Le médecin lit tes analyses, pose ses lunettes, et te demande depuis combien de temps ça dure. " +
+      "Tu réponds « quelques semaines ». Tu sais que c'est faux.",
+    global: true, cooldown: 400,
+    choices: [
+      {
+        label: "Écouter, et changer quelque chose",
+        custom: s => {
+          const b = initBody(s);
+          b.burn = Math.max(0, b.burn - 18);
+          s.plan = s.plan.filter(p => p.act === 'family' || p.act === 'sport');
+          addHappiness(6);
+          addLog(s, "Tu reprendras plus doucement. Ton planning est vide : c'est à toi de le remplir autrement.", 'info');
+        }
+      },
+      {
+        label: "Déléguer pendant l'arrêt",
+        cond: s => s.companies.some(c => c.staff.length > 0),
+        custom: s => {
+          const c = s.companies.filter(x => x.staff.length).sort((a, b) => b.clients - a.clients)[0];
+          const lead = bestStaff(c);
+          if (!lead) return;
+          lead.equity = (lead.equity || 0) + 0.02;
+          lead.morale = clamp((lead.morale || 60) + 18, 0, 100);
+          c.deputy = lead.id;
+          addLog(s, `Tu confies les clés à ${lead.name} et tu lui donnes 2 % du capital. ` +
+            `Il tiendra la maison pendant que tu te répares.`, 'good');
+        }
+      },
+      {
+        label: "Faire semblant d'écouter",
+        effects: { happiness: -4 },
+        custom: s => {
+          const b = initBody(s);
+          b.off = Math.max(1, Math.round(b.off * 0.55));
+          b.burn = Math.min(105, b.burn + 22);
+          addLog(s, "Tu écourtes l'arrêt et tu reprends. Le mur, lui, est toujours là — un peu plus près.", 'bad');
+        }
+      }
+    ]
+  },
+  {
+    id: 'sante_infarctus', title: "On te dit que tu as eu de la chance",
+    text: "Chambre 412. Un moniteur, une perfusion, et beaucoup de temps pour réfléchir. " +
+      "Ta famille est passée. Deux salariés ont envoyé un message. Personne d'autre n'a appelé — " +
+      "et c'est peut-être ça, l'information la plus utile de la semaine.",
+    global: true, cooldown: 9999,
+    choices: [
+      {
+        label: "Tout réorganiser autour de ça",
+        custom: s => {
+          const b = initBody(s);
+          b.care.infarctus = s.day;
+          s.plan = [];
+          setPlan('sport', 2);
+          setPlan('family', 3);
+          addHappiness(10);
+          addLog(s, "Tu mets en place un suivi cardiologique et tu reconstruis tes journées autour du corps, " +
+            "pas l'inverse. Tu produiras moins. Tu seras encore là dans vingt ans.", 'good');
+        }
+      },
+      {
+        label: "Vendre et arrêter la course",
+        cond: s => s.companies.length > 0,
+        custom: s => {
+          const c = biggest(s);
+          if (!c) return;
+          const price = Math.round(valuation(c) * (c.equity || 1) * 0.9);
+          s.money += price;
+          s.companies = s.companies.filter(x => x.uid !== c.uid);
+          s.plan = s.plan.filter(p => p.act !== 'biz' || p.ref !== c.uid);
+          addHappiness(14);
+          initBody(s).burn = Math.max(0, initBody(s).burn - 40);
+          addLog(s, `Tu vends ${c.name} pour ${fmt(price)} et tu t'arrêtes. Certains appelleront ça un échec. ` +
+            `Toi, tu appelles ça avoir compris à temps.`, 'info');
+        }
+      },
+      {
+        label: "Reprendre comme avant dès la sortie",
+        effects: { happiness: -6 },
+        custom: s => {
+          const b = initBody(s);
+          b.off = Math.max(5, Math.round(b.off * 0.4));
+          b.burn = Math.min(105, b.burn + 25);
+          s.health = clamp(s.health - 8, 0, 100);
+          addLog(s, "Tu sors trois semaines plus tôt que prévu. Le cardiologue note ton refus dans le dossier.", 'bad');
+        }
+      }
+    ]
+  },
+
+  /* ===================== LES CARRIÈRES ===================== */
+
+  {
+    id: 'debauchage', title: "« Il faut que je te parle »",
+    text: "Quelqu'un de ton équipe a reçu une proposition ailleurs.",
+    dynamic: s => {
+      const p = s.poached && s.companies.find(c => c.uid === s.poached.uid);
+      const e = p && p.staff.find(x => x.id === s.poached.id);
+      if (!e || !e.offer) return null;
+      return {
+        ref: e,
+        text: `${e.name} ferme la porte du bureau derrière lui. Il est mal à l'aise, et ça se voit. ` +
+          `« ${e.offer.from} m'a contacté. Ils proposent ${fmt(e.offer.amount)}. Je ne cherchais pas, mais… » ` +
+          `Tu le paies ${fmt(e.salary)} depuis ${Math.round(e.days / 30)} mois, et il est ${gradeOf(e).name.toLowerCase()}. ` +
+          (e.passed ? `Tu l'as déjà fait attendre ${e.passed} fois.` : `Il ne t'a jamais rien demandé.`)
+      };
+    },
+    global: true, cooldown: 60,
+    cond: s => {
+      const p = s.poached && s.companies.find(c => c.uid === s.poached.uid);
+      return !!(p && p.staff.find(x => x.id === s.poached.id && x.offer));
+    },
+    choices: [
+      {
+        label: "S'aligner sur l'offre",
+        custom: s => {
+          const c = s.companies.find(x => x.uid === s.poached.uid);
+          const e = c && c.staff.find(x => x.id === s.poached.id);
+          if (e && e.offer) counterKeep(c.uid, e.id);
+        }
+      },
+      {
+        label: "Le promouvoir plutôt que le surpayer",
+        cond: s => {
+          const c = s.companies.find(x => x.uid === (s.poached || {}).uid);
+          const e = c && c.staff.find(x => x.id === s.poached.id);
+          return !!(e && nextGrade(e));
+        },
+        custom: s => {
+          const c = s.companies.find(x => x.uid === s.poached.uid);
+          const e = c && c.staff.find(x => x.id === s.poached.id);
+          if (!e) return;
+          delete e.offer;
+          promote(c.uid, e.id);
+          e.morale = clamp(e.morale + 10, 0, 100);
+          c.culture = clamp(initCulture(c) + 2, 0, 100);
+          addLog(s, `Tu ne lui donnes pas de l'argent, tu lui donnes la suite. Il reste — et pour autre chose qu'un chiffre.`, 'good');
+        }
+      },
+      {
+        label: "Le laisser partir",
+        custom: s => {
+          const c = s.companies.find(x => x.uid === s.poached.uid);
+          const e = c && c.staff.find(x => x.id === s.poached.id);
+          if (e && e.offer) leaveFor(c, e, e.offer.from, e.offer.amount);
+        }
+      }
+    ]
+  },
+
+  /* ===================== LA BOURSE ===================== */
+
+  {
+    id: 'ipo_premier_jour', title: "La cloche",
+    text: "Sept heures du matin, une salle de marché, des gens que tu ne connais pas qui applaudissent. " +
+      "À l'ouverture le titre monte de 14 %, et les banquiers t'expliquent que c'est excellent. " +
+      "Tu penses aux 14 % que tu viens de laisser sur la table.",
+    global: true, cooldown: 9999,
+    choices: [
+      {
+        label: "Profiter du moment",
+        effects: { happiness: 8, reputation: 4 },
+        custom: s => addLog(s, "Tu prends la photo. Tes parents la garderont.", 'good')
+      },
+      {
+        label: "Aller voir l'équipe le soir même",
+        custom: s => {
+          const c = s.companies.find(x => x.ipo);
+          if (!c) return;
+          c.staff.forEach(e => e.morale = clamp(e.morale + 14, 0, 100));
+          c.culture = clamp(initCulture(c) + 6, 0, 100);
+          addHappiness(6);
+          addLog(s, `Tu passes la soirée avec ceux qui ont construit ${c.name}. Aucun journaliste, aucune photo. ` +
+            `C'est la seule partie de la journée qu'ils retiendront.`, 'good');
+        }
+      },
+      {
+        label: "Prévenir tout le monde que rien ne change",
+        custom: s => {
+          const c = s.companies.find(x => x.ipo);
+          if (!c) return;
+          c.ipo.expect = Math.max(1, (c.avgProfit || 1) * 0.9);   // attentes plus basses
+          addLog(s, "Tu passes la journée à répéter que la société n'a pas changé de métier ce matin. " +
+            "Les analystes prennent des notes et baissent un peu leurs attentes.", 'info');
+        }
+      }
+    ]
+  },
+  {
+    id: 'ipo_activiste', title: "Une lettre ouverte au conseil",
+    text: "Quatorze pages, très bien écrites, publiées en même temps qu'envoyées. " +
+      "Un fonds qui détient 6 % explique que la société est mal gérée, que les coûts sont hors de contrôle " +
+      "et qu'un dirigeant plus expérimenté ferait mieux. La presse reprend les passages les plus durs. " +
+      "Le pire, c'est qu'il y a deux paragraphes où il n'a pas tort.",
+    global: true, cooldown: 720,
+    cond: s => s.companies.some(c => c.ipo && c.ipo.activists),
+    choices: [
+      {
+        label: "Lui donner un siège au conseil",
+        custom: s => {
+          const c = s.companies.find(x => x.ipo && x.ipo.activists);
+          if (!c) return;
+          c.ipo.activists = 0;
+          c.ipo.price *= 1.08;
+          c.costMod = (c.costMod || 1) * 0.94;
+          c.staff.forEach(e => e.morale = clamp(e.morale - 8, 0, 100));
+          addLog(s, `Tu l'accueilles au conseil. Il fait couper 6 % des coûts en un trimestre, le titre remonte, ` +
+            `et chaque décision passe désormais par lui.`, 'info');
+        }
+      },
+      {
+        label: "Racheter des actions pour soutenir le cours",
+        cond: s => s.companies.some(c => c.ipo && c.cash > 20000),
+        custom: s => {
+          const c = s.companies.find(x => x.ipo && x.ipo.activists);
+          if (!c) return;
+          buyback(c.uid);
+          addLog(s, "Tu réponds par un rachat d'actions. Ça calme le marché pour un trimestre. Pas lui.", 'info');
+        }
+      },
+      {
+        label: "Répondre publiquement, point par point",
+        custom: s => {
+          const c = s.companies.find(x => x.ipo && x.ipo.activists);
+          if (!c) return;
+          const win = S.skills.finance / 100 + S.reputation / 260;
+          if (Math.random() < win) {
+            c.ipo.activists = 0;
+            c.ipo.price *= 1.12;
+            S.reputation = clamp(S.reputation + 6, 0, 100);
+            addLog(s, "Ta réponse est meilleure que sa lettre. Il sort du capital dans le mois. " +
+              "On te citera longtemps sur ce coup-là.", 'good');
+          } else {
+            c.ipo.price *= 0.9;
+            S.reputation = clamp(S.reputation - 5, 0, 100);
+            addLog(s, "Ta réponse est jugée défensive. Le titre baisse encore et il en redemande.", 'bad');
+          }
+        }
+      }
+    ]
+  },
+  {
+    id: 'ipo_evince', title: "« Une nouvelle étape »",
+    text: "Le conseil s'est réuni sans toi. Le communiqué était déjà écrit. On y parle de ta « contribution inestimable » " +
+      "et de la nécessité d'un « leadership adapté à la phase actuelle ». Ton badge ne fonctionne plus à 15h. " +
+      "Tu es riche, tu es dehors, et la société que tu as montée continue sans toi.",
+    global: true, cooldown: 9999,
+    choices: [
+      {
+        label: "Recommencer, en ayant appris",
+        effects: { happiness: 5 },
+        custom: s => {
+          gainSkill({ business: 4, finance: 5 }, 1, 'field');
+          addLog(s, "Tu sais maintenant exactement ce qu'on te prend quand tu ouvres ton capital. " +
+            "La prochaine fois, tu liras le pacte d'actionnaires jusqu'au bout.", 'info');
+        }
+      },
+      {
+        label: "S'arrêter un moment",
+        custom: s => {
+          const b = initBody(s);
+          b.off = 45; b.offReason = "Tu n'avais plus rien à faire de tes journées, et ça s'est vu.";
+          b.burn = Math.max(0, b.burn - 45);
+          addHappiness(9);
+          s.plan = [];
+          addLog(s, "Tu ne fais rien pendant six semaines. C'est la première fois depuis quinze ans.", 'info');
+        }
+      },
+      {
+        label: "Racheter des parts et revenir au conseil",
+        cond: s => s.money > 200000,
+        custom: s => {
+          const cost = Math.round(s.money * 0.35);
+          s.money -= cost;
+          S.reputation = clamp(S.reputation + 8, 0, 100);
+          addHappiness(-4);
+          addLog(s, `Tu remets ${fmt(cost)} au capital pour reprendre un siège. Tu ne diriges plus, ` +
+            `mais tu es dans la pièce quand ils décident. Parfois ça suffit.`, 'info');
+        }
+      }
     ]
   }
 ];

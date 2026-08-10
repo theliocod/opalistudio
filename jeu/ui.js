@@ -175,7 +175,7 @@ function renderHeader() {
       </div>
       <div class="stat">
         <span class="stat-label"><i class="fas fa-bolt"></i> Énergie</span>
-        ${bar(S.energy, S.maxEnergy, 'energy')}
+        ${bar(S.energy, energyCeiling(S), 'energy')}
       </div>
       <div class="stat">
         <span class="stat-label"><i class="fas fa-face-smile"></i> Moral</span>
@@ -284,6 +284,8 @@ function renderVie() {
 
       <div class="plan-rows">${rows.join('')}</div>
     </section>
+
+    ${renderBody()}
 
     <section class="card">
       <h2><i class="fas fa-scale-balanced"></i> Budget mensuel</h2>
@@ -1000,6 +1002,8 @@ function renderPilotage(c) {
         </label>`;
       }).join('')}
 
+      ${renderPositioning(c)}
+
       <h4 style="margin-top:18px">Autres leviers</h4>
       <label class="field">
         <span class="field-head"><b><i class="fas fa-tag"></i> Niveau de prix</b>
@@ -1090,9 +1094,11 @@ function renderMarche(c) {
         return `
         <div class="rival ${r.aggression > 0.7 ? 'hot' : ''}">
           <div class="rival-head">
-            <b><i class="fas ${r.known ? k.icon : 'fa-circle-question'}"></i> ${r.name}</b>
+            <b><i class="fas ${r.founder ? 'fa-user-slash' : r.known ? k.icon : 'fa-circle-question'}"></i> ${r.name}</b>
             <span class="chip">${(r.clients / total * 100).toFixed(1)}% du marché</span>
           </div>
+          ${r.founder ? `<div class="row-sub ko"><i class="fas fa-triangle-exclamation"></i>
+            Fondé par ${r.founder}, que tu as employé. Il sait exactement où tu es fragile — et il en veut.</div>` : ''}
           ${r.known ? `
             <div class="row-sub">${k.name} — ${k.desc}</div>
             <div class="req">
@@ -1146,19 +1152,22 @@ function renderEquipe(c) {
       </div>
     </div>
 
+    ${renderCulture(c)}
+
     ${c.staff.length ? `
     <div class="staff-list">
-      ${c.staff.slice().sort((a, b) => b.skill - a.skill).map(e => {
+      ${c.staff.slice().sort((a, b) => (b.offer ? 1e6 : 0) - (a.offer ? 1e6 : 0) + b.skill - a.skill).map(e => {
         const r = getRole(e.role), tr = getTrait(e.trait);
-        const fair = marketSalary(e.role, e.skill) * S.wageIndex;
+        const fair = fairPay(e);
         const under = e.salary < fair * 0.92;
         return `
-        <div class="staff ${e.morale < 30 ? 'staff-risk' : ''}">
+        <div class="staff ${e.offer ? 'staff-offer' : e.morale < 30 ? 'staff-risk' : ''}">
           <div class="staff-main">
             <div class="staff-name">
               <span class="mini-av">${personAvatar(e, 38)}</span>
               <i class="fas ${r.icon}"></i>
               <b>${e.name}</b>
+              ${gradeChip(e)}
               <span class="chip">${r.name}</span>
               <span class="chip ${tr.good ? 'ok' : 'ko'}" title="${tr.desc}">${tr.name}</span>
               ${e.equity ? `<span class="chip ok">${Math.round(e.equity * 100)}% du capital</span>` : ''}
@@ -1177,6 +1186,7 @@ function renderEquipe(c) {
               · ${Math.floor(e.days / 30)} mois d'ancienneté
               · contribution ${staffPerf(c, e).toFixed(2)}
             </div>
+            ${careerLine(c, e)}
           </div>
           <div class="staff-actions">
             <button class="btn btn-sm" data-act="raiseSalary" data-id="${c.uid}" data-sid="${e.id}">+12% de salaire</button>
@@ -1288,6 +1298,8 @@ function renderCapital(c) {
       ${renderRounds(c)}
       <div class="cap-sep"></div>
       ${renderLoans(c)}
+      <div class="cap-sep"></div>
+      ${renderBourse(c)}
     </div>
   </div>`;
 }
@@ -1577,6 +1589,65 @@ function handleAction(act, d) {
     case 'toggleBiz': BIZ_OPEN = BIZ_OPEN === id ? null : id; BIZ_TAB = 'pilotage'; render(); break;
     case 'biztab': BIZ_TAB = id; render(); break;
     case 'upgrade': upgradeCompany(id); break;
+    case 'reposition': {
+      const c = S.companies.find(x => x.uid === id);
+      const s = d.seg === 'tous' ? null : getSegment(d.seg);
+      confirmBox(`Repositionner ${c.name} ?`,
+        `${fmt(repositionCost(c, d.seg))} de refonte, et une bonne partie de tes ${num(c.clients)} clients partiront : ils n'étaient pas venus pour ça. ` +
+        (s ? `Il te faudra un produit à ${s.need} minimum.` : ''),
+        () => reposition(id, d.seg));
+      break;
+    }
+
+    case 'ipo': {
+      const c = S.companies.find(x => x.uid === id);
+      const pct = parseFloat(d.pct);
+      const pr = ipoPricing(c, pct);
+      confirmBox(`Introduire ${c.name} en bourse ?`,
+        `Tu lèves ${fmt(pr.net)} nets et tu descends à environ ${Math.round((c.equity - Math.min(c.equity * 0.8, pct)) * 100)} % du capital. ` +
+        `Tes comptes deviennent publics tous les trois mois, tu ne peux rien vendre pendant six mois, ` +
+        `et si le cours s'effondre, un actionnaire pourra demander ton départ. C'est sans retour.`,
+        () => goPublic(id, pct));
+      break;
+    }
+    case 'sellShares': {
+      const c = S.companies.find(x => x.uid === id);
+      const pct = parseFloat(d.pct);
+      if (!canSellShares(c)) { sellShares(id, pct); break; }
+      confirmBox(`Céder ${Math.round(pct * 100)} % de ${c.name} sur le marché ?`,
+        `${fmt(ipoValue(c) * pct)} bruts, moins l'impôt sur la plus-value. La cession est publique : ` +
+        `le titre reculera parce que le fondateur vend.`,
+        () => sellShares(id, pct));
+      break;
+    }
+    case 'buyback': buyback(id); break;
+
+    case 'promote': promote(id, d.eid); break;
+    case 'passover': passOver(id, d.eid); break;
+    case 'raise': raiseTo(id, d.eid); break;
+    case 'counter': counterKeep(id, d.eid); break;
+    case 'letgo': {
+      const c = S.companies.find(x => x.uid === id);
+      const e = c && c.staff.find(x => x.id === d.eid);
+      if (!e) break;
+      confirmBox(`Laisser partir ${e.name} ?`,
+        `Il emporte son niveau ${Math.round(e.skill)}, ce qu'il sait de tes clients et de tes chiffres. ` +
+        `Le reste de l'équipe le verra partir.`,
+        () => letGo(id, d.eid));
+      break;
+    }
+
+    case 'care': doCare(id); break;
+    case 'treat': {
+      const cd = getCondition(id);
+      if (!cd) break;
+      if (initBody(S).care[id]) treatCondition(id);
+      else confirmBox(`Se faire suivre pour ${cd.name.toLowerCase()} ?`,
+        `${fmt(cd.care * 3)} d'avance, puis ${fmt(cd.care)} tous les mois. ` +
+        `Ça ne guérit pas — ça divise les effets par deux, tant que tu paies.`,
+        () => treatCondition(id));
+      break;
+    }
 
     case 'openPos': {
       const ref = Math.round(marketSalary(d.role, 50) * S.wageIndex);

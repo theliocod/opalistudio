@@ -355,5 +355,9 @@ const GOALS = [
   { id: 'group', name: 'Groupe', desc: "Posséder 3 entreprises rentables en même temps.", check: s => s.companies.filter(c => c.lastProfit > 0).length >= 3 },
   { id: 'master', name: 'Maître dans son art', desc: "Atteindre 90 dans une compétence.", check: s => Object.values(s.skills).some(v => v >= 90) },
   { id: 'empire', name: 'Empire', desc: "10 000 000€ de patrimoine net.", check: s => netWorth(s) >= 10000000 },
-  { id: 'balance', name: 'Vie équilibrée', desc: "Moral et santé au-dessus de 80 avec plus de 500 000€.", check: s => s.happiness > 80 && s.health > 80 && netWorth(s) > 500000 }
+  { id: 'balance', name: 'Vie équilibrée', desc: "Moral et santé au-dessus de 80 avec plus de 500 000€.", check: s => s.happiness > 80 && s.health > 80 && netWorth(s) > 500000 },
+  { id: 'director', name: 'Faire grandir quelqu\'un', desc: "Amener un salarié jusqu'au poste de directeur.", check: s => s.companies.some(c => c.staff.some(e => (e.grade || 0) >= 4)) },
+  { id: 'culture', name: 'Un endroit où l\'on reste', desc: "Une culture d'entreprise au-dessus de 80 avec au moins 8 salariés.", check: s => s.companies.some(c => (c.culture || 0) > 80 && c.staff.length >= 8) },
+  { id: 'ipo', name: 'La cloche', desc: "Introduire une de tes sociétés en bourse.", check: s => s.companies.some(c => c.ipo) || s.exits.some(e => /évincé/.test(e.name)) },
+  { id: 'vieux', name: 'Encore debout', desc: "Arriver à 55 ans sans maladie chronique.", check: s => s.age >= 55 && ((s.body && s.body.conds) || []).length === 0 }
 ];

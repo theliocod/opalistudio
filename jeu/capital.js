@@ -134,6 +134,8 @@ function fundInterest(c, f, round) {
   k += S.reputation / 400;
   k += S.skills.social / 500;
   k += clamp(marketSize(c) / 400000, 0, 0.2);       // un grand marché rassure
+  k *= ecoFunding(S);                               // quand l'argent se ferme, personne ne signe
+  if (c.hotWindow && S.day < c.hotWindow) k *= 1.3; // et quand elle est ouverte, tout va vite
   k -= clamp((marketPressure(c) - 0.5) * 0.6, -0.15, 0.3);
   if (f.kind === 'corporate' && (SECTOR_OF[c.typeId] === 'tech')) k += 0.1;
   if (f.kind === 'agressif') k -= 0.1;              // ils ne suivent pas tout le monde
@@ -184,6 +186,7 @@ function makeOffer(c, r, f, interest, tension) {
   // ta finance et le nombre de prétendants réduisent l'écart.
   const discount = f.hardball * (1 - S.skills.finance / 260) * (1 - S.reputation / 400);
   const pre = Math.max(getType(c).cost, real * clamp(1 - discount, 0.45, 1.1) * tension * rand(0.95, 1.06));
+  // la valorisation intègre déjà le cycle ; l'appétit du moment fait le reste
 
   const pct = clamp(rand(r.dilution[0], r.dilution[1]) * f.size * rand(0.92, 1.08), 0.05, 0.42);
   const amount = Math.round(pre * pct / (1 - pct));
@@ -406,7 +409,7 @@ function loanCapacity(c) {
 function loanRate(c, kindId) {
   const t = getType(c);
   const lev = companyDebt(c) / Math.max(1, Math.max(0, c.avgProfit || 0) * 12);
-  let r = 0.055 + t.risk * 0.02 + clamp(lev, 0, 3) * 0.015 - S.skills.finance / 2500;
+  let r = 0.055 + t.risk * 0.02 + clamp(lev, 0, 3) * 0.015 - S.skills.finance / 2500 + ecoRate(S);
   if (kindId === 'innovation') r -= 0.025;
   return +clamp(r, 0.018, 0.14).toFixed(4);
 }

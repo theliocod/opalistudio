@@ -734,7 +734,7 @@ function tickFriends(s) {
 
     if (f.closeness > 55) addHappiness((f.closeness - 55) / 100 * 0.045 * v.joy);
     else if (f.closeness < 22) addHappiness(-(22 - f.closeness) / 100 * 0.05);
-    if (f.closeness > 70) s.energy = clamp(s.energy + 0.06, 0, s.maxEnergy);
+    if (f.closeness > 70) s.energy = clamp(s.energy + 0.06, 0, energyCeiling(s));
   });
 
   /* La solitude. Ce n'est pas une punition arbitraire : quand il n'y a
@@ -747,7 +747,7 @@ function tickFriends(s) {
   if (attaches < 2.5) {
     const isolation = (2.5 - attaches) / 2.5;                 // 0 → 1
     addHappiness(-0.17 * isolation);
-    s.energy = clamp(s.energy - 0.05 * isolation, 0, s.maxEnergy);
+    s.energy = clamp(s.energy - 0.05 * isolation, 0, energyCeiling(s));
     s.lonelyDays = (s.lonelyDays || 0) + 1;
     if (s.lonelyDays % 180 === 0) {
       addLog(s, attaches < 0.6
@@ -763,7 +763,7 @@ function tickFriends(s) {
     if (close.length) {
       const f = pick(close);
       addHappiness(9);
-      s.energy = clamp(s.energy + 12, 0, s.maxEnergy);
+      s.energy = clamp(s.energy + 12, 0, energyCeiling(s));
       f.lastSeen = s.day;
       addLog(s, `${f.name} a senti que ça n'allait pas et a débarqué sans prévenir. Ça remet debout.`, 'good');
     }
@@ -809,7 +809,7 @@ function seeFriend(id) {
   f.closeness = clamp(f.closeness + 9, 0, 100);
   f.envy = clamp(f.envy - 12, 0, 100);
   addHappiness(6 * v.joy);
-  S.energy = clamp(S.energy + 4, 0, S.maxEnergy);
+  S.energy = clamp(S.energy + 4, 0, energyCeiling(S));
   addLog(S, `Soirée avec ${f.name} (${fmt(cost)}). ${v.id === 'franc' ? "Il t'a dit deux vérités que personne d'autre ne te dit." : "Ça fait du bien."}`, 'good');
   render();
 }

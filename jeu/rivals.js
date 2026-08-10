@@ -169,7 +169,14 @@ function rivalValue(c, r) {
   const annualRevenue = r.clients * t.revPerClient * r.price * 12;
   const margin = clamp(0.1 + r.quality / 400 - (1 - r.price) * 0.1, 0.04, 0.3);
   const base = annualRevenue * margin * t.multiple;
-  return Math.max(t.cost * 0.5, base) * (1 + r.aggression * 0.15);
+  let v = Math.max(t.cost * 0.5, base) * (1 + r.aggression * 0.15);
+  // On n'achète pas au même prix selon le moment : en euphorie tout le
+  // monde surenchérit, en crise les vendeurs n'ont plus le choix.
+  v *= ecoValuation(S);
+  // Et si tu t'es mis en chasse quand les autres paniquaient, tu sais
+  // lesquels ne passeront pas l'hiver.
+  if (S.crisisHunter && S.day - S.crisisHunter < 540) v *= 0.78;
+  return v;
 }
 
 function scoutRival(uid, rivalId) {

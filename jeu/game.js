@@ -91,6 +91,7 @@ function createCompany(type, name) {
     blocked: null,
     channelBoost: null,
     rivals: [],
+    focus: 'tous',
     rounds: [],
     investors: [],
     offers: [],
@@ -102,7 +103,11 @@ function hireFrom(cand) {
   return {
     id: cand.id, name: cand.name, role: cand.role, skill: cand.skill,
     trait: cand.trait, salary: cand.ask, morale: cand.morale,
-    days: 0, equity: 0, variable: false
+    days: 0, equity: 0, variable: false,
+    // On n'entre pas junior avec quinze ans de métier : le grade d'entrée
+    // suit ce que la personne sait déjà faire.
+    grade: marketGrade(cand.skill),
+    lastPromo: S.day, passed: 0, counters: 0
   };
 }
 
@@ -130,6 +135,7 @@ function newGame(name, originId, look) {
     mentoring: [],
     friends: null,
     cityId: 'paris',
+    eco: null,
     props: [],
     away: null,
     travelBack: 0,
@@ -204,7 +210,7 @@ function addHappiness(v) {
 }
 
 function efficiency() {
-  return (1 + (S.focusBonus || 0)) * (0.65 + S.energy / 280) * (0.85 + S.happiness / 660);
+  return (1 + (S.focusBonus || 0)) * (0.65 + S.energy / 280) * (0.85 + S.happiness / 660) * bodyEfficiency(S);
 }
 
 /* ================= Planning ================= */
@@ -268,7 +274,10 @@ function staffPerf(c, e) {
   const variable = e.variable ? 1.12 : 1;
   // Dans un groupe intégré, les meilleurs circulent et tirent les autres
   const skill = clamp(e.skill + (c.talentBonus || 0), 0, 99);
-  return (skill / 100) * (0.45 + e.morale / 180) * t.perf * spanPenalty * variable;
+  // Le titre n'est pas qu'un mot : un senior n'attend pas qu'on lui dise
+  // quoi faire, et un directeur décide sans toi sur son domaine.
+  const grade = gradeOf(e).perf;
+  return (skill / 100) * (0.45 + e.morale / 180) * t.perf * spanPenalty * variable * grade;
 }
 
 /* Le niveau réel d'une équipe : la compétence, pondérée par ce que
@@ -315,7 +324,10 @@ function spanOfControl(c) {
   const mgrPower = managers.reduce((a, e) => a + (3 + e.skill / 22) * (0.45 + e.morale / 180), 0);
   const founder = planEntry('biz', c.uid);
   const founderBonus = founder && founder.role === 'manage' ? 2 + founder.hours / 3 : 0;
-  return 3 + S.skills.business / 9 + mgrPower + founderBonus;
+  // Les gradés encadrent aussi, quel que soit leur métier : c'est même
+  // la seule façon de grandir sans empiler les managers.
+  const seniors = c.staff.reduce((a, e) => a + gradeOf(e).span * (0.5 + e.morale / 200), 0);
+  return 3 + S.skills.business / 9 + mgrPower + founderBonus + seniors;
 }
 
 // La capacité croît plus vite que le niveau : structurer une entreprise
@@ -328,11 +340,12 @@ function capacity(c) {
   // peut en couvrir qu'un nombre fini, que l'outillage démultiplie.
   const heads = 1 + c.staff.length;
   const perHead = t.roleCap * Math.pow(c.level, 0.6) * 1.6;
-  return Math.min(infra + team, heads * perHead);
+  // un grand compte occupe une équipe entière ; un particulier, presque personne
+  return Math.min(infra + team, heads * perHead) * segFactors(c).cap;
 }
 
 function marketSize(c) {
-  return getType(c).market * (c.marketBonus || 1) * cityMarket(S);
+  return getType(c).market * (c.marketBonus || 1) * cityMarket(S) * segMarketShare(c);
 }
 
 function marketShare(c) {
@@ -343,7 +356,10 @@ function marketShare(c) {
    vendu cher ne trouve pas preneur ; un excellent produit se vend
    plus cher sans perdre de clients. */
 function perceivedValue(c) {
-  return 0.5 + c.quality / 100;
+  // ce que vaut le produit aux yeux de ceux à qui on le vend :
+  // un grand compte paie cher un produit irréprochable, le grand
+  // public ne paiera jamais cher quoi qu'on lui montre
+  return (0.5 + c.quality / 100) * segFactors(c).price;
 }
 
 /* Rapport prix demandé / valeur perçue. 1 = prix juste. */
@@ -395,7 +411,8 @@ function channelOutput(c, ch) {
 
   let power = ch.power * channelEfficiency(c, ch);
   if (ch.id === 'influence') power *= 0.5 + S.reputation / 70;
-  const cacEff = t.cac / Math.max(0.05, power);
+  const f = segFactors(c);
+  const cacEff = (t.cac * f.cac) / Math.max(0.05, power * (f.chan[ch.id] || 1));
   const satDay = marketSize(c) * ch.satShare / DAYS_PER_MONTH;       // plafond du canal
 
   // La prospection ne se règle pas au curseur : elle vaut ce que vaut
@@ -458,10 +475,11 @@ function dailyAcquisition(c, det) {
   acq = acq
     * priceDemandFactor(c)
     * (1 + S.reputation / 260)
-    * S.marketMood
+    * ecoFor(c)
     * (c.hype || 1)
     * rampFactor(c)
     * (1 - occupiedShare(c))
+    * segAcqPenalty(c)
     * clamp(1 - (marketPressure(c) - 0.5) * 0.9, 0.45, 1.45)
     * groupAcqFactor(c, S)
     * (det ? 1 : rand(0.9, 1.1));
@@ -478,7 +496,7 @@ function dailyAcquisition(c, det) {
 /* Ce que l'entreprise peut absorber de nouveaux clients par jour sans casser. */
 function absorptionCap(c) {
   const socle = Math.max(marketSize(c) * 0.0002, 1.5) / DAYS_PER_MONTH;
-  return socle + c.clients * 0.18 / DAYS_PER_MONTH;
+  return (socle + c.clients * 0.18 / DAYS_PER_MONTH) * segFactors(c).absorb;
 }
 
 /* ---- Économie de l'acquisition, telle que le joueur doit la lire ---- */
@@ -486,7 +504,7 @@ function absorptionCap(c) {
 // Marge dégagée par un client chaque mois, une fois les coûts variables payés
 function clientMargin(c) {
   const t = getType(c);
-  return t.revPerClient * c.price * S.marketMood * (1 - t.varCost * (c.costMod || 1));
+  return t.revPerClient * segFactors(c).rev * c.price * ecoFor(c) * (1 - t.varCost * (c.costMod || 1));
 }
 
 // Combien de mois un client reste, en moyenne
@@ -517,7 +535,8 @@ function acquisitionReturn(c) {
 
 function dailyChurn(c) {
   const t = getType(c);
-  let churn = t.churn * (1.3 - c.quality / 180) / (c.loyalty || 1);
+  const sf = segFactors(c);
+  let churn = t.churn * sf.churn * segChurnPenalty(c) * (1.3 - c.quality / 180) / (c.loyalty || 1);
   churn *= clamp(Math.pow(priceRatio(c), 0.8), 0.7, 2.2);   // payer trop cher pour ce qu'on reçoit
   churn *= Math.max(0.45, 1 - roleForce(c, 'support') * 0.14);
   if (c.staff.length) churn *= clamp(1.12 - teamQuality(c) / 460, 0.86, 1.18);
@@ -541,7 +560,7 @@ function adSpendMonthly(c) {
 
 function projectedRevenue(c) {
   const t = getType(c);
-  return c.clients * t.revPerClient * c.price * S.marketMood;
+  return c.clients * t.revPerClient * segFactors(c).rev * c.price * ecoFor(c);
 }
 
 function projectedCosts(c) {
@@ -587,13 +606,16 @@ function valuation(c) {
 
   const dealBonus = 1 + S.skills.finance / 400;
   const base = Math.max(floor, earnings * 0.75 + topline * 0.25) * dealBonus * (c.hype || 1);
-  return base;
+  return base * ecoValuation(S) * ecoSector(S, sectorOfCompany(c));
 }
 
 /* Ce que vaut réellement ce que tu détiens : la valeur de l'entreprise,
    plus sa trésorerie, moins ce qu'elle doit à la banque, multiplié par
    ta part du capital. Lever ou emprunter change ce chiffre. */
 function equityValue(c) {
+  // Une société cotée ne vaut pas ce qu'on estime : elle vaut ce que
+  // le marché en dit ce matin, et il change d'avis tous les jours.
+  if (c.ipo) return ipoEquityValue(c);
   return Math.max(0, valuation(c) + c.cash - companyDebt(c)) * c.equity;
 }
 
@@ -962,7 +984,14 @@ function tick() {
 
   const hours = {};
   S.plan.forEach(p => hours[p.act] = (hours[p.act] || 0) + p.hours);
-  const totalHours = plannedHours();
+  let totalHours = plannedHours();
+
+  // Un arrêt maladie n'est pas une pause qu'on choisit : le planning
+  // ne s'applique plus. Les sociétés tournent, mal, sans le fondateur.
+  if (isOff(S)) {
+    Object.keys(hours).forEach(k => delete hours[k]);
+    totalHours = 0;
+  }
 
   /* ---------- Emploi salarié ---------- */
   if (S.job) {
@@ -1025,7 +1054,7 @@ function tick() {
   }
   if (hours.family) {
     // du temps donné aux siens repose autant qu'il coûte
-    S.energy = clamp(S.energy + hours.family * 0.25, 0, S.maxEnergy);
+    S.energy = clamp(S.energy + hours.family * 0.25, 0, energyCeiling(S));
   }
   if (hours.network) {
     gainSkill({ social: hours.network * 0.05 }, 1, 'field');
@@ -1139,7 +1168,9 @@ function tick() {
     }
 
     tickStaff(c);
+    tickCareers(c);
     tickRecruiting(c);
+    tickBourse(c);
     tickRivals(c);
     tickCapital(c);
 
@@ -1199,11 +1230,12 @@ function tick() {
 
   /* ---------- Énergie, moral, santé ---------- */
   const h = housing(S);
+  const bm = bodyMods(S);
   const strain = ((S.job ? (hours.job || 0) * S.job.strain : 0)
-    + (hours.biz || 0) * 1.05 + (hours.study || 0) * 0.85 + (hours.network || 0) * 0.7) * 0.62;
+    + (hours.biz || 0) * 1.05 + (hours.study || 0) * 0.85 + (hours.network || 0) * 0.7) * 0.62 * bm.strain;
   const freeHours = Math.max(0, maxHours() - totalHours);
-  const recovery = (6 + freeHours * 0.9 + (hours.sport || 0) * 0.5) * h.rest * (0.7 + S.health / 300);
-  S.energy = clamp(S.energy + recovery - strain, 0, S.maxEnergy);
+  const recovery = (6 + freeHours * 0.9 + (hours.sport || 0) * 0.5) * h.rest * (0.7 + S.health / 300) * bm.recovery;
+  S.energy = clamp(S.energy + recovery - strain, 0, energyCeiling(S));
 
   let mood = (h.happy * 0.4 - 0.7) / D;
   if (S.flags.includes('couple')) mood += 1.2 / D;
@@ -1216,13 +1248,18 @@ function tick() {
 
   let hp = 0;
   if (S.energy < 25) hp -= 2.2 / D;
-  if (totalHours > CONFIG.baseHours + 2) hp -= (totalHours - CONFIG.baseHours - 2) * 0.035;
+  // Le surmenage ne tue plus directement : il passe désormais par
+  // l'épuisement et les maladies, qui laissent une chance de réagir.
+  if (totalHours > CONFIG.baseHours + 2) hp -= (totalHours - CONFIG.baseHours - 2) * 0.012;
   if (S.age > 40) hp -= 0.25 / D;
   if (S.age > 55) hp -= 0.35 / D;
   if (S.happiness > 70) hp += 0.4 / D;
+  hp += (fitnessOf(S) - 45) * 0.012 / D;   // la forme physique protège, lentement
   S.health = clamp(S.health + hp, 0, 100);
 
-  S.marketMood += (1 - S.marketMood) * 0.008;
+  tickBody(S, hours, totalHours);
+  tickEco(S);
+  S.wageIndex = clamp(S.wageIndex + (ecoPhase(S).wage - S.wageIndex) * 0.005, 0.8, 2.6);
   if (S.contrarian) { S.contrarian--; if (!S.contrarian) S.companies.forEach(c => c.hype = 1.1); }
 
   tickFamily(S);
@@ -1298,7 +1335,9 @@ function tickRecruiting(c) {
     const ref = marketSalary(roleId, 50) * S.wageIndex;
     const attractive = clamp(o.salary / ref, 0.4, 2.2);
     const fame = 1 + S.reputation / 150 + Math.min(0.5, c.clients / Math.max(1, marketSize(c)));
-    const p = 0.045 * attractive * fame;
+    // On ne postule pas seulement pour un salaire : ce que les anciens
+    // racontent de toi vaut plusieurs centaines d'euros par mois.
+    const p = 0.045 * attractive * fame * cultureHiring(c) * ecoHiring(S);
     if (Math.random() < p) {
       const quality = clamp((attractive - 0.6) / 1.3 + rand(-0.15, 0.15), 0.02, 0.98);
       const cand = makeCandidate(roleId, quality);
@@ -1380,7 +1419,7 @@ function resolveChoice(evt, index) {
 
   if (eff.money) S.money += eff.money;
   if (eff.debt) S.debt += eff.debt;
-  if (eff.energy) S.energy = clamp(S.energy + eff.energy, 0, S.maxEnergy);
+  if (eff.energy) S.energy = clamp(S.energy + eff.energy, 0, energyCeiling(S));
   if (eff.health) S.health = clamp(S.health + eff.health, 0, 100);
   if (eff.happiness) addHappiness(eff.happiness);
   if (eff.reputation) S.reputation = clamp(S.reputation + eff.reputation, 0, 100);
@@ -1531,7 +1570,8 @@ function attendEvent(uid) {
   if (S.money < v.cost) return toast("Tu n'as pas de quoi payer l'entrée.");
   if (S.energy < v.hours * 3) return toast("Tu es trop épuisé pour y aller.");
   S.money -= v.cost;
-  S.energy = clamp(S.energy - v.hours * 3, 0, S.maxEnergy);
+  S.energy = clamp(S.energy - v.hours * 3, 0, energyCeiling(S));
+  initBody(S).parties += v.hours * 1.6;   // les nuits s'additionnent, et les oreilles s'en souviennent
   e.done = true;
   e.signed = false;
   addLog(S, `Tu te rends à « ${v.name} »${v.cost ? ` (${fmt(v.cost)})` : ''}.`, 'info');
@@ -1544,7 +1584,8 @@ function throwParty(id) {
   if (housingTier(S) < p.minHousing) return toast("Ton logement actuel ne permet pas de recevoir autant de monde.");
   if (S.energy < p.hours * 3) return toast("Tu n'as plus l'énergie d'organiser ça.");
   S.money -= p.cost;
-  S.energy = clamp(S.energy - p.hours * 3, 0, S.maxEnergy);
+  S.energy = clamp(S.energy - p.hours * 3, 0, energyCeiling(S));
+  initBody(S).parties += p.hours * 2.2;   // organiser, c'est rester jusqu'au bout
   S.partyCount++;
   addHappiness(p.happy);
   S.reputation = clamp(S.reputation + p.rep, 0, 100);
@@ -1573,7 +1614,7 @@ function approachOdds(guest, approach) {
   const base = 0.16 + (skill + approach.bonus) / 130;
   const gap = (guest.level - skill) / 190;
   const rep = S.reputation / 320;
-  const shape = (S.energy / S.maxEnergy - 0.5) * 0.12 + (S.happiness / 100 - 0.5) * 0.08;
+  const shape = (S.energy / energyCeiling(S) - 0.5) * 0.12 + (S.happiness / 100 - 0.5) * 0.08;
   return clamp(base - gap + rep + shape + guest.mood * 0.12, 0.05, 0.94);
 }
 
