@@ -331,6 +331,7 @@ change tout le reste :
 | Qualité exigée | 34 | 55 | 76 |
 | Clients servis par la même équipe | ×2,20 | ×1,00 | ×0,26 |
 | Vitesse de signature | ×1,30 | ×1,00 | ×0,40 |
+| Sensibilité au prix | −3,0 | −1,6 | −1,0 |
 
 Chaque segment est un jeu différent. Le grand public est une machine à volume :
 il faut de la publicité, un produit simple et beaucoup de monde — la prospection
@@ -339,7 +340,12 @@ n'y sert à rien. Les grands comptes rapportent dix fois plus par client, mais
 points sous la barre, tu conclus une affaire sur dix et tu perds de l'argent.
 Ne pas choisir reste possible, on n'atteint alors que 66 % de chaque segment
 avec un discours qui ne porte nulle part — c'est confortable, et ça ne gagne
-jamais.
+jamais. Et sans cible, **le prix décide qui reste** : chaque segment juge ton
+tarif avec ses propres yeux, pas avec la moyenne. Monter le prix fait fuir le
+grand public (qui s'en va trois fois plus vite qu'un professionnel), rétrécit
+ton marché, et tes campagnes ne touchent plus que ceux qui restent — moins
+nombreux, plus riches, plus exigeants. Pour une marque bloquée par son
+marché, chaque hausse perd plus de clients qu'elle ne rapporte.
 
 Se repositionner coûte le chiffre d'affaires d'un mois et fait fuir une bonne
 partie des clients, qui n'étaient pas venus pour ça. Monter en gamme coûte plus

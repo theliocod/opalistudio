@@ -370,7 +370,9 @@ function priceRatio(c) {
 /* Élasticité de la demande au prix : au-delà du prix juste, les
    clients partent plus vite qu'ils n'arrivent. */
 function priceDemandFactor(c) {
-  return clamp(Math.pow(priceRatio(c), -1.6), 0.12, 3.2);
+  // la sensibilité au prix est celle de la clientèle : le grand public
+  // fuit au moindre écart, un grand compte regarde à peine l'étiquette
+  return clamp(Math.pow(priceRatio(c), -(segFactors(c).elas || 1.6)), 0.12, 3.2);
 }
 
 /* Efficacité d'un canal : c'est ici que les compétences du joueur

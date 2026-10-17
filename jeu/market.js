@@ -18,6 +18,7 @@ const SEGMENTS = [
     churn: 1.35,        // ils partent plus vite
     cac: 0.62,          // mais ils coûtent moins cher à acquérir
     cap: 2.2,           // et on les sert en libre-service, par milliers
+    elas: 3.0,          // et au moindre euro de trop, ils sont déjà partis
     absorb: 1.3,        // et ils signent tout de suite
     chan: { organic: 1.25, paid: 1.2, influence: 1.15, outbound: 0.35 },
     desc: "Beaucoup de monde, peu d'argent chacun, aucune fidélité. Le volume fait tout.",
@@ -32,6 +33,7 @@ const SEGMENTS = [
     cac: 1.35,
     cap: 1,
     absorb: 1,
+    elas: 1.6,          // ils comparent, mais ils savent ce que vaut leur temps
     chan: { organic: 1, paid: 0.85, influence: 0.9, outbound: 1.35 },
     desc: "Ils paient si ça leur fait gagner du temps ou de l'argent. Et ils comparent.",
     play: "Le produit doit tenir ses promesses. La prospection paie mieux que la publicité."
@@ -45,6 +47,7 @@ const SEGMENTS = [
     cac: 2.6,
     cap: 0.26,          // chacun exige un service que rien ne remplace
     absorb: 0.4,        // et les cycles de vente durent des mois
+    elas: 1.0,          // le prix n'est pas le sujet : le service l'est
     chan: { organic: 0.6, paid: 0.4, influence: 0.85, outbound: 1.9 },
     desc: "Peu de clients, des contrats énormes, une exigence sans pitié et des cycles longs.",
     play: "Sans un produit irréprochable et une vraie force commerciale, n'y va pas."
@@ -81,25 +84,44 @@ function segFactors(c) {
   if (f !== 'tous') {
     const s = getSegment(f);
     return { price: s.price, need: s.need, rev: s.rev, churn: s.churn, cac: s.cac,
-      cap: s.cap, absorb: s.absorb, chan: s.chan, share: typeMix(c)[f], seg: s };
+      cap: s.cap, absorb: s.absorb, chan: s.chan, share: typeMix(c)[f], lost: 0, elas: s.elas, seg: s };
   }
   // Moyenne pondérée : on est acceptable partout, excellent nulle part.
   // Et surtout, « parler à tout le monde » ne veut pas dire qu'on atteint
   // tout le monde : un discours qui ne vise personne n'accroche jamais
   // qu'une partie de chaque segment. On en perd un tiers d'entrée.
   const mix = typeMix(c);
-  const w = (k) => SEGMENTS.reduce((a, s) => a + mix[s.id] * s[k], 0);
+
+  // Chaque segment juge ton prix avec ses propres yeux. Le grand public
+  // ne paiera jamais le tarif d'un grand compte sous prétexte que la
+  // moyenne le permet : à mesure que le prix monte, il s'en va — et il
+  // te reste des clients moins nombreux, plus riches, plus exigeants.
+  // La moyenne se fait donc sur ceux qui restent, pas sur le marché.
+  const pv = 0.5 + c.quality / 100;
+  const w = {};
+  let tot = 0;
+  SEGMENTS.forEach(s => {
+    const r = (c.price || 1) / (pv * s.price);
+    const stay = r <= 1 ? 1 : clamp(Math.pow(r, -s.elas), 0.12, 1);
+    w[s.id] = mix[s.id] * stay;
+    tot += w[s.id];
+  });
+  const avg = (k) => SEGMENTS.reduce((a, s) => a + w[s.id] * s[k], 0) / tot;
   // Capacité et vitesse de signature sont des débits : on ne fait pas la
   // moyenne de deux vitesses, on fait la moyenne des temps passés. Sinon
   // on encaisserait le chiffre d'un grand compte au coût de service d'un
   // particulier — ce qui n'arrive jamais.
-  const h = (k) => 1 / SEGMENTS.reduce((a, s) => a + mix[s.id] / s[k], 0);
+  const h = (k) => tot / SEGMENTS.reduce((a, s) => a + w[s.id] / s[k], 0);
   const chan = {};
-  CHANNELS.forEach(ch => { chan[ch.id] = SEGMENTS.reduce((a, s) => a + mix[s.id] * s.chan[ch.id], 0); });
+  CHANNELS.forEach(ch => { chan[ch.id] = SEGMENTS.reduce((a, s) => a + w[s.id] * s.chan[ch.id], 0) / tot; });
   return {
-    price: w('price'), need: w('need'), rev: w('rev') * 0.86,
-    churn: w('churn') * 1.1, cac: w('cac') * 1.22,
-    cap: h('cap'), absorb: h('absorb'), chan, share: 0.66, seg: null
+    price: avg('price'), need: avg('need'), rev: avg('rev') * 0.86,
+    churn: avg('churn') * 1.1, cac: avg('cac') * 1.22,
+    cap: h('cap'), absorb: h('absorb'), chan,
+    share: 0.66 * tot,       // ceux que ton prix a fait fuir ne sont plus ton marché
+    lost: 1 - tot,           // la part du marché qui ne te regarde plus
+    elas: avg('elas'),       // ceux qui restent ont la sensibilité de ceux qui restent
+    seg: null
   };
 }
 
@@ -125,9 +147,13 @@ function segChurnPenalty(c) {
    démo, il dit qu'il revient vers vous, et il ne revient pas.
    Plus le segment est exigeant, plus la falaise est raide. */
 function segAcqPenalty(c) {
+  // Sans cible précise, la part du marché que ton prix a fait fuir ne
+  // répond plus à tes campagnes non plus : une publicité vue par des
+  // gens qui ne paieront jamais ce tarif ne rapporte rien.
+  const reach = 1 - (segFactors(c).lost || 0);
   const gap = qualityGap(c);
-  if (gap >= 0) return 1;
-  return clamp(Math.pow(1 + gap / 42, 2), 0.05, 1);
+  if (gap >= 0) return reach;
+  return reach * clamp(Math.pow(1 + gap / 42, 2), 0.05, 1);
 }
 
 /* ---------------------------------------------------------

@@ -1017,6 +1017,8 @@ function renderPilotage(c) {
           ${priceRatio(c) > 1.15 ? "Tu vends plus cher que ce que ton produit vaut : les clients arrivent moins et partent plus vite."
             : priceRatio(c) < 0.8 ? "Tu vends moins cher que ta valeur : du volume, mais de la marge laissée sur la table."
             : "Ton prix est cohérent avec ce que tu offres."}
+          ${(segFactors(c).lost || 0) > 0.02 ? `<br><b class="neg">À ce prix, ${Math.round(segFactors(c).lost * 100)} % de ton marché ne te regarde plus</b>
+            — sans cible précise, chaque segment juge ton tarif avec ses propres yeux. Ceux qui restent paient plus, mais ils sont moins nombreux et plus exigeants.` : ''}
         </span>
       </label>
       <label class="field">
