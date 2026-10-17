@@ -323,7 +323,9 @@ function spanOfControl(c) {
   const managers = c.staff.filter(e => e.role === 'manager');
   const mgrPower = managers.reduce((a, e) => a + (3 + e.skill / 22) * (0.45 + e.morale / 180), 0);
   const founder = planEntry('biz', c.uid);
-  const founderBonus = founder && founder.role === 'manage' ? 2 + founder.hours / 3 : 0;
+  let founderBonus = founder && founder.role === 'manage' ? 2 + founder.hours / 3 : 0;
+  // Un DG tient la maison comme tu la tiendrais à plein temps — selon sa poigne
+  if (typeof ceoOf === 'function' && ceoOf(c)) founderBonus = Math.max(founderBonus, 5 * ceoPower(c));
   // Les gradés encadrent aussi, quel que soit leur métier : c'est même
   // la seule façon de grandir sans empiler les managers.
   const seniors = c.staff.reduce((a, e) => a + gradeOf(e).span * (0.5 + e.morale / 200), 0);
@@ -1171,6 +1173,7 @@ function tick() {
 
     tickStaff(c);
     tickCareers(c);
+    tickDirection(c);
     tickRecruiting(c);
     tickBourse(c);
     tickRivals(c);
@@ -1297,7 +1300,7 @@ function tickStaff(c) {
   const span = spanOfControl(c);
   const over = Math.max(0, c.staff.length - span);
   const founder = planEntry('biz', c.uid);
-  const managed = founder && founder.role === 'manage';
+  const managed = (founder && founder.role === 'manage') || (typeof ceoOf === 'function' && !!ceoOf(c));
   const toxic = c.staff.filter(e => e.trait === 'toxique').length;
 
   c.staff.forEach(e => {

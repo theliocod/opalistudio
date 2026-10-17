@@ -154,6 +154,34 @@ une équipe de leads et de directeurs et une culture au-dessus de 85 ; ne rien
 faire donne une équipe de juniors sans cesse remplacés ; refuser systématiquement
 donne une culture proche de zéro et six départs.
 
+### Déléguer la direction
+
+À cinq salariés, tout passer par toi est normal. À cinquante, c'est toi le goulot.
+Tu peux confier la direction d'une société à un **DG** — un senior solide de la
+maison (niveau 60 au moins), ou un profil trouvé par un cabinet de chasse, trois
+fois le salaire d'un bon manager pour trois candidats. Il coûte un salaire de
+directeur et **3 à 4 % du capital**, pris sur ta part.
+
+Le DG prend l'opérationnel : il réaligne les salaires avant qu'on les demande,
+promeut ceux qui sont prêts, répond aux offres extérieures (une promotion si
+possible, un alignement une seule fois, jamais deux), ouvre des postes là où ça
+coince — capacité, churn, encadrement, produit — fait passer les entretiens et
+signe, se sépare des toxiques, monte l'infrastructure quand ça déborde, et règle
+le support et la R&D. **Il ne touche pas aux décisions de conseil** : le prix, la
+cible, les budgets d'acquisition et le capital restent les tiens.
+
+Il a une **poigne**, de 20 à 100 %, qui dépend de son niveau et de son moral : un
+DG moyen agit une fois sur deux et paie un peu trop cher. Et c'est un salarié
+comme les autres : on peut le débaucher, et s'il part, l'équipe le sent.
+
+Avec un groupe de niveau 2, un DG de niveau 75 peut devenir **DG du groupe** :
+il tient toutes les sociétés qui n'ont pas le leur, à 82 % de sa poigne, pour
+une fois et demie son salaire.
+
+Sur six ans sans y passer une heure : sans DG, treize départs sur quatorze et
+une maison vide ; avec un DG de la maison, zéro départ, huit leads, une culture
+à 96 et six fois le chiffre d'affaires.
+
 ## Les compétences
 
 Cinq compétences, avec un effet direct et chiffré sur le jeu :
@@ -667,6 +695,7 @@ logement, et débloquent les grandes soirées.
 | `market.js` | les segments de clientèle et le positionnement |
 | `health.js` | dette de sommeil, épuisement, maladies chroniques, vieillissement |
 | `careers.js` | échelons, promotions, culture d'entreprise, débauchage |
+| `direction.js` | le DG : délégation de l'opérationnel, DG de groupe |
 | `bourse.js` | introduction en bourse, cours, trimestres, activistes |
 | `finance.js` | graphiques financiers et guide contextuel |
 | `web.js` | le navigateur du téléphone et ses boutiques |

@@ -359,5 +359,6 @@ const GOALS = [
   { id: 'director', name: 'Faire grandir quelqu\'un', desc: "Amener un salarié jusqu'au poste de directeur.", check: s => s.companies.some(c => c.staff.some(e => (e.grade || 0) >= 4)) },
   { id: 'culture', name: 'Un endroit où l\'on reste', desc: "Une culture d'entreprise au-dessus de 80 avec au moins 8 salariés.", check: s => s.companies.some(c => (c.culture || 0) > 80 && c.staff.length >= 8) },
   { id: 'ipo', name: 'La cloche', desc: "Introduire une de tes sociétés en bourse.", check: s => s.companies.some(c => c.ipo) || s.exits.some(e => /évincé/.test(e.name)) },
+  { id: 'dg', name: 'Lâcher le volant', desc: "Confier la direction d'une société à quelqu'un d'autre.", check: s => s.companies.some(c => c.ceo) },
   { id: 'vieux', name: 'Encore debout', desc: "Arriver à 55 ans sans maladie chronique.", check: s => s.age >= 55 && ((s.body && s.body.conds) || []).length === 0 }
 ];

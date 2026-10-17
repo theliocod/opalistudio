@@ -448,6 +448,13 @@ const GUIDE_STEPS = [
     tab: 'business'
   },
   {
+    id: 'dg',
+    done: s => !s.companies.some(c => c.staff.length >= 12 && !hasCeo(c)),
+    title: "Tu es devenu le goulot",
+    text: "Une de tes sociétés a plus de douze salariés et chaque salaire, chaque promotion, chaque recrutement passe encore par toi. Nomme un DG — quelqu'un de la maison ou un profil de l'extérieur — et garde le conseil : le prix, la cible, l'acquisition, le capital. Onglet Équipe.",
+    tab: 'business'
+  },
+  {
     id: 'bourse',
     done: s => !s.companies.some(c => !c.ipo && ipoReady(c) && ipoWindow(s) >= 1),
     title: "La fenêtre est ouverte",

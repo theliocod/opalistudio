@@ -753,6 +753,7 @@ function renderGroup() {
       ? `<div class="metric"><span><i class="fas ${cur.icon}"></i> ${cur.name}</span><b class="accent">niveau ${cur.level}</b></div>
          <p class="row-sub">${cur.effect}</p>`
       : `<p class="row-sub">Tes ${S.companies.length} sociétés vivent chacune de leur côté : mêmes charges, mêmes outils, mêmes erreurs, en double.</p>`}
+    ${typeof renderGroupDirection === 'function' ? renderGroupDirection() : ''}
     ${next ? `
       <div class="group-next">
         <b><i class="fas ${next.icon}"></i> ${next.name} — ${fmt(next.cost)}</b>

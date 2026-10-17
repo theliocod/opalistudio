@@ -1154,6 +1154,8 @@ function renderEquipe(c) {
       </div>
     </div>
 
+    ${renderDirection(c)}
+
     ${renderCulture(c)}
 
     ${c.staff.length ? `
@@ -1623,6 +1625,39 @@ function handleAction(act, d) {
       break;
     }
     case 'buyback': buyback(id); break;
+
+    case 'appointCeo': {
+      const c = S.companies.find(x => x.uid === id);
+      const e = c && c.staff.find(x => x.id === d.eid);
+      if (!e) break;
+      const t = ceoTerms(c, e);
+      confirmBox(`Confier la direction de ${c.name} à ${e.name} ?`,
+        `${fmt(t.salary)} par mois et ${Math.round(t.equity * 100)} % du capital, pris sur ta part. ` +
+        `Il décidera des salaires, des promotions, des recrutements et des paliers. Tu gardes le prix, la cible, l'acquisition et le capital.`,
+        () => appointCeo(id, d.eid));
+      break;
+    }
+    case 'searchCeo': searchCeo(id); break;
+    case 'hireCeo': {
+      const c = S.companies.find(x => x.uid === id);
+      const a = c && c.applicants.find(x => x.id === d.cid);
+      if (!a) break;
+      confirmBox(`Recruter ${a.name} comme DG de ${c.name} ?`,
+        `${fmt(a.ask)} par mois et ${a.skill >= 85 ? 4 : 3} % du capital. Il arrive de l'extérieur : il ne connaît ni la maison ni l'équipe.`,
+        () => hireCeo(id, d.cid));
+      break;
+    }
+    case 'dismissCeo': {
+      const c = S.companies.find(x => x.uid === id);
+      const e = c && ownCeo(c);
+      if (!e) break;
+      confirmBox(`Retirer la direction à ${e.name} ?`,
+        `Trois mois d'indemnités (${fmt(e.salary * 3)}). Il garde ses parts et son titre de directeur, et tout repasse par toi.`,
+        () => dismissCeo(id));
+      break;
+    }
+    case 'groupCeo': nameGroupCeo(id); break;
+    case 'ungroupCeo': unnameGroupCeo(); break;
 
     case 'promote': promote(id, d.eid); break;
     case 'passover': passOver(id, d.eid); break;

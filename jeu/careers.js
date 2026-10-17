@@ -100,7 +100,7 @@ function promoteCost(c, e) {
   return Math.round(Math.max(e.salary * 1.06, marketSalary(e.role, e.skill) * S.wageIndex * ratio));
 }
 
-function promote(uid, eid) {
+function promote(uid, eid, quiet) {
   const c = S.companies.find(x => x.uid === uid);
   if (!c) return;
   const e = c.staff.find(x => x.id === eid);
@@ -115,11 +115,11 @@ function promote(uid, eid) {
   e.morale = clamp(e.morale + 26, 0, 100);
   e.passed = 0;
   c.culture = clamp(initCulture(c) + 3.5, 0, 100);
-  addLog(S, `${e.name} passe ${n.name} chez ${c.name} : ${fmt(pay)} par mois. ` +
+  if (!quiet) addLog(S, `${e.name} passe ${n.name} chez ${c.name} : ${fmt(pay)} par mois. ` +
     `Toute l'équipe a vu que ça pouvait arriver.`, 'good');
   // les autres regardent
   c.staff.forEach(x => { if (x !== e) x.morale = clamp(x.morale + 3, 0, 100); });
-  render();
+  if (!quiet) render();
 }
 
 /* Refuser explicitement — ça se paie tout de suite, et plus tard. */
@@ -138,19 +138,19 @@ function passOver(uid, eid) {
 }
 
 /* Aligner un salaire sur le marché sans changer de titre. */
-function raiseTo(uid, eid) {
+function raiseTo(uid, eid, quiet) {
   const c = S.companies.find(x => x.uid === uid);
   const e = c && c.staff.find(x => x.id === eid);
   if (!e) return;
   const fair = Math.round(fairPay(e));
-  if (fair <= e.salary) return toast(`${e.name} est déjà payé au-dessus du marché.`);
+  if (fair <= e.salary) return quiet ? undefined : toast(`${e.name} est déjà payé au-dessus du marché.`);
   const gap = fair - e.salary;
   e.salary = fair;
   e.morale = clamp(e.morale + 14, 0, 100);
   c.culture = clamp(initCulture(c) + 1.2, 0, 100);
-  addLog(S, `Tu réalignes le salaire de ${e.name} sur le marché : +${fmt(gap)} par mois. ` +
+  if (!quiet) addLog(S, `Tu réalignes le salaire de ${e.name} sur le marché : +${fmt(gap)} par mois. ` +
     `Il ne t'avait rien demandé — c'est précisément pour ça que ça compte.`, 'good');
-  render();
+  if (!quiet) render();
 }
 
 /* ---------------------------------------------------------
@@ -286,12 +286,12 @@ function spawnRevengeRival(c, e) {
 }
 
 /* Retenir quelqu'un qui a une offre. */
-function counterKeep(uid, eid) {
+function counterKeep(uid, eid, quiet) {
   const c = S.companies.find(x => x.uid === uid);
   const e = c && c.staff.find(x => x.id === eid);
   if (!e || !e.offer) return;
   const amount = e.offer.amount;
-  if (c.cash < amount * 2) return toast(`Il faudrait au moins ${fmt(amount * 2)} de trésorerie pour tenir cet engagement.`);
+  if (c.cash < amount * 2) return quiet ? undefined : toast(`Il faudrait au moins ${fmt(amount * 2)} de trésorerie pour tenir cet engagement.`);
   e.salary = amount;
   e.morale = clamp(e.morale + 20, 0, 100);
   e.counters = (e.counters || 0) + 1;
@@ -299,10 +299,10 @@ function counterKeep(uid, eid) {
   // Retenir à coups de salaire marche une fois. La deuxième, il sait
   // qu'il n'obtient rien sans menacer de partir — et ça se sait.
   if (e.counters > 1) c.culture = clamp(initCulture(c) - 4, 0, 100);
-  addLog(S, `Tu t'alignes : ${e.name} reste pour ${fmt(amount)}. ` +
+  if (!quiet) addLog(S, `Tu t'alignes : ${e.name} reste pour ${fmt(amount)}. ` +
     (e.counters > 1 ? "C'est la deuxième fois. L'équipe a compris comment on obtient une augmentation ici." :
       "Il reste, et il sait ce qu'il vaut désormais."), 'info');
-  render();
+  if (!quiet) render();
 }
 
 function letGo(uid, eid) {
