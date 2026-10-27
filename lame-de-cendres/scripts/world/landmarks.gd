@@ -165,7 +165,7 @@ func _light(parent: Node3D, pos: Vector3, c: Color, energy: float, rng_: float) 
 	l.light_energy = energy
 	l.omni_range = rng_
 	l.omni_attenuation = 1.6
-	l.light_volumetric_fog_energy = 1.5
+	l.light_volumetric_fog_energy = 0.25   # un halo chaud dans la brume, pas une boule blanche
 	parent.add_child(l)
 	l.position = pos
 	lights.append({"light": l, "base": energy, "seed": _rng.randf() * 100.0})
