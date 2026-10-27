@@ -50,11 +50,14 @@ await Promise.all(todo.map(async name => {
     const modelId = await call('POST', '/image-to-3d', {
       image_url: `data:image/png;base64,${png}`,
       ai_model: 'latest',
+      /* sans remesh, Meshy ignore target_polycount et le modèle est trop lourd pour le jeu */
+      should_remesh: true,
       topology: 'triangle',
       target_polycount: 30000,
       should_texture: true,
       enable_pbr: true,
-      pose_mode: 'a-pose'
+      pose_mode: 'a-pose',
+      target_formats: ['glb']
     });
     fs.writeFileSync(log, JSON.stringify({ modelId }, null, 2));
     const model = await waitFor('/image-to-3d', modelId, name, 'modèle');
