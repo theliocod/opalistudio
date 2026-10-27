@@ -1,5 +1,6 @@
 /* Convertit des animations Mixamo en animations du samouraï.
    Usage : node tools/bake-mixamo.mjs <fichier.fbx> <nom> [<fichier.fbx> <nom> ...]
+   Un .glb qui contient plusieurs animations : <fichier.glb#animation> <nom>
    Écrit src/anims/<nom>.json. Les FBX bruts ne sont pas versionnés. */
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
@@ -19,7 +20,13 @@ execFileSync(path.join(root, 'node_modules', '.bin', 'esbuild'), [path.join(root
 
 /* Un petit serveur local : le navigateur n'a le droit de lire les fichiers que par HTTP */
 const files = { '/bake.js': bundle };
-for (let i = 0; i < args.length; i += 2) files[`/${i}.fbx`] = path.resolve(args[i]);
+const clipOf = {};
+for (let i = 0; i < args.length; i += 2) {
+  const [file, clip] = args[i].split('#');
+  const ext = path.extname(file).toLowerCase();
+  files[`/${i}${ext}`] = path.resolve(file);
+  clipOf[i] = [`/${i}${ext}`, clip || ''];
+}
 const server = http.createServer((req, res) => {
   if (req.url === '/') return res.end('<script src="/bake.js"></script>');
   const f = files[req.url];
@@ -33,7 +40,8 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.goto(url + '/');
 for (let i = 0; i < args.length; i += 2) {
-  const data = await page.evaluate(u => window.bake(u), `${url}/${i}.fbx`);
+  const [route, clip] = clipOf[i];
+  const data = await page.evaluate(([u, c]) => window.bake(u, 30, c), [`${url}${route}`, clip]);
   const out = path.join(root, 'src', 'anims', `${args[i + 1]}.json`);
   fs.writeFileSync(out, JSON.stringify(data));
   console.log(`${args[i + 1]} : ${data.frames.length} images, ${data.duration} s → ${path.relative(root, out)}`);

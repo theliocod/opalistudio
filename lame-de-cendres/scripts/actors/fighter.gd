@@ -90,6 +90,7 @@ var max_posture := 0.0
 var posture := 0.0
 var blocking := false
 var sheathed := false          # l'épée au fourreau (le joueur, hors combat)
+var sneaking := false          # accroupi, pour l'infiltration
 var glow := 0.0
 var move := Vector3.ZERO       # déplacement voulu (m/s), décidé par le joueur ou l'IA
 var push := Vector3.ZERO       # déplacement imposé cette image (élan)
@@ -106,7 +107,7 @@ var place := ""
 static func load_clips() -> void:
 	if not CLIPS.is_empty():
 		return
-	for name in ["spin-kick", "dying", "tourbillon", "revers", "degainer", "pied-direct", "saut"]:
+	for name in ["spin-kick", "dying", "tourbillon", "revers", "degainer", "pied-direct", "saut", "repos", "marche", "course", "furtif", "acquiescer", "refuser", "triste"]:
 		var f := FileAccess.open("res://anims/%s.json" % name, FileAccess.READ)
 		if f == null:
 			continue
@@ -215,46 +216,133 @@ func step(dt: float, time: float) -> void:
 		if action.t >= action.def.dur and not action.def.get("hold", false):
 			action = {}
 
-	# La marche : un cycle de jambes selon la vitesse
-	var k := minf(1.0, speed / 4.5)
-	phase += dt * (3.0 + speed * 2.1)
-	var s := sin(phase)
-	var c := cos(phase)
-	var G := Rig.RELAX if sheathed else Rig.GUARD
-	var breathe := sin(time * 2.1 + global_position.x) * 0.025
-	var loco: Dictionary = G.duplicate(true)
-	loco.chest = [G.chest[0] + breathe + k * 0.18, G.chest[1], G.chest[2]]
-	loco.hipsY = G.hipsY + absf(c) * 0.05 * k - k * 0.05
-	loco.hipL = [G.hipL[0] * (1 - k) - s * 0.75 * k, 0, 0.04]
-	loco.hipR = [G.hipR[0] * (1 - k) + s * 0.75 * k, 0, -0.04]
-	loco.knL = [G.knL[0] * (1 - k) + (0.25 + maxf(0, -c) * 1.1) * k, 0, 0]
-	loco.knR = [G.knR[0] * (1 - k) + (0.25 + maxf(0, c) * 1.1) * k, 0, 0]
-	loco.shL = [G.shL[0] + s * 0.15 * k, G.shL[1], G.shL[2]]
-	if sheathed:
-		# les bras balancent avec le pas
-		loco.shL = [G.shL[0] + s * 0.4 * k, G.shL[1], G.shL[2]]
-		loco.shR = [G.shR[0] - s * 0.4 * k, G.shR[1], G.shR[2]]
-	if blocking:
-		for j in ["chest", "shR", "elR", "wrR", "shL", "elL"]:
-			loco[j] = P.parry[j]
-
-	if not action.is_empty() and action.def.has("clip"):
-		_play_clip(loco)
-	else:
-		var pose := loco
-		if not action.is_empty():
-			var d: Dictionary = action.def
-			var ap := Rig.sample_pose(d["keys"], action.t, loco)
-			var fade: float = 1.0 if d.get("hold", false) else minf(1.0, minf((d.dur - action.t) / 0.1, action.t / 0.04))
-			pose = Rig.mix_pose(loco, ap, maxf(0.0, fade))
-		rig.set_pose(pose)
+	var loco := _loco(dt, time)
+	var final := loco
+	if not action.is_empty():
+		var d: Dictionary = action.def
+		var aq: Dictionary
+		var w: float
+		if d.has("clip"):
+			aq = _clip_pose(d)
+			w = clampf(minf(action.t / 0.1, 1.0 if d.get("hold", false) else (d.dur - action.t) / 0.15), 0.0, 1.0)
+		else:
+			# une action à clés ne commande que les articulations qu'elle nomme ;
+			# les autres continuent de suivre la marche
+			var base: Dictionary = Rig.RELAX if sheathed else Rig.GUARD
+			aq = _euler_to_quats(Rig.sample_pose(d["keys"], action.t, base), _joints_of(d))
+			w = 1.0 if d.get("hold", false) else clampf(minf((d.dur - action.t) / 0.1, action.t / 0.04), 0.0, 1.0)
+		final = _blend(loco, aq, w)
+	rig.set_quats(final, final.hipsY)
 	_finish(dt)
 
 
-## Joue une animation Mixamo, mélangée à la pose de marche au début et à la fin.
-func _play_clip(loco: Dictionary) -> void:
+# ---------- Les poses en quaternions ----------
+
+static var _jcache := {}
+
+
+## Les articulations qu'une action à clés nomme dans au moins une clé.
+func _joints_of(d: Dictionary) -> Array:
+	if _jcache.has(d):
+		return _jcache[d]
+	var used := {}
+	for k in d["keys"]:
+		for j in k[1]:
+			used[j] = true
+	_jcache[d] = used.keys()
+	return _jcache[d]
+
+
+static func eq(r: Array) -> Quaternion:
+	return Basis.from_euler(Vector3(r[0], r[1], r[2]), EULER_ORDER_XYZ).get_rotation_quaternion()
+
+
+func _euler_to_quats(pose: Dictionary, only: Array) -> Dictionary:
+	var out := {"hipsY": pose.get("hipsY", 0.0), "_only": only}
+	for j in Rig.JOINTS:
+		if pose.has(j):
+			out[j] = eq(pose[j])
+	return out
+
+
+func _blend(a: Dictionary, b: Dictionary, w: float) -> Dictionary:
+	var only: Array = b.get("_only", [])
+	var out := {"hipsY": a.hipsY}
+	for j in Rig.JOINTS:
+		var qa: Quaternion = a[j]
+		if b.has(j) and (only.is_empty() or j in only):
+			out[j] = qa.slerp(b[j], w)
+		else:
+			out[j] = qa
+	if only.is_empty() or "hipsY" in only:
+		out.hipsY = lerpf(a.hipsY, b.hipsY, w)
+	return out
+
+
+## Une image d'un clip Mixamo, à un instant donné (en boucle si loop).
+func _sample(name: String, t: float, loop := true) -> Dictionary:
+	var c: Dictionary = CLIPS[name]
+	var n: int = c.frames.size()
+	var f: float = (fposmod(t, c.duration) if loop else clampf(t, 0.0, c.duration)) * c.fps
+	var i0 := mini(n - 1, int(f))
+	var i1 := (i0 + 1) % n if loop else mini(n - 1, i0 + 1)
+	var u := f - int(f)
+	var out := {"hipsY": lerpf(c.frames[i0].y, c.frames[i1].y, u)}
+	for i in c.joints.size():
+		out[c.joints[i]] = (c.q[i0][i] as Quaternion).slerp(c.q[i1][i], u)
+	return out
+
+
+## Le corps qui marche : repos, marche et course mélangés selon la vitesse.
+## Épée dégainée, le haut du corps garde la garde ; accroupi, il se fait petit.
+func _loco(dt: float, time: float) -> Dictionary:
+	var G: Dictionary = Rig.RELAX if sheathed else Rig.GUARD
+	if not CLIPS.has("marche"):
+		var o := _euler_to_quats(G, [])
+		o.erase("_only")
+		return o
+	var spd := speed / rig.body_scale
+	var walk_w := clampf(spd / 1.2, 0.0, 1.0)
+	var run_w := clampf((spd - 2.2) / 2.0, 0.0, 1.0)
+	# une seule phase pour la marche et la course : les pieds restent d'accord
+	var stride := lerpf(1.5, 3.6, run_w)
+	phase = fposmod(phase + dt * maxf(spd, 0.6) / stride, 1.0)
+	var idle := _sample("repos", time + float(get_instance_id() % 97) * 0.1)
+	var walk := _sample("marche", phase * CLIPS.marche.duration)
+	var run := _sample("course", phase * CLIPS.course.duration)
+	var moving := _blend(walk, run, run_w)
+	var body := _blend(idle, moving, walk_w)
+	if sneaking:
+		# accroupi : la posture d'infiltration, les jambes qui avancent à petits pas
+		var crouch := _sample("furtif", 0.0, false)
+		for j in ["spine", "chest", "neck", "head", "shL", "elL", "shR", "elR", "wrR"]:
+			body[j] = crouch[j]
+		# les jambes fléchies, à petits pas
+		var st := sin(phase * TAU) * walk_w
+		body.hipL = eq([-0.85 - st * 0.35, 0, 0.12])
+		body.knL = eq([1.35 + maxf(0.0, st) * 0.4, 0, 0])
+		body.hipR = eq([-0.55 + st * 0.35, 0, -0.12])
+		body.knR = eq([1.25 + maxf(0.0, -st) * 0.4, 0, 0])
+		body.hips = eq([0.25, 0, 0])
+		body.hipsY = -0.36
+	if not sheathed:
+		# l'épée en main : la garde pour le haut du corps
+		var breathe := sin(time * 2.1 + global_position.x) * 0.025
+		var lean := walk_w * 0.12 + run_w * 0.1
+		for j in ["chest", "neck", "head", "shR", "elR", "wrR", "shL", "elL"]:
+			var r: Array = G[j]
+			if j == "chest":
+				r = [r[0] + breathe + lean, r[1], r[2]]
+			body[j] = (body[j] as Quaternion).slerp(eq(r), 1.0 if not sneaking else 0.6)
+	if blocking:
+		for j in ["chest", "shR", "elR", "wrR", "shL", "elL"]:
+			body[j] = eq(P.parry[j])
+	return body
+
+
+## Une animation Mixamo jouée comme action : ses quaternions, et l'élan qu'elle donne.
+func _clip_pose(d: Dictionary) -> Dictionary:
 	var a := action
-	var d: Dictionary = a.def
 	var c: Dictionary = CLIPS[d.clip]
 	var ct: float = clampf(d["from"] + a.t * d.speed, minf(d["from"], d.to), maxf(d["from"], d.to))
 	var n: int = c.frames.size()
@@ -272,16 +360,10 @@ func _play_clip(loco: Dictionary) -> void:
 		var dz: float = (rz - a.root[1]) * rig.body_scale
 		push += Vector3(dx * cos(yaw) + dz * sin(yaw), 0, -dx * sin(yaw) + dz * cos(yaw))
 	a.root = [rx, rz]
-	var w: float = clampf(minf(a.t / 0.1, 1.0 if d.get("hold", false) else (d.dur - a.t) / 0.15), 0.0, 1.0)
-	var q := {}
+	var out := {"hipsY": lerpf(F0.y, F1.y, u)}
 	for i in c.joints.size():
-		var j: String = c.joints[i]
-		var r: Array = loco.get(j, [0, 0, 0])
-		var qa := Basis.from_euler(Vector3(r[0], r[1], r[2]), EULER_ORDER_XYZ).get_rotation_quaternion()
-		var qb: Quaternion = c.q[i0][i].slerp(c.q[i1][i], u)
-		q[j] = qa.slerp(qb, w)
-	var y := lerpf(F0.y, F1.y, u)
-	rig.set_quats(q, loco.hipsY * (1.0 - w) + y * w)
+		out[c.joints[i]] = (c.q[i0][i] as Quaternion).slerp(c.q[i1][i], u)
+	return out
 
 
 func _finish(dt: float) -> void:

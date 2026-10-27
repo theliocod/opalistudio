@@ -6,6 +6,7 @@
    de l'os, puisque nos membres n'ont pas la même pose de repos. */
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 const ORDER = ['hips', 'spine', 'chest', 'neck', 'head', 'shL', 'elL', 'shR', 'elR', 'wrR', 'hipL', 'knL', 'hipR', 'knR'];
 const PARENT = { spine: 'hips', chest: 'spine', neck: 'chest', head: 'neck', shL: 'chest', elL: 'shL', shR: 'chest', elR: 'shR', wrR: 'elR', hipL: 'hips', knL: 'hipL', hipR: 'hips', knR: 'hipR' };
@@ -21,10 +22,18 @@ const DIRECT = {
 const HAND_FIX = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -Math.PI / 2);
 const DOWN = new THREE.Vector3(0, -1, 0);
 
-window.bake = async (url, fps = 30) => {
+window.bake = async (url, fps = 30, clipName = '') => {
   const buf = await (await fetch(url)).arrayBuffer();
-  const obj = new FBXLoader().parse(buf, '');
-  const clip = obj.animations.find(a => a.tracks.length);
+  let obj, clips;
+  if (url.endsWith('.glb')) {
+    const gltf = await new GLTFLoader().parseAsync(buf, '');
+    obj = gltf.scene; clips = gltf.animations;
+  } else {
+    obj = new FBXLoader().parse(buf, ''); clips = obj.animations;
+  }
+  /* un fichier peut contenir plusieurs animations : on prend celle demandée */
+  const clip = clipName ? clips.find(a => a.name === clipName) : clips.find(a => a.tracks.length);
+  if (!clip) throw new Error(`animation « ${clipName} » absente : ${clips.map(a => a.name).join(', ')}`);
   const bones = {};
   let skinned = null;
   obj.traverse(o => {
@@ -43,6 +52,9 @@ window.bake = async (url, fps = 30) => {
     const k = b.name.replace(/^mixamorig\d*:?/, '');
     bindQ[k] = q; bindP[k] = p;
   });
+  /* Les .glb (en centimètres sous une armature réduite) : la hauteur de repos
+     des hanches se lit dans la scène elle-même, dans les mêmes unités que l'animation */
+  if (url.endsWith('.glb')) bones.Hips.getWorldPosition(bindP.Hips = new THREE.Vector3());
   const scale = 0.98 / bindP.Hips.y;
 
   const mixer = new THREE.AnimationMixer(obj);
