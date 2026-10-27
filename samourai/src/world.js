@@ -115,7 +115,7 @@ function paintedSky(fogColor) {
     side: THREE.BackSide, depthWrite: false, fog: false
   });
   const sky = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 96, 1, true), mat);
-  sky.position.y = H / 2 - 40;
+  sky.position.y = H / 2 - 65;
   sky.renderOrder = -1;
   return sky;
 }
@@ -234,7 +234,7 @@ export function buildWorld(scene) {
 
   /* Le sol */
   const { map, rmap } = flagstones();
-  let groundMat = painted('sol', 4, { color: 0x9a9498, roughnessMap: rmap, roughness: 1, metalness: 0.15 });
+  let groundMat = painted('sol', 4, { color: 0xc4bcc0, roughnessMap: rmap, roughness: 1, metalness: 0.15 });
   if (groundMat) rmap.repeat.set(9 / 120, 9 / 120);
   else groundMat = new THREE.MeshStandardMaterial({ map, roughnessMap: rmap, roughness: 1, metalness: 0.15 });
   const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 64), groundMat);
@@ -242,12 +242,12 @@ export function buildWorld(scene) {
   scene.add(ground);
 
   const rand = rng(42);
-  const lacquer = painted('laque', 2, { color: 0xb8a8a4, roughness: 0.55, metalness: 0.1 })
+  const lacquer = painted('laque', 2, { color: 0xe0d0cc, roughness: 0.55, metalness: 0.1 })
     || new THREE.MeshStandardMaterial({ color: 0x5c0e0c, roughness: 0.6, metalness: 0.1 });
   const charcoal = new THREE.MeshStandardMaterial({ color: 0x111012, roughness: 0.8 });
-  const stone = painted('pierre', 1.6, { color: 0x8c8a88, roughness: 0.95 })
+  const stone = painted('pierre', 1.6, { color: 0xc0bcb8, roughness: 0.95 })
     || new THREE.MeshStandardMaterial({ color: 0x3a3836, roughness: 0.95 });
-  const bark = painted('ecorce', 1.4, { color: 0x6a605c, roughness: 1 })
+  const bark = painted('ecorce', 1.4, { color: 0x9a908c, roughness: 1 })
     || new THREE.MeshStandardMaterial({ color: 0x15100e, roughness: 1 });
 
   const gate = torii(lacquer, charcoal);
