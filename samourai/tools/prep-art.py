@@ -5,6 +5,7 @@ Usage : python3 tools/prep-art.py <nom> <brut> <genre>
                       plus une carte de relief tirée de la luminance (<nom>-n.jpg)
   genre « ciel »    : raccord invisible de gauche à droite, 2560 px de large
   genre « affiche » : simple recadrage en 16:9, 1920 px de large
+  genre « modele »  : planche de personnage pour Meshy, gardée en PNG dans assets/modeles/
 
 Écrit le résultat dans assets/. Appelé par tools/kie-art.mjs."""
 import sys
@@ -72,6 +73,9 @@ def main():
         Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).save(OUT / f'{name}.jpg', quality=84)
     elif kind == 'affiche':
         crop_to(img, 16 / 9).resize((1920, 1080), Image.LANCZOS).save(OUT / f'{name}.jpg', quality=82)
+    elif kind == 'modele':
+        (OUT / 'modeles').mkdir(exist_ok=True)
+        img.save(OUT / 'modeles' / f'{name}.png', optimize=True)
     else:
         sys.exit(f'Genre inconnu : {kind}')
 

@@ -30,7 +30,16 @@ const TEXTURE = `Seamless tileable texture, square, seen straight from above, fl
 no shadows from the light, no perspective, no horizon, no objects, no text. Photorealistic
 albedo texture for a dark fantasy samurai game set in feudal Japan.`;
 
-/* genre : texture (raccord dans les deux sens), ciel (raccord gauche droite), affiche */
+/* Les planches de personnages servent de modèle à Meshy (tools/meshy.mjs) :
+   un seul personnage, de face, bras écartés, sur fond neutre. */
+const SHEET = `Full body character concept for a 3D model, a single character standing in a relaxed
+A-pose, arms held slightly away from the body, legs apart, seen straight from the front, whole body
+visible from head to feet with margin around it. Plain flat light grey background, soft even studio
+lighting, no shadows on the ground, no weapon in the hands, no text. Highly detailed, realistic
+materials, dark fantasy feudal Japan.`;
+
+/* genre : texture (raccord dans les deux sens), ciel (raccord gauche droite), affiche,
+   modele (planche de personnage, hors du jeu) */
 const ART = {
   sol: { kind: 'texture', size: '1:1', prompt: `${TEXTURE}
 Old temple courtyard paving: large irregular dark grey granite flagstones, wet after rain,
@@ -55,7 +64,22 @@ action game. A lone samurai seen from behind on the lower left, standing in the 
 of a Shinto temple at night, katana drawn and lowered. A huge blood red moon behind a broken red
 torii gate, ash and red petals falling, silhouettes of cursed ronin rising from the mist.
 Cinematic painterly style, sumi-e ink meets dark fantasy, deep blacks, crimson and ember orange.
-The centre of the image stays dark and calm enough to hold a title. No text, no letters, no logo.` }
+The centre of the image stays dark and calm enough to hold a title. No text, no letters, no logo.` },
+  samourai: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+A lone samurai in full o-yoroi armour: dark navy blue lacquered lamellar plates laced with deep
+red silk cords, large rectangular sode shoulder guards, a kabuto helmet with a golden crescent
+kuwagata crest, a black iron menpo face mask, red hakama trousers under armoured skirt plates,
+armoured sleeves, straw sandals. Worn and battle scarred, ash on the armour. Empty scabbard at the hip.` },
+  ronin: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+A cursed undead ronin: tattered black and dark grey samurai armour, broken lamellar plates,
+torn kimono, a cracked helmet with two short black horns, a skull-like iron face mask with
+glowing red eyes, ash grey corpse skin on the hands, black smoke wisps rising from the shoulders.
+Lean and menacing.` },
+  oni: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+The Oni of the Red Moon, a huge demon warlord: massive muscular build, dark crimson skin,
+heavy black and blood red samurai armour with spikes, a demonic oni mask with long curved horns
+and fangs, wild white hair, glowing red eyes, ragged red cape, clawed hands and feet. Towering
+and terrifying.` }
 };
 
 const args = process.argv.slice(2);
@@ -76,7 +100,7 @@ if (flag('--prep')) {
 if (!named.length && !flag('--all')) fail('Indique une image (ex. sol) ou --all.');
 
 const todo = (named.length ? named : Object.keys(ART))
-  .filter(n => force || !fs.existsSync(path.join(outDir, `${n}.jpg`)));
+  .filter(n => force || !fs.existsSync(outFile(n)));
 if (!todo.length) { console.log('Rien à faire : ces images existent déjà (--force pour les refaire).'); process.exit(0); }
 if (todo.length > MAX_IMAGES) fail(`Trop d'images demandées (${todo.length} > ${MAX_IMAGES}).`);
 
@@ -141,6 +165,10 @@ async function waitFor(taskId) {
   throw new Error('trop long, abandon après 6 minutes');
 }
 
+function outFile(name) {
+  return ART[name].kind === 'modele' ? path.join(outDir, 'modeles', `${name}.png`) : path.join(outDir, `${name}.jpg`);
+}
+
 function rawFile(name) {
   if (!fs.existsSync(rawDir)) return null;
   const f = fs.readdirSync(rawDir).find(f => path.parse(f).name === name);
@@ -156,6 +184,7 @@ function prep(name, raw) {
 function writeManifest() {
   const files = [];
   for (const [name, a] of Object.entries(ART)) {
+    if (a.kind === 'modele') continue;
     if (!fs.existsSync(path.join(outDir, `${name}.jpg`))) continue;
     files.push([name, `${name}.jpg`]);
     if (a.kind === 'texture') files.push([`${name}N`, `${name}-n.jpg`]);
