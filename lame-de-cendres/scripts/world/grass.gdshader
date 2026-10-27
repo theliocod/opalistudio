@@ -48,12 +48,12 @@ void vertex() {
 
 void fragment() {
 	vec3 base = vec3(0.04, 0.045, 0.025);
-	vec3 top = mix(vec3(0.19, 0.17, 0.08), vec3(0.28, 0.19, 0.09), shade);
+	vec3 top = mix(vec3(0.1, 0.105, 0.05), vec3(0.16, 0.12, 0.06), shade);
 	vec3 col = mix(base, top, tip);
 	vec3 red = mix(vec3(0.25, 0.02, 0.02), vec3(1.1, 0.06, 0.04), smoothstep(0.6, 1.0, tip));
 	col = mix(col, red, lily);
 	ALBEDO = col;
 	EMISSION = lily * red * smoothstep(0.75, 1.0, tip) * 0.6;
 	ROUGHNESS = 0.8;
-	BACKLIGHT = vec3(0.25, 0.12, 0.06) * tip;
+	BACKLIGHT = vec3(0.1, 0.05, 0.03) * tip;
 }

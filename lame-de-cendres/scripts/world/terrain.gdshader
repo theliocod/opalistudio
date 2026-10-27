@@ -4,6 +4,8 @@ shader_type spatial;
 render_mode diffuse_burley;
 
 uniform sampler2D mask : filter_linear, repeat_disable;
+uniform sampler2D stone : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D flags : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform float water_level = -1.2;
 
 varying vec3 wpos;
@@ -27,7 +29,8 @@ void vertex() {
 }
 
 void fragment() {
-	vec3 m = texture(mask, UV).rgb;
+	vec4 mm = texture(mask, UV);
+	vec3 m = mm.rgb;
 	float n1 = fbm(wpos.xz * 0.08);
 	float n2 = fbm(wpos.xz * 0.9);
 	float slope = 1.0 - wnrm.y;
@@ -35,12 +38,17 @@ void fragment() {
 	vec3 grass = mix(vec3(0.075, 0.085, 0.05), vec3(0.15, 0.13, 0.065), n1);
 	grass = mix(grass, vec3(0.2, 0.07, 0.05), smoothstep(0.62, 0.8, fbm(wpos.xz * 0.03)) * 0.5);
 	vec3 dirt = mix(vec3(0.13, 0.095, 0.07), vec3(0.2, 0.15, 0.11), n2);
-	vec3 rock = mix(vec3(0.12, 0.115, 0.12), vec3(0.24, 0.22, 0.22), n2 * n1 * 1.6);
+	// la roche peinte, plaquée sur les trois axes pour ne pas s'étirer sur les pentes
+	vec3 bw = pow(abs(wnrm), vec3(4.0)); bw /= bw.x + bw.y + bw.z;
+	vec3 tri = texture(stone, wpos.zy * 0.12).rgb * bw.x + texture(stone, wpos.xz * 0.12).rgb * bw.y + texture(stone, wpos.xy * 0.12).rgb * bw.z;
+	vec3 rock = tri * 0.75;
+	vec3 plaza = texture(flags, wpos.xz * 0.16).rgb * 0.8;
 	vec3 mud = vec3(0.06, 0.05, 0.045);
 
 	vec3 col = mix(grass, dirt, smoothstep(0.15, 0.7, m.r + (n2 - 0.5) * 0.3));
 	col = mix(col, rock, clamp(m.b * 1.2 + smoothstep(0.35, 0.6, slope), 0.0, 1.0));
 	col = mix(col, mud, 1.0 - smoothstep(water_level - 0.2, water_level + 1.0, wpos.y));
+	col = mix(col, plaza, smoothstep(0.35, 0.7, mm.a + (n2 - 0.5) * 0.25));
 	// De la neige sale sur les sommets
 	col = mix(col, vec3(0.55, 0.52, 0.55), smoothstep(48.0, 62.0, wpos.y + n1 * 8.0) * (1.0 - smoothstep(0.5, 0.7, slope)));
 

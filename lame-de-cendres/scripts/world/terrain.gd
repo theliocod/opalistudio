@@ -10,7 +10,7 @@ const CELL := SIZE / (RES - 1)
 const WATER_LEVEL := -1.2
 
 var heights := PackedFloat32Array()
-## Rouge : chemin de terre. Vert : herbe. Bleu : sol rocheux.
+## Rouge : chemin de terre. Vert : herbe. Bleu : sol rocheux. Alpha : place dallée.
 var mask_image: Image
 var height_texture: ImageTexture
 var mask_texture: ImageTexture
@@ -34,7 +34,7 @@ func build(places: Array, paths: Array) -> void:
 		p["base"] = _raw_height(p["pos"].x, p["pos"].y)
 
 	heights.resize(RES * RES)
-	mask_image = Image.create(RES, RES, false, Image.FORMAT_RGB8)
+	mask_image = Image.create(RES, RES, false, Image.FORMAT_RGBA8)
 	for j in RES:
 		for i in RES:
 			var x := -SIZE / 2 + i * CELL
@@ -52,7 +52,7 @@ func build(places: Array, paths: Array) -> void:
 				var d := _segment_distance(Vector2(x, z), s[0], s[1])
 				path = maxf(path, 1.0 - smoothstep(1.8, 3.6, d))
 			heights[j * RES + i] = h
-			mask_image.set_pixel(i, j, Color(maxf(path, flat * 0.7), 0, 0))
+			mask_image.set_pixel(i, j, Color(path, 0, 0, flat))
 
 	# Pente et herbe, une fois le relief connu
 	for j in RES:
@@ -62,8 +62,8 @@ func build(places: Array, paths: Array) -> void:
 			var h := heights[j * RES + i]
 			var c := mask_image.get_pixel(i, j)
 			var rock := smoothstep(0.28, 0.5, slope)
-			var grass := (1.0 - c.r) * (1.0 - rock) * smoothstep(WATER_LEVEL + 0.2, WATER_LEVEL + 1.2, h)
-			mask_image.set_pixel(i, j, Color(c.r, grass, rock))
+			var grass := (1.0 - c.r) * (1.0 - c.a) * (1.0 - rock) * smoothstep(WATER_LEVEL + 0.2, WATER_LEVEL + 1.2, h)
+			mask_image.set_pixel(i, j, Color(c.r, grass, rock, c.a))
 
 	var himg := Image.create_from_data(RES, RES, false, Image.FORMAT_RF, heights.to_byte_array())
 	height_texture = ImageTexture.create_from_image(himg)
@@ -154,6 +154,8 @@ func _build_mesh() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://scripts/world/terrain.gdshader")
 	mat.set_shader_parameter("mask", mask_texture)
+	mat.set_shader_parameter("stone", load("res://assets/pierre.jpg"))
+	mat.set_shader_parameter("flags", load("res://assets/sol.jpg"))
 	mesh.surface_set_material(0, mat)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh

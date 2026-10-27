@@ -80,7 +80,7 @@ export const ACTIONS = {
   hit: { dur: 0.34, keys: [[0, {}], [0.06, P.hit], [0.34, {}]] },
   stagger: { dur: 1.35, keys: [[0, {}], [0.12, P.stagger], [1.05, P.stagger2], [1.35, {}]] },
   /* Animations Mixamo : from/to découpent le clip, speed l'accélère */
-  kick: { clip: 'spinKick', from: 0.25, to: 1.9, speed: 1.35, active: [0.5, 0.78], dmg: 10, posture: 45, kick: true, cost: 20, arc: 3.2, reach: 2.4 },
+  kick: { clip: 'spinKick', from: 0.25, to: 2.35, speed: 1.35, active: [1.0, 1.42], dmg: 10, posture: 45, kick: true, cost: 20, arc: 3.2, reach: 2.4 },
   /* la mort des ennemis : ils titubent, puis s'effondrent ; on garde la dernière image */
   dying: { clip: 'dying', from: 0.6, to: 4.6, speed: 1.5, hold: true },
   die: { dur: 1.1, hold: true, keys: [[0, {}], [0.25, P.hit], [1.1, P.dead]] },

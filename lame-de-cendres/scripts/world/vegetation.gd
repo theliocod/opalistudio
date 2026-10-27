@@ -16,12 +16,22 @@ func build(t: Terrain, avoid: Array) -> void:
 	terrain = t
 	rng.seed = 42
 	_build_grass()
-	var bark := _mat(Color(0.07, 0.05, 0.045), 0.95)
+	var bark := _mat(Color(0.55, 0.5, 0.48), 0.95)
+	bark.albedo_texture = load("res://assets/ecorce.jpg")
+	bark.normal_enabled = true
+	bark.normal_texture = load("res://assets/ecorce-n.jpg")
+	bark.uv1_scale = Vector3(2, 3, 1)
 	var maple_leaves := _mat(Color(0.45, 0.05, 0.04), 0.8)
 	maple_leaves.backlight_enabled = true
 	maple_leaves.backlight = Color(0.5, 0.08, 0.03)
 	var pine_leaves := _mat(Color(0.035, 0.05, 0.04), 0.9)
-	var stone := _mat(Color(0.2, 0.19, 0.2), 0.95)
+	var stone := _mat(Color(0.8, 0.78, 0.8), 0.95)
+	stone.albedo_texture = load("res://assets/pierre.jpg")
+	stone.normal_enabled = true
+	stone.normal_texture = load("res://assets/pierre-n.jpg")
+	stone.uv1_triplanar = true
+	stone.uv1_world_triplanar = true
+	stone.uv1_scale = Vector3(0.35, 0.35, 0.35)
 
 	_scatter(_tree_maple(bark, maple_leaves), 260, avoid, 0.35, true)
 	_scatter(_tree_pine(bark, pine_leaves), 420, avoid, 0.45, true)
@@ -40,7 +50,7 @@ func _build_grass() -> void:
 	# Un brin : une lame effilée en trois segments
 	var st := SurfaceTool.new()
 	st.begin(Mesh.PRIMITIVE_TRIANGLES)
-	var w := [0.05, 0.04, 0.025, 0.0]
+	var w := [0.035, 0.028, 0.016, 0.0]
 	var ys := [0.0, 0.35, 0.7, 1.0]
 	var pts := []
 	for k in 4:

@@ -3,8 +3,11 @@
 extends SceneTree
 
 func _initialize() -> void:
+	var t0 := Time.get_ticks_msec()
 	var main = load("res://main.tscn").instantiate()
 	root.add_child(main)
+	await process_frame
+	print("monde bâti en %d ms" % (Time.get_ticks_msec() - t0))
 	var cam := Camera3D.new()
 	cam.far = 1200.0
 	root.add_child(cam)
@@ -20,7 +23,9 @@ func _initialize() -> void:
 		cam.look_at_from_position(from, to)
 		if main.vegetation:
 			main.vegetation.follow(from)
-		for f in 24:
+		var frames := int(OS.get_environment("FRAMES")) if OS.get_environment("FRAMES") != "" else 8
+		for f in frames:
 			await process_frame
+		print("vue %d prête à %d ms" % [k, Time.get_ticks_msec() - t0])
 		root.get_viewport().get_texture().get_image().save_png(OS.get_environment("OUT") + "/shot-%d.png" % k)
 	quit()
