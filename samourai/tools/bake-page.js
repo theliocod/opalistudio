@@ -45,13 +45,21 @@ window.bake = async (url, fps = 30, clipName = '') => {
   obj.updateMatrixWorld(true);
   const bindQ = {}, bindP = {};
   const m = new THREE.Matrix4(), s = new THREE.Vector3();
-  skinned.skeleton.bones.forEach((b, i) => {
-    m.copy(skinned.skeleton.boneInverses[i]).invert().premultiply(skinned.matrixWorld);
-    const q = new THREE.Quaternion(), p = new THREE.Vector3();
-    m.decompose(p, q, s);
-    const k = b.name.replace(/^mixamorig\d*:?/, '');
-    bindQ[k] = q; bindP[k] = p;
-  });
+  if (skinned) {
+    skinned.skeleton.bones.forEach((b, i) => {
+      m.copy(skinned.skeleton.boneInverses[i]).invert().premultiply(skinned.matrixWorld);
+      const q = new THREE.Quaternion(), p = new THREE.Vector3();
+      m.decompose(p, q, s);
+      const k = b.name.replace(/^mixamorig\d*:?/, '');
+      bindQ[k] = q; bindP[k] = p;
+    });
+  } else {
+    /* une animation exportée sans peau : le squelette au repos est la T-pose */
+    for (const k in bones) {
+      bindQ[k] = bones[k].getWorldQuaternion(new THREE.Quaternion());
+      bindP[k] = bones[k].getWorldPosition(new THREE.Vector3());
+    }
+  }
   /* Les .glb (en centimètres sous une armature réduite) : la hauteur de repos
      des hanches se lit dans la scène elle-même, dans les mêmes unités que l'animation */
   if (url.endsWith('.glb')) bones.Hips.getWorldPosition(bindP.Hips = new THREE.Vector3());

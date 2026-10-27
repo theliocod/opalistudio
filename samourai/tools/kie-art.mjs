@@ -79,7 +79,55 @@ Lean and menacing.` },
 The Oni of the Red Moon, a huge demon warlord: massive muscular build, dark crimson skin,
 heavy black and blood red samurai armour with spikes, a demonic oni mask with long curved horns
 and fangs, wild white hair, glowing red eyes, ragged red cape, clawed hands and feet. Towering
-and terrifying.` }
+and terrifying.` },
+  garde: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+An ashigaru town guard of the Hojo clan: a wide conical black lacquered jingasa iron hat with a small
+white clan crest, a dark brown lacquered lamellar breastplate (okegawa-do) over an indigo kimono,
+a white crest of three circles painted on the chest, short armoured skirt, dark indigo trousers bound
+at the shins with white leggings, straw sandals, a stern weathered face with a short beard.` },
+  paysan: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+A poor rice farmer of a feudal Japanese village: a wide woven straw kasa hat, a patched and faded
+indigo short kimono with rolled sleeves tied by a rope belt, loose grey work trousers tied at the
+ankles, straw sandals, a cloth towel around the neck, thin and tired, a kind lined face, mud on the legs.` },
+  villageoise: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+A young village woman of feudal Japan: black hair tied up with a simple wooden comb, a muted
+dusty rose short kimono with a dark red obi sash and a pale apron, loose dark grey mompe work
+trousers gathered at the ankles so both legs are clearly separate, straw sandals, a calm and proud face.` },
+  marchand: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+A prosperous travelling sword merchant: a stout older man with a shaved head and a grey topknot,
+a rich dark brown haori jacket with golden coin crests over an ochre kimono, a striped grey hakama,
+a heavy purse and an abacus tied at the belt, white tabi socks and wooden geta sandals, a sly
+friendly smile and a thin moustache.` },
+  noble: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+A renowned samurai champion of the castle town: no helmet, long black hair tied in a high topknot,
+a sharp handsome face with a scar across one cheek, elegant black lacquered armour with gold trim
+and white silk lacing, a white haori surcoat with a crimson clan crest on the back and chest,
+dark grey hakama, armoured forearms and shins, an empty scabbard at the hip. Proud, noble, deadly.` },
+  moine: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+A sohei warrior monk: a white cloth hood wrapped around the head leaving only the eyes and nose
+visible, dark grey and black monk robes over a light lamellar breastplate, a long string of large
+wooden prayer beads across the chest, white leggings, high wooden geta sandals, broad shoulders,
+a calm, severe gaze.` },
+  onnamusha: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+An onna-musha, a female samurai warrior: long black hair tied back with a white hachimaki headband,
+a fierce beautiful face, deep crimson lacquered lamellar breastplate and shoulder guards over a white
+kimono, a dark purple hakama with both legs clearly separate, armoured sleeves and shin guards,
+straw sandals, an empty scabbard at the hip. Graceful and dangerous.` },
+  jubei: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+Jubei, a legendary one-eyed wandering swordsman: a black leather eyepatch over the left eye, wild
+shoulder-length black hair loosely tied, a rugged stubbled face with a confident half smile, a faded
+charcoal grey kimono with the sleeves tied back by a cord, a dark blue hakama with both legs clearly
+separate, black arm wraps, a straw rope belt with an empty scabbard, straw sandals. Battle worn and cool.` },
+  kojiro: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+Kojiro, an elegant duelist samurai: very long straight black hair tied low behind the back, a calm
+beautiful pale face with sharp eyes, a flowing violet haori with white wave patterns over a white
+kimono, a pale grey hakama with both legs clearly separate, a long empty scabbard slung across the
+back, white tabi socks and black geta sandals. Refined, serene and lethal.` },
+  oyuki: { kind: 'modele', size: '3:4', prompt: `${SHEET}
+Oyuki, the Lady of the Snow, a female assassin samurai: a white kitsune fox half mask with red markings
+pushed up on the forehead, long silver white hair in a high ponytail, a pale cold face, a short snow
+white kimono jacket with ice blue trim over fitted black armour, black fitted trousers with both legs
+clearly separate, white arm guards, a short empty scabbard on the back, black tabi boots. Icy and swift.` }
 };
 
 const args = process.argv.slice(2);

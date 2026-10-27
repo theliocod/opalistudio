@@ -23,7 +23,11 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dir = path.join(root, 'assets', 'modeles');
 
 /* Taille réelle de chaque personnage, pour que Meshy place bien le squelette */
-const CHARACTERS = { samourai: 1.78, ronin: 1.8, oni: 2.45 };
+const CHARACTERS = {
+  samourai: 1.78, ronin: 1.8, oni: 2.45,
+  garde: 1.72, paysan: 1.65, villageoise: 1.58, marchand: 1.66, noble: 1.8, moine: 1.82, onnamusha: 1.68,
+  jubei: 1.76, kojiro: 1.8, oyuki: 1.64
+};
 
 const args = process.argv.slice(2);
 const flag = f => args.includes(f);
