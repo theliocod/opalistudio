@@ -1,0 +1,449 @@
+{
+  "version": 1,
+  "skills": {
+    "adopt": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/adopt/SKILL.md",
+      "computedHash": "360ef0519ce3c27b92bbefce14388207b0aa1de5829e70cb2c0ce48620f37b55"
+    },
+    "architecture-decision": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/architecture-decision/SKILL.md",
+      "computedHash": "7d1d769364f745926f7d8e5aa937bab248ddd77e6fdcdf61ee0cc33f653a7946"
+    },
+    "architecture-review": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/architecture-review/SKILL.md",
+      "computedHash": "0f17812efe83d42d9a75fa18c325576b02c32bf3c27bb1a14c5743b7cefd096e"
+    },
+    "art-bible": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/art-bible/SKILL.md",
+      "computedHash": "edbc6c68880065ff2e4339d311435299a756809361a8b4a946f7bcd36e73acf8"
+    },
+    "asset-audit": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/asset-audit/SKILL.md",
+      "computedHash": "d231ea0192739b3d0fabafd223b38e03e646d7746fc929e4c4bb25ae078ed8fd"
+    },
+    "asset-spec": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/asset-spec/SKILL.md",
+      "computedHash": "ec6b5a619a7178d495bad1a4ad90b752ec56b5933dc19dad1c3d27187788d0e6"
+    },
+    "balance-check": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/balance-check/SKILL.md",
+      "computedHash": "c94e4b644e7a6922f6b3f5b4dbacf7983940fc0c399bfd7beec0f6cef53a017f"
+    },
+    "brainstorm": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/brainstorm/SKILL.md",
+      "computedHash": "f76bcd78a996035e3e0faabd4a683b15aa5703619591e646e77ab0cc1e6f1bee"
+    },
+    "bug-report": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/bug-report/SKILL.md",
+      "computedHash": "2e441386d5ccab0fde49d341a97dfa84dd7b0264bbeb34105c1e802dfd508454"
+    },
+    "bug-triage": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/bug-triage/SKILL.md",
+      "computedHash": "687d5d36db3153ba9ec667496f8b1e30549fe5c0b87effcebc7ee0d8863ebef9"
+    },
+    "changelog": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/changelog/SKILL.md",
+      "computedHash": "9e7ea7c708f881bccc32b53a4a6aa543f59bdec3416111de55addf3b96eb715d"
+    },
+    "code-review": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/code-review/SKILL.md",
+      "computedHash": "4b6c9fb0f2cc594131c31a61e3d9d9ad2db88538c4338974d921c12ee4a3b91a"
+    },
+    "consistency-check": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/consistency-check/SKILL.md",
+      "computedHash": "19233d438bc2de9520fee8d63bf3bf51fe213eb211e251db6fbffcbcf75bd550"
+    },
+    "content-audit": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/content-audit/SKILL.md",
+      "computedHash": "1fccd1dc98b2d6f7f3cb8a66b72b5ee196e4b6053cb93937129bfc404dbe9a5c"
+    },
+    "create-architecture": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/create-architecture/SKILL.md",
+      "computedHash": "86a773f4720d66f256c7074767001535e9958339c440383e32a359b98a00ccba"
+    },
+    "create-control-manifest": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/create-control-manifest/SKILL.md",
+      "computedHash": "c8c0a1681edb8c12f38ad644c0d1bce214d1d3f8dc9057600e298af0432beee9"
+    },
+    "create-epics": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/create-epics/SKILL.md",
+      "computedHash": "5fd18eb0c7a7aaf42d6f4b9443cd55fdf678373e30074a19e83c84dcf86d8a9e"
+    },
+    "create-stories": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/create-stories/SKILL.md",
+      "computedHash": "36174bc3db17ec6f1f42e2808adb84572efb4162b53a781bb9029b96024143a2"
+    },
+    "day-one-patch": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/day-one-patch/SKILL.md",
+      "computedHash": "dfbfc6c6639c4c273c7e46a0d7340762f556a759de5a827e9a7a7a362d9a1089"
+    },
+    "design-review": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/design-review/SKILL.md",
+      "computedHash": "d00b0b1a086a940dcf128396d00123af89aa4df699ebc7d4e53bccb3e5dc6b77"
+    },
+    "design-system": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/design-system/SKILL.md",
+      "computedHash": "31808188daab7d749e057f38e5e194d498629234a4769e8a18f2db3d04f1d63c"
+    },
+    "dev-story": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/dev-story/SKILL.md",
+      "computedHash": "e4adff1915accc9aa0ac66eaf2532e8e1efcb812c9dccfe2f2af492fc7fcaf4b"
+    },
+    "estimate": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/estimate/SKILL.md",
+      "computedHash": "bb7ad672199a71508736e0bf934e0e06de503b2a7ed5b62e8850bf7eb202c9b9"
+    },
+    "gate-check": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/gate-check/SKILL.md",
+      "computedHash": "b11484c6135c6f4c3c76cc197f63bae0e07edb6770dda5faaf74952edd8c1ba7"
+    },
+    "help": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/help/SKILL.md",
+      "computedHash": "74ef21ac87469c59e6a5343a1d579e390149187726836f68518e1749a4012180"
+    },
+    "hotfix": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/hotfix/SKILL.md",
+      "computedHash": "4e573d6652765fdd0ab4f3a54e99587fc26d81bea1d376d047fc0a37fa3391e1"
+    },
+    "launch-checklist": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/launch-checklist/SKILL.md",
+      "computedHash": "3b8f8f0f3658eb3b3fa8e5a7de001ae6808dbca37aa67813fc4140a0dbfd405b"
+    },
+    "localize": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/localize/SKILL.md",
+      "computedHash": "fb50aa8fb7e317c6dc91b64e552dc99288923278a486122dccf95b608c14b31e"
+    },
+    "map-systems": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/map-systems/SKILL.md",
+      "computedHash": "8cb9fe3a035befdcd160cb7a51479952b1cb1ffb41cf0b92f55cee23af88a683"
+    },
+    "milestone-review": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/milestone-review/SKILL.md",
+      "computedHash": "5316b1664f96a569ea8e5849263b007bbf87bad896b340cd9f584a1ed6a51c3a"
+    },
+    "onboard": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/onboard/SKILL.md",
+      "computedHash": "c478a6a1638aa5967a05558fc4393f2498710023014d603983aa6bd9eca1c2f8"
+    },
+    "patch-notes": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/patch-notes/SKILL.md",
+      "computedHash": "f1f4b3f1c7cd22420a3aa5dfe837118eb06a0c19f9a754bfb78187fe3b60de19"
+    },
+    "perf-profile": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/perf-profile/SKILL.md",
+      "computedHash": "e08d8cd13641a57b4e442200153fe8e9fa26de72ca7ab50a40e5d4a7e07a34d1"
+    },
+    "playtest-report": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/playtest-report/SKILL.md",
+      "computedHash": "4cf147d2f2a5bf703ee872c8469e014c2945e5541ea95f3366e9d65c9b062087"
+    },
+    "project-stage-detect": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/project-stage-detect/SKILL.md",
+      "computedHash": "8cc1e32d01ce326bb0cb1c75842edfa6a4ee44a19469511d4c8eac0b0c848bfe"
+    },
+    "propagate-design-change": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/propagate-design-change/SKILL.md",
+      "computedHash": "11241527c6d46fda3172f4dca01e1ef26e360afd9e9ce8fd4b6688e8607fe4bf"
+    },
+    "prototype": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/prototype/SKILL.md",
+      "computedHash": "79aa84bc94f4f608063c9fc2370805b2de4db477f1ff8118998ce3511066b0ab"
+    },
+    "qa-plan": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/qa-plan/SKILL.md",
+      "computedHash": "e20a17b278fc32bb21d31200a595140eb199ef9dc757b2cfe30d409f2d59a253"
+    },
+    "quick-design": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/quick-design/SKILL.md",
+      "computedHash": "cd6ac1331faca642594eae5484d699f373d299da905d1b0bf893900d000f2ae5"
+    },
+    "regression-suite": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/regression-suite/SKILL.md",
+      "computedHash": "e7573ef3028726d2bdf97669b5dc48cd812cfd239c3ff004647ee428bacbc9b5"
+    },
+    "release-checklist": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/release-checklist/SKILL.md",
+      "computedHash": "1cece6910bd666905888ad8f4e6ebd771f62efba7953bc8d090fe884e284d463"
+    },
+    "retrospective": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/retrospective/SKILL.md",
+      "computedHash": "0e59f4b441d238861015e641d9042badee283b01f56054f7235efa07972fc49c"
+    },
+    "reverse-document": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/reverse-document/SKILL.md",
+      "computedHash": "572f6534da59f5cb8cad36f5eb1d337690412ec63ec29bae24627ac346981951"
+    },
+    "review-all-gdds": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/review-all-gdds/SKILL.md",
+      "computedHash": "3e30a2898fefb21b6c9a5ed63ac6b02f0e449df401f6abecf794eba0b8ce8974"
+    },
+    "scope-check": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/scope-check/SKILL.md",
+      "computedHash": "d3082b78712134df949bfe10fa9a0ac65d33f1790f5b0e472694560c83fe9b26"
+    },
+    "security-audit": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/security-audit/SKILL.md",
+      "computedHash": "d1f9847d15e0b5497fb3dc3172664ecc2a3ceb2a46bc461deeb60772b224c083"
+    },
+    "settings": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/settings/SKILL.md",
+      "computedHash": "57338e665b4bd7e2d81bee56ed85297261d173f127d6c67930544caa4fddae18"
+    },
+    "setup-engine": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/setup-engine/SKILL.md",
+      "computedHash": "df165dd977782dd00b8c7f0245c835e600526e26d4308f1ab13eac21152aefe2"
+    },
+    "skill-improve": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/skill-improve/SKILL.md",
+      "computedHash": "6f238abef77b291629cd811eb0c40a27c47a1c5cf17d9d1ef6814c6a0ae6e36f"
+    },
+    "skill-test": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/skill-test/SKILL.md",
+      "computedHash": "6c4674ab1772508c192f689dcd22de90a62a2f724fc2b2b8d51672d642673582"
+    },
+    "smoke-check": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/smoke-check/SKILL.md",
+      "computedHash": "20c3501f8ebf87dcafe2eeb0639a036ae0015da4900aad2078cc8aa56394e501"
+    },
+    "soak-test": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/soak-test/SKILL.md",
+      "computedHash": "9f0f9c6436965123209c7dca65c2819fc50d4bffeb64a7b689c2995613be55cc"
+    },
+    "sprint-plan": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/sprint-plan/SKILL.md",
+      "computedHash": "f36efeaeb885875cd4c1a94ce3deb22fb64c7edc0913d7cb85bab2062cdfb2b0"
+    },
+    "sprint-status": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/sprint-status/SKILL.md",
+      "computedHash": "30d6f18f3903bb4b9526f0da414004c34e4f3d593018b082a8da708c4c121f57"
+    },
+    "start": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/start/SKILL.md",
+      "computedHash": "7fef8eaf869ac3739fc4ab3a73bc27414cec5a3ae62c35f9a8e0328552bef94d"
+    },
+    "story-done": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/story-done/SKILL.md",
+      "computedHash": "33bb071aa27025cea7f90976b4c3e77d1f010664a3d6b093b20cd9681d1f8c80"
+    },
+    "story-readiness": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/story-readiness/SKILL.md",
+      "computedHash": "fbc39684c1419a7f6cb8176b524a004f65b4a774ce323aa90040b89061545c5a"
+    },
+    "team-audio": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/team-audio/SKILL.md",
+      "computedHash": "807305ea599a6db12664a65f0c7d3b93e6228043689674593b9fe2e443edd563"
+    },
+    "team-combat": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/team-combat/SKILL.md",
+      "computedHash": "2072e14f0095035b37cb424e15de5a3199d370254a8d233365545db6186fd202"
+    },
+    "team-level": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/team-level/SKILL.md",
+      "computedHash": "f50a01fe8778912ba94e9ba497115f1b5599aaf8f5937fc91afc35aa3a43457b"
+    },
+    "team-live-ops": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/team-live-ops/SKILL.md",
+      "computedHash": "5dfa409edd3665ccd72ae4fa6c1f7fa5042cd36de3dd037df342969e17b18bd5"
+    },
+    "team-narrative": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/team-narrative/SKILL.md",
+      "computedHash": "cc3af4422e1fa9e0da8b4f68927d7e55c01abccdc2d260934d84c5251bb2db8b"
+    },
+    "team-polish": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/team-polish/SKILL.md",
+      "computedHash": "16508ebdf7b3269b394398075a8551394b66efde6c0ef42bf3a8322bf0db5c20"
+    },
+    "team-qa": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/team-qa/SKILL.md",
+      "computedHash": "a0a94906aeb66548a6f8a47c871686ffe9093f731daa2bc1ac9d147dac708ba7"
+    },
+    "team-release": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/team-release/SKILL.md",
+      "computedHash": "826d2ee1c352617fec83ff8516f1f871623604fa50883be9fbc191228ea1d35e"
+    },
+    "team-ui": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/team-ui/SKILL.md",
+      "computedHash": "f3a394488f02a20bbe6ea4d30b600ef43858ea2ef402e49397f7aa4f30c22a94"
+    },
+    "tech-debt": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/tech-debt/SKILL.md",
+      "computedHash": "817332063abe3b2c84c9c4ede9cce0fbbfed310fce0bdbf3e06d062e9bc01746"
+    },
+    "test-evidence-review": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/test-evidence-review/SKILL.md",
+      "computedHash": "f41de757548efc4c22358231bcfec5406b13e9e7e81a0d25aad77dc4cf89a802"
+    },
+    "test-flakiness": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/test-flakiness/SKILL.md",
+      "computedHash": "3dba3e20f3963b068a79a1bd27fe54bf0fa78c309675b3fbb63b64b65d83d358"
+    },
+    "test-helpers": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/test-helpers/SKILL.md",
+      "computedHash": "12c0769fc42d93d3e5d9cb984ed307f84ff42641a986586334fbc34ef7a5c5cd"
+    },
+    "test-setup": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/test-setup/SKILL.md",
+      "computedHash": "522c18fd26a82f07916b1c257b5583b3f62696cf1dada00db82311fae00d4cab"
+    },
+    "ux-design": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/ux-design/SKILL.md",
+      "computedHash": "455a0235e5bdea05d834f50dce44d1cebe10bf33aab446d43638c8f10fe43f00"
+    },
+    "ux-review": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/ux-review/SKILL.md",
+      "computedHash": "fdcbe19e227ce0a532c5157a0e8847bf0794891f09f5068d369f82224f96dfa8"
+    },
+    "vertical-slice": {
+      "source": "Donchitos/Claude-Code-Game-Studios",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/vertical-slice/SKILL.md",
+      "computedHash": "c9ff275ebb8719b0ee4cfd453782796fa8bd95bca675bc0bcdd94146dc962264"
+    }
+  }
+}
