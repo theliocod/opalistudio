@@ -26,6 +26,9 @@ func _initialize() -> void:
 	cam.far = 800.0
 	root.add_child(cam)
 	var p: Fighter = main.player
+	# personne ne se bat pendant la visite : les photos restent nettes
+	for e in main.enemies:
+		e.process_mode = Node.PROCESS_MODE_DISABLED
 	for k in shots.size():
 		var s: Array = shots[k]
 		var c: Vector3 = centre.call(s[6] if s.size() > 6 else OS.get_environment("PLACE"))

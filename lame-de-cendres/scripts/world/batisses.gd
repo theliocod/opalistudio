@@ -721,8 +721,11 @@ func _pagode(parent: Node3D, pos: Vector3, floors := 3) -> void:
 			var a := side * PI / 2
 			var n := Vector3(sin(a), 0, cos(a))
 			var r := Vector3(0, a, 0)
-			c.box(k.platre, Vector3(0, y + h / 2, 0) + n * (s / 2 - 0.04), Vector3(s - 0.2, h, 0.08), r)
-			c.box(k.vermillon, Vector3(0, y + h / 2, 0) + n * (s / 2 + 0.01), Vector3(s * 0.38, h * 0.82, 0.05), r)
+			c.box(k.planches, Vector3(0, y + h / 2, 0) + n * (s / 2 - 0.04), Vector3(s - 0.2, h, 0.08), r)
+			c.box(k.platre, Vector3(0, y + h - 0.22, 0) + n * (s / 2 - 0.02), Vector3(s - 0.2, 0.3, 0.08), r)
+			c.box(k.vermillon, Vector3(0, y + h / 2 - 0.1, 0) + n * (s / 2 + 0.01), Vector3(s * 0.38, h * 0.7, 0.05), r)
+			for sd: float in [-1.0, 1.0]:
+				c.box(k.lueur, Vector3(0, y + h / 2, 0) + n * (s / 2 + 0.0) + Basis(Vector3.UP, a) * Vector3(sd * s * 0.33, 0, 0), Vector3(s * 0.16, h * 0.45, 0.04), r)
 			for j in 3:
 				for i in 4:
 					var p := Vector3(0, y + h * 0.25 + j * h * 0.25, 0) + n * (s / 2 + 0.05) + Basis(Vector3.UP, a) * Vector3(-s * 0.13 + i * s * 0.087, 0, 0)
@@ -735,8 +738,8 @@ func _pagode(parent: Node3D, pos: Vector3, floors := 3) -> void:
 				c.box(k.poutre, p + n * 0.2 + Vector3(0, 0.12, 0), Vector3(0.22, 0.12, 0.4), r)
 		c.box(k.poutre, Vector3(0, y + h + 0.06, 0), Vector3(s + 0.3, 0.14, s + 0.3))
 		var ry := y + h + 0.32
-		c.roof(Vector3(0, ry, 0), s / 2 + 1.35, s / 2 + 1.35, 0.85 if f < floors - 1 else 1.5, k.roof, {"hip": 0.0, "up": 0.55, "thick": 0.2, "ridge": false})
-		y = ry + 0.45
+		c.roof(Vector3(0, ry, 0), s / 2 + 1.7, s / 2 + 1.7, 1.25 if f < floors - 1 else 1.9, k.roof, {"hip": 0.0, "up": 0.75, "thick": 0.32, "bend": 1.6, "ridge": false})
+		y = ry + 0.75
 	# la flèche : un socle, neuf anneaux, la gemme
 	c.box(k.kawara, Vector3(0, y + 0.55, 0), Vector3(0.7, 0.3, 0.7))
 	c.cyl(k.or, Vector3(0, y + 2.1, 0), 0.06, 0.06, 3.2, Vector3.ZERO, 8)
