@@ -12,6 +12,7 @@ import { buildWorld, ARENA_RADIUS } from './world.js';
 import { particlePool } from './fx.js';
 import { Fighter, ACTIONS, enemyThink } from './combat.js';
 import ART from './art.js';
+import { modelsReady } from './skin.js';
 
 const $ = s => document.querySelector(s);
 
@@ -167,6 +168,9 @@ function start() {
   try { const r = canvas.requestPointerLock?.(); if (r && r.catch) r.catch(() => (lockRefused = true)); } catch { lockRefused = true; }
 }
 $('#start-btn').addEventListener('click', start);
+/* les modèles 3D se décodent pendant l'écran titre */
+$('#start-btn').disabled = true;
+modelsReady.then(() => ($('#start-btn').disabled = false));
 $('#retry-btn').addEventListener('click', start);
 $('#again-btn').addEventListener('click', start);
 
