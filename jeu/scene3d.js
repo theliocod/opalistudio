@@ -631,8 +631,9 @@ function stageHTML(roomId, peopleHTML) {
   const list = r.fx || [];
   const grab = (table) => list.filter(f => table[f]).map(f => table[f]()).join('');
 
+  const art = roomArt(roomId);
   return `
-    <div class="iso-back">${grab(FX_BACK)}</div>
+    ${art ? `<img class="iso-art" src="${art}" alt="">` : `<div class="iso-back">${grab(FX_BACK)}</div>`}
     <div class="iso-cam">
       <div class="iso-room"
            style="--fa:${r.floor.a}; --fb:${r.floor.b}; --wc:${r.wall.c}; --wh:${r.wall.h}px">

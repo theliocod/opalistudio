@@ -681,6 +681,7 @@ logement, et débloquent les grandes soirées.
 | `data.js` | origines, logements, emplois, formations, types d'entreprise, canaux, postes, placements, objectifs |
 | `social.js` | lieux et événements, soirées, actifs de luxe, profils rencontrés |
 | `scene.js` | le téléphone, le rendu des scènes et les conversations |
+| `room-art.js` | les décors peints : quelle salle a son image (écrit par `tools/kie-rooms.mjs`) |
 | `scene3d.js` | le moteur de décors : primitives 3D, catalogue des huit salles, effets |
 | `scene.css` | l'habillage des scènes isométriques |
 | `people.js` | génération des candidats et des contacts, traits de caractère |

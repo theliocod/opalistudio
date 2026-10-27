@@ -275,6 +275,7 @@ function closeScenePanel() {
   const el = $('#scene');
   el.classList.add('hidden');
   el.innerHTML = '';
+  delete el.dataset.key;   // sinon, revenir au même endroit laisserait la scène vide
   document.body.classList.remove('no-scroll');
 }
 
@@ -366,7 +367,7 @@ function renderScene() {
           </div>
           <button class="btn btn-primary" data-scene="leave"><i class="fas fa-door-open"></i> Rentrer</button>
         </div>
-        <div class="iso-stage" style="--amb:${room.tint}">${stageHTML(sc.room, people)}</div>
+        <div class="iso-stage ${roomArt(sc.room) ? 'has-art' : ''}" style="--amb:${room.tint}">${stageHTML(sc.room, people)}</div>
         <div class="scene-foot">${sceneFoot(sc)}</div>
       </div>`;
 
@@ -405,7 +406,8 @@ function bindScene() {
 function bindSceneCamera() {
   const stage = $('#scene .iso-stage');
   const room = $('#scene .iso-room');
-  if (!stage || !room) return;
+  /* Un décor peint est figé sous un seul angle : la caméra ne bouge plus. */
+  if (!stage || !room || stage.classList.contains('has-art')) return;
   let raf = null;
   stage.addEventListener('pointermove', e => {
     if (raf) return;

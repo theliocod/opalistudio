@@ -41,6 +41,7 @@
   position: relative;
   perspective: 1600px; perspective-origin: 50% 42%;
   display: flex; align-items: center; justify-content: center;
+  --room-w: min(690px, 78vw); --cam-dy: -7px;
   padding: 26px 0 40px; min-height: 62vh;
   overflow: hidden; border-radius: 22px;
   background:
@@ -55,7 +56,7 @@
 
 .iso-room {
   --tx: 57deg; --tz: -45deg;
-  position: relative; width: min(690px, 78vw); aspect-ratio: 1;
+  position: relative; width: var(--room-w); aspect-ratio: 1;
   transform: rotateX(var(--tx)) rotateZ(var(--tz));
   transform-style: preserve-3d;
   animation: iso-in .8s cubic-bezier(.2, .9, .25, 1) backwards;
@@ -64,6 +65,22 @@
   from { transform: rotateX(72deg) rotateZ(-45deg) scale(.82); opacity: 0; }
   to   { transform: rotateX(var(--tx)) rotateZ(var(--tz)) scale(1); opacity: 1; }
 }
+
+/* ---------------------------------------------------------
+   DÉCOR PEINT
+   Le cadre (1,68 × 1,12 fois la largeur de la salle, centré sur
+   elle) doit rester celui de tools/capture-rooms.mjs.
+   --------------------------------------------------------- */
+.iso-art {
+  position: absolute; left: 50%; top: calc(50% + var(--cam-dy));
+  width: calc(var(--room-w) * 1.68); aspect-ratio: 3 / 2; height: auto;
+  transform: translate(-50%, -50%);
+  object-fit: cover; pointer-events: none; user-select: none;
+  -webkit-mask-image: radial-gradient(closest-side, #000 82%, transparent);
+          mask-image: radial-gradient(closest-side, #000 82%, transparent);
+  animation: fade .8s ease;
+}
+.iso-stage.has-art .iso-room > :not(.iso-person) { visibility: hidden; }
 
 /* ---------------------------------------------------------
    LE SOL
@@ -872,8 +889,7 @@
 .scene-reward { display: block; margin-top: 4px; color: #86efac; font-weight: 600; font-size: .82rem; }
 
 @media (max-width: 760px) {
-  .iso-room { width: 92vw; }
-  .iso-stage { min-height: 48vh; padding: 14px 0 24px; }
+  .iso-stage { --room-w: 92vw; --cam-dy: -5px; min-height: 48vh; padding: 14px 0 24px; }
   .scene-wrap { padding: 14px 12px 26px; }
 }
 @media (prefers-reduced-motion: reduce) {
