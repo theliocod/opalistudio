@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lame de Cendres</title>
+<style>
+  :root {
+    --blood: #c4161c; --ember: #ff7a2e; --gold: #d8b25a; --ink: #0b0709; --paper: #efe6d8;
+    --muted: rgba(239, 230, 216, .62);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; background: var(--ink); color: var(--paper); overflow: hidden;
+    font-family: 'Georgia', 'Times New Roman', serif; }
+  #game, #game canvas { position: fixed; inset: 0; display: block; }
+  .vignette { position: fixed; inset: 0; pointer-events: none;
+    background: radial-gradient(ellipse at 50% 55%, transparent 45%, rgba(0, 0, 0, .7) 100%); }
+  .hidden { display: none !important; }
+
+  /* ---------- Écrans ---------- */
+  .screen { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    text-align: center; padding: 24px; background: radial-gradient(ellipse at 50% 40%, rgba(40, 6, 10, .35), rgba(5, 3, 5, .82)); }
+  .kanji { font-size: clamp(3rem, 9vw, 6rem); color: var(--blood); text-shadow: 0 0 30px rgba(196, 22, 28, .6); line-height: 1; }
+  .screen h1 { font-size: clamp(2.2rem, 6vw, 4.2rem); letter-spacing: .32em; font-weight: 400; margin: 14px 0 6px; padding-left: .32em; }
+  .screen .sub { color: var(--muted); font-style: italic; max-width: 520px; line-height: 1.6; }
+  .btn { margin-top: 30px; padding: 14px 42px; border: 1px solid var(--blood); background: rgba(196, 22, 28, .14);
+    color: var(--paper); font: inherit; font-size: 1.05rem; letter-spacing: .3em; cursor: pointer; transition: .2s; }
+  .btn:hover { background: var(--blood); box-shadow: 0 0 30px rgba(196, 22, 28, .55); }
+  .controls { margin-top: 34px; display: grid; grid-template-columns: auto auto; gap: 8px 22px; text-align: left;
+    font-family: system-ui, sans-serif; font-size: .82rem; color: var(--muted); }
+  .controls b { color: var(--paper); font-weight: 600; }
+  .note { margin-top: 22px; font-family: system-ui, sans-serif; font-size: .74rem; color: rgba(239, 230, 216, .4); }
+
+  /* ---------- Interface de combat ---------- */
+  #hud { position: fixed; inset: 0; pointer-events: none; font-family: system-ui, sans-serif; }
+  .bars { position: absolute; left: 28px; top: 26px; width: min(340px, 60vw); }
+  .bar { height: 10px; background: rgba(0, 0, 0, .55); border: 1px solid rgba(255, 255, 255, .12); margin-bottom: 7px; overflow: hidden; }
+  .bar i { display: block; height: 100%; transition: width .15s; }
+  #hp { background: linear-gradient(90deg, #6d0a0e, var(--blood)); box-shadow: 0 0 12px rgba(196, 22, 28, .6); }
+  .bar.st { height: 5px; width: 78%; }
+  #st { background: linear-gradient(90deg, #8a6a2a, var(--gold)); }
+  .wave { position: absolute; right: 28px; top: 24px; text-align: right; font-size: .7rem; letter-spacing: .3em; color: var(--muted); }
+  .wave b { display: block; font-family: Georgia, serif; font-size: 1.4rem; letter-spacing: .1em; color: var(--paper); font-weight: 400; }
+  #boss { position: absolute; left: 50%; bottom: 46px; transform: translateX(-50%); width: min(620px, 80vw); text-align: center; }
+  #boss-name { font-family: Georgia, serif; letter-spacing: .25em; font-size: .95rem; margin-bottom: 8px; text-shadow: 0 0 12px #000; }
+  #boss .bar { height: 8px; }
+  #boss-hp { background: linear-gradient(90deg, #4a050a, #e0301a); box-shadow: 0 0 14px rgba(224, 48, 26, .7); }
+
+  #banner { position: fixed; left: 0; right: 0; top: 30%; text-align: center; pointer-events: none; opacity: 0; transition: opacity .6s; }
+  #banner.show { opacity: 1; }
+  #banner-title { font-size: clamp(1.6rem, 4vw, 2.8rem); letter-spacing: .3em; text-shadow: 0 0 24px rgba(0, 0, 0, .9); }
+  #banner-sub { margin-top: 8px; color: var(--muted); font-style: italic; }
+  .callout { position: fixed; left: 50%; top: 40%; transform: translate(-50%, -50%) scale(.9); pointer-events: none;
+    font-size: 1.8rem; letter-spacing: .4em; opacity: 0; transition: opacity .15s, transform .25s; text-shadow: 0 0 18px #000; }
+  .callout.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  .callout.gold { color: var(--gold); text-shadow: 0 0 22px rgba(216, 178, 90, .8); }
+  .callout.red { color: #ff4a3a; text-shadow: 0 0 22px rgba(255, 40, 30, .8); }
+  .callout.soft { color: var(--muted); font-size: 1.1rem; }
+  .crosshint { position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%); font-size: .7rem; color: rgba(239, 230, 216, .35); letter-spacing: .1em; }
+</style>
+</head>
+<body>
+<div id="game"></div>
+<div class="vignette"></div>
+
+<div id="hud" class="hidden">
+  <div class="bars">
+    <div class="bar"><i id="hp"></i></div>
+    <div class="bar st"><i id="st"></i></div>
+  </div>
+  <div class="wave">VAGUE<b id="wave">1 / 4</b></div>
+  <div id="boss" class="hidden">
+    <div id="boss-name"></div>
+    <div class="bar"><i id="boss-hp"></i></div>
+  </div>
+  <div class="crosshint">Échap pour libérer la souris</div>
+</div>
+
+<div id="banner"><div id="banner-title"></div><div id="banner-sub"></div></div>
+<div id="callout" class="callout"></div>
+
+<section id="title" class="screen">
+  <div class="kanji">灰刃</div>
+  <h1>LAME DE CENDRES</h1>
+  <p class="sub">La lune est rouge depuis sept nuits. Les morts du temple se sont relevés.<br>Il ne reste que toi, et ta lame.</p>
+  <button class="btn" id="start-btn">DÉGAINER</button>
+  <div class="controls">
+    <b>ZQSD / WASD</b><span>se déplacer</span>
+    <b>Souris</b><span>tourner la caméra</span>
+    <b>Clic gauche / J</b><span>coup rapide, trois à la suite</span>
+    <b>Clic droit / K</b><span>coup lourd</span>
+    <b>Espace</b><span>esquiver</span>
+    <b>Maj / L</b><span>parer au bon moment, garder en maintenant</span>
+  </div>
+  <p class="note">Quand leur lame rougeoie, ils vont frapper. Pare à l'instant de l'impact, puis riposte.</p>
+</section>
+
+<section id="over" class="screen hidden">
+  <div class="kanji">死</div>
+  <h1>TU ES TOMBÉ</h1>
+  <p class="sub">Les cendres retombent sur la cour. La nuit continue sans toi.</p>
+  <button class="btn" id="retry-btn">SE RELEVER</button>
+</section>
+
+<section id="win" class="screen hidden">
+  <div class="kanji">勝</div>
+  <h1>L'AUBE SE LÈVE</h1>
+  <p class="sub">L'Oni s'est dissipé avec la lune rouge. Le temple se tait enfin.</p>
+  <button class="btn" id="again-btn">RECOMMENCER</button>
+</section>
+
+<script src="dist/game.js"></script>
+</body>
+</html>
