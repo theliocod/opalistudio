@@ -2,7 +2,7 @@
 ## les gens de l'Oni. Elles s'ajoutent aux lieux de Landmarks et renvoient
 ## leurs habitants (folk), leurs gardes, leurs rondes et leurs points d'intérêt.
 class_name Towns
-extends Landmarks
+extends Batisses
 
 ## Chaque habitant : kind, role, faction, pos, yaw, idle, walk, route, id, name, armed, tint
 var folk: Array = []
@@ -13,37 +13,22 @@ var bell := {}                 # {pos, node, cut}
 var racks: Array = []          # {pos, katana, blades (Node3D), taken}
 var cages: Array = []          # {pos, door, open, prisoners (indices de folk)}
 var fires: Array = []          # Vector3, pour le crépitement
-var banners: Array = []        # les nobori que le vent fait claquer
 var spots := {}                # les lieux nommés où l'on trouve les samouraïs : id → Vector3
 var streets := {}              # ville → points de passage des promeneurs
 var emitters: Array = []       # les pétales des sakuras, que le vent emporte
-var _wind_mat: ShaderMaterial
 
 
 func build(t: Terrain, places: Array) -> void:
 	super.build(t, places)
-	mats.papier = _plain(Color(0.95, 0.88, 0.7), 0.9)
-	mats.papier.emission_enabled = true
-	mats.papier.emission = Color(1.0, 0.62, 0.3)
-	mats.papier.emission_energy_multiplier = 0.55
-	mats.rouge = _plain(Color(0.55, 0.07, 0.05), 0.6)
-	mats.chochin = _plain(Color(0.9, 0.2, 0.1), 0.8)
-	mats.chochin.emission_enabled = true
-	mats.chochin.emission = Color(1.0, 0.25, 0.08)
-	mats.chochin.emission_energy_multiplier = 1.6
-	mats.platre = _plain(Color(0.78, 0.75, 0.68), 0.95)
-	mats.fer = _plain(Color(0.08, 0.08, 0.09), 0.5, 0.8)
+	_k()
 	mats.sakura = _plain(Color(0.95, 0.55, 0.68), 0.9)
 	mats.sakura.emission_enabled = true
 	mats.sakura.emission = Color(0.5, 0.12, 0.2)
 	mats.sakura.emission_energy_multiplier = 0.25
 	mats.indigo = _plain(Color(0.1, 0.13, 0.26), 0.9)
-	mats.paille = _plain(Color(0.42, 0.34, 0.18), 1.0)
 	var water := ShaderMaterial.new()
 	water.shader = load("res://scripts/world/water.gdshader")
 	mats.eau = water
-	_wind_mat = ShaderMaterial.new()
-	_wind_mat.shader = load("res://scripts/world/banner.gdshader")
 	for p in places:
 		var c := Vector3(p.pos.x, terrain.height_at(p.pos.x, p.pos.y), p.pos.y)
 		match p.id:
@@ -67,86 +52,10 @@ func _folk(kind: String, role: String, faction: String, pos: Vector3, yaw: float
 	folk.append(f)
 
 
-## Une lanterne de papier rouge suspendue, avec sa lumière.
-func _chochin(parent: Node3D, pos: Vector3, light := true) -> void:
-	var s := SphereMesh.new(); s.radius = 0.22; s.height = 0.52; s.radial_segments = 10; s.rings = 6
-	var ball := _place(parent, s, mats.chochin, pos)
-	ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	var top := _cyl(parent, pos + Vector3(0, 0.3, 0), 0.12, 0.12, 0.06, mats.fer, false)
-	var bottom := _cyl(parent, pos - Vector3(0, 0.3, 0), 0.12, 0.12, 0.06, mats.fer, false)
-	for part in [ball, top, bottom]:
-		part.layers = LAMP_LAYER
-	var l: OmniLight3D = null
-	if light:
-		l = _light(parent, pos - Vector3(0, 0.15, 0), Color(1.0, 0.35, 0.12), 1.25, 6.5)
-		l.omni_attenuation = 2.0
-	lamps.append({"pos": ball.global_position, "light": l, "flames": [ball, top, bottom], "kind": "papier", "lit": true})
-
-
-## Une bannière nobori : un mât et une longue toile que le vent agite.
-func _nobori(parent: Node3D, pos: Vector3, color: Color, rot_y := 0.0) -> void:
-	var g := Node3D.new()
-	parent.add_child(g)
-	g.position = pos
-	g.rotation.y = rot_y
-	_cyl(g, Vector3(0, 2.6, 0), 0.04, 0.05, 5.2, mats.bois, true)
-	_cyl(g, Vector3(0.35, 4.9, 0), 0.025, 0.025, 0.8, mats.bois, false, Vector3(0, 0, PI / 2))
-	var pm := PlaneMesh.new()
-	pm.size = Vector2(0.7, 3.4)
-	pm.subdivide_width = 4
-	pm.subdivide_depth = 16
-	pm.orientation = PlaneMesh.FACE_Z
-	var m: ShaderMaterial = _wind_mat.duplicate()
-	m.set_shader_parameter("tint", color)
-	var cloth := _place(g, pm, m, Vector3(0.4, 3.15, 0))
-	banners.append(cloth)
-
-
-## Une maison de ville (machiya) : socle, murs de bois, claire-voie, papier
-## éclairé de l'intérieur, toit de tuiles débordant, rideau noren et lanterne.
-func _machiya(parent: Node3D, pos: Vector3, rot_y: float, w: float, d: float, opts := {}) -> Node3D:
-	var g := Node3D.new()
-	parent.add_child(g)
-	g.position = pos
-	g.rotation.y = rot_y
-	var h: float = opts.get("h", 3.0)
-	_box(g, Vector3(0, 0.2, 0), Vector3(w + 0.4, 0.4, d + 0.4), mats.pierre)
-	# les murs : plâtre en haut, bois en bas
-	_box(g, Vector3(0, 0.4 + h / 2, -d / 2 + 0.1), Vector3(w, h, 0.2), mats.platre)
-	_box(g, Vector3(-w / 2 + 0.1, 0.4 + h / 2, 0), Vector3(0.2, h, d), mats.platre)
-	_box(g, Vector3(w / 2 - 0.1, 0.4 + h / 2, 0), Vector3(0.2, h, d), mats.platre)
-	for x in [-w / 2, w / 2]:
-		_box(g, Vector3(x, 0.4 + 0.6, 0), Vector3(0.24, 1.2, d + 0.05), mats.bois, Vector3.ZERO, false)
-	# la façade : poteaux, claire-voie (koshi) et papier éclairé
-	var front := d / 2
-	for i in 5:
-		var x := -w / 2 + w * i / 4.0
-		_box(g, Vector3(x, 0.4 + h / 2, front), Vector3(0.18, h, 0.18), mats.bois, Vector3.ZERO, false)
-	var open: bool = opts.get("open", false)
-	if not open:
-		_box(g, Vector3(0, 0.4 + h / 2, front - 0.08), Vector3(w, h, 0.12), mats.papier, Vector3.ZERO, true)
-		for i in int(w / 0.18):
-			_box(g, Vector3(-w / 2 + 0.1 + i * 0.18, 0.4 + h * 0.45, front + 0.02), Vector3(0.05, h * 0.85, 0.05), mats.bois, Vector3.ZERO, false)
-	else:
-		_light(g, Vector3(0, 2.0, 0), Color(1.0, 0.55, 0.25), 1.8, 7.0)
-	# le toit, son auvent et le faîte
-	_roof(g, Vector3(0, 0.4 + h + 0.8, 0), w + 1.2, d + 1.6, 1.6, mats.tuile, Vector3(0, PI / 2, 0))
-	_box(g, Vector3(0, 0.4 + h * 0.62, front + 0.7), Vector3(w + 0.6, 0.08, 1.5), mats.tuile, Vector3(0.28, 0, 0), false)
-	_box(g, Vector3(0, 0.4 + h + 1.62, 0), Vector3(0.3, 0.16, d + 1.6), mats.tuile, Vector3.ZERO, false)
-	# le rideau noren, à l'entrée
-	var noren: Color = opts.get("noren", Color(0.12, 0.15, 0.3))
-	var nm := _plain(noren, 0.95)
-	for i in 3:
-		_box(g, Vector3(-0.42 + i * 0.42, 0.4 + 2.05, front + 0.22), Vector3(0.38, 0.75, 0.02), nm, Vector3.ZERO, false)
-	if opts.get("lantern", true):
-		# accrochée sous l'auvent, assez loin des tuiles pour ne pas les brûler de lumière
-		_chochin(g, Vector3(w / 2 - 0.5, 0.4 + h * 0.62 - 0.36, front + 1.15), opts.get("light", true))
-	return g
-
-
-## Une palissade de ville : socle de pierre, planches, chaperon de tuiles.
-## Trop haute pour être enjambée.
-func _palisade(a: Vector2, b: Vector2, h := 3.4) -> void:
+## Une palissade de fort : un socle de pierres, des rondins serrés taillés en
+## pointe, deux traverses de chaque côté. Trop haute pour être enjambée.
+func _palisade(c: Chantier, a: Vector2, b: Vector2, h := 4.2) -> void:
+	var k := _k()
 	var n := maxi(1, int(a.distance_to(b) / 4.0))
 	for i in n:
 		var p0 := a.lerp(b, float(i) / n)
@@ -155,38 +64,58 @@ func _palisade(a: Vector2, b: Vector2, h := 3.4) -> void:
 		var y := minf(terrain.height_at(p0.x, p0.y), terrain.height_at(p1.x, p1.y)) - 0.3
 		var len := p0.distance_to(p1) + 0.1
 		var rot := atan2(p1.x - p0.x, p1.y - p0.y) + PI / 2
-		var g := Node3D.new()
-		add_child(g)
-		g.position = Vector3(mid.x, y, mid.y)
-		g.rotation.y = rot
-		_box(g, Vector3(0, 0.6, 0), Vector3(len, 1.2, 1.0), mats.pierre)
-		_box(g, Vector3(0, 1.2 + (h - 1.2) / 2, 0), Vector3(len, h - 1.2, 0.35), mats.bois)
-		_box(g, Vector3(0, h + 0.1, 0), Vector3(len + 0.1, 0.25, 0.8), mats.tuile, Vector3.ZERO, false)
-		for k in 2:
-			_box(g, Vector3(-len / 2 + 0.1 + k * len, 1.2 + (h - 1.2) / 2, 0.22), Vector3(0.22, h - 1.2, 0.22), mats.bois, Vector3.ZERO, false)
+		c.xf = Transform3D(Basis(Vector3.UP, rot), Vector3(mid.x, y, mid.y))
+		c.box(k.pierre, Vector3(0, 0.45, 0), Vector3(len, 1.1, 1.1))
+		var logs := int(len / 0.3)
+		for j in logs:
+			var x := -len / 2 + (j + 0.5) * len / logs
+			var lh := h - 1.0 + _rng.randf_range(-0.25, 0.2)
+			var r := _rng.randf_range(0.13, 0.16)
+			c.cyl(k.poutre, Vector3(x, 1.0 + lh / 2, 0), r, r, lh, Vector3(0, 0, _rng.randf_range(-0.025, 0.025)), 7, false)
+			c.cyl(k.poutre, Vector3(x, 1.0 + lh + 0.22, 0), 0.0, r, 0.45, Vector3.ZERO, 7, false)
+		for side: float in [-1.0, 1.0]:
+			for yy: float in [1.7, h - 0.5]:
+				c.box(k.poutre, Vector3(0, yy, side * 0.2), Vector3(len, 0.15, 0.1))
+		var s := BoxShape3D.new()
+		s.size = Vector3(len, h + 0.5, 0.7)
+		_collide(s, Transform3D(Basis(Vector3.UP, rot), Vector3(mid.x, y + (h + 0.5) / 2, mid.y)))
+	c.xf = Transform3D.IDENTITY
 
 
-## Une grande porte de ville (yaguramon) : deux piliers, un étage de guet.
-func _gate(parent: Node3D, pos: Vector3, rot_y: float, banner: Color) -> void:
-	var g := Node3D.new()
-	parent.add_child(g)
-	g.position = pos
-	g.rotation.y = rot_y
-	for s in [-1, 1]:
-		_box(g, Vector3(s * 3.4, 2.4, 0), Vector3(1.0, 4.8, 1.4), mats.laque)
-		_box(g, Vector3(s * 3.4, 0.4, 0), Vector3(1.3, 0.8, 1.7), mats.pierre)
-		# les battants, ouverts vers l'intérieur
-		_box(g, Vector3(s * 2.35, 2.0, -1.0), Vector3(0.12, 3.6, 2.0), mats.bois, Vector3(0, s * 0.15, 0))
-		_nobori(g, Vector3(s * 5.0, 0, 1.6), banner)
-		_lantern(g, Vector3(s * 5.2, 0, 3.0), s == 1)
-	_box(g, Vector3(0, 5.0, 0), Vector3(8.4, 0.5, 1.8), mats.laque, Vector3.ZERO, false)
-	# l'étage de guet et son toit
-	_box(g, Vector3(0, 5.9, 0), Vector3(7.6, 1.3, 2.4), mats.platre, Vector3.ZERO, false)
-	for i in 6:
-		_box(g, Vector3(-3.1 + i * 1.24, 5.9, 1.22), Vector3(0.12, 1.3, 0.1), mats.bois, Vector3.ZERO, false)
-	_roof(g, Vector3(0, 7.2, 0), 9.6, 4.2, 1.5, mats.tuile, Vector3(0, 0, 0))
-	_chochin(g, Vector3(-1.5, 4.2, 0.9), true)
-	_chochin(g, Vector3(1.5, 4.2, 0.9), false)
+## Une tour de guet (yagura) : quatre poteaux qui s'évasent, contreventés en
+## croix, une plate-forme à parapet de planches, un petit toit irimoya, l'échelle.
+func _yagura(g: Node3D, at: Vector3) -> void:
+	var k := _k()
+	var c := _chantier()
+	c.xf = Transform3D(Basis(), at)
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			c.beam(k.poutre, Vector3(sx * 1.55, -0.4, sz * 1.55), Vector3(sx * 1.3, 7.85, sz * 1.3), 0.24, 0.24, Vector3.FORWARD if absf(sx) > 0 else Vector3.UP)
+			c.box(k.pierre, Vector3(sx * 1.55, 0.05, sz * 1.55), Vector3(0.6, 0.3, 0.6))
+	for side in 4:
+		var bs := Basis(Vector3.UP, side * PI / 2)
+		for y: float in [0.5, 3.1]:
+			c.beam(k.poutre, bs * Vector3(-1.5, y, 1.5), bs * Vector3(1.4, y + 2.5, 1.45), 0.12, 0.14, bs * Vector3.BACK)
+			c.beam(k.poutre, bs * Vector3(1.5, y, 1.5), bs * Vector3(-1.4, y + 2.5, 1.45), 0.12, 0.14, bs * Vector3.BACK)
+			c.beam(k.poutre, bs * Vector3(-1.5, y, 1.5), bs * Vector3(1.5, y, 1.5), 0.13, 0.15)
+	c.box(k.planches, Vector3(0, 6.0, 0), Vector3(3.4, 0.2, 3.4))
+	for side in 4:
+		var bs := Basis(Vector3.UP, side * PI / 2)
+		c.boxb(k.poutre, bs * Vector3(0, 5.85, 1.62), Vector3(3.4, 0.22, 0.2), bs)
+		c.boxb(k.planches, bs * Vector3(0, 6.55, 1.62), Vector3(3.3, 0.9, 0.08), bs)
+		c.boxb(k.poutre, bs * Vector3(0, 7.03, 1.62), Vector3(3.4, 0.08, 0.14), bs)
+	c.roof(Vector3(0, 7.9, 0), 2.25, 2.25, 1.15, k.roof, {"hip": 0.4, "up": 0.3, "thick": 0.12})
+	# l'échelle, sur la face qui regarde la cour
+	for x: float in [-0.3, 0.3]:
+		c.beam(k.poutre, Vector3(x, 0.0, 2.25), Vector3(x, 6.1, 1.75), 0.07, 0.07)
+	for i in 12:
+		var t := (i + 0.5) / 12.0
+		c.box(k.poutre, Vector3(0, t * 6.0, 2.25 - t * 0.5), Vector3(0.62, 0.05, 0.06))
+	c.build(g, "Tour de guet")
+	_solid(g, at + Vector3(0, 6.0, 0), Vector3(3.4, 0.3, 3.4))
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			_solid(g, at + Vector3(sx * 1.45, 3.0, sz * 1.45), Vector3(0.3, 6.0, 0.3))
 
 
 ## Un sakura : un tronc noueux et des nuages de fleurs roses.
@@ -233,7 +162,7 @@ func _sakura(parent: Node3D, pos: Vector3, s := 1.0) -> void:
 
 func _barrel(parent: Node3D, pos: Vector3) -> void:
 	_cyl(parent, pos + Vector3(0, 0.45, 0), 0.36, 0.36, 0.9, mats.bois)
-	for y in [0.2, 0.7]:
+	for y: float in [0.2, 0.7]:
 		_cyl(parent, pos + Vector3(0, y, 0), 0.375, 0.375, 0.05, mats.corde, false)
 
 
@@ -248,7 +177,7 @@ func _rack(parent: Node3D, pos: Vector3, rot_y: float, colors: Array, katana := 
 	parent.add_child(g)
 	g.position = pos
 	g.rotation.y = rot_y
-	for s in [-1, 1]:
+	for s: float in [-1.0, 1.0]:
 		_box(g, Vector3(s * 0.7, 0.6, 0), Vector3(0.1, 1.2, 0.3), mats.laque)
 	var blades := Node3D.new()
 	g.add_child(blades)
@@ -287,6 +216,50 @@ func _meule(parent: Node3D, pos: Vector3) -> void:
 	flammables.append({"pos": mi.global_position - Vector3(0, 0.9, 0), "r": 1.3, "node": mi, "shape": cs, "kind": "paille", "burnt": false})
 
 
+## L'étal du marchand : un comptoir de planches, quatre poteaux, un petit toit
+## de tuiles, l'enseigne, des rouleaux d'étoffe et des paniers.
+func _etal(sg: Node3D) -> void:
+	var k := _k()
+	var c := _chantier()
+	c.box(k.planches, Vector3(0, 0.5, 0.6), Vector3(4.2, 1.0, 0.9))
+	c.box(k.poutre, Vector3(0, 1.03, 0.6), Vector3(4.4, 0.07, 1.05))
+	for x: float in [-2.1, 2.1]:
+		for z: float in [-1.2, 1.2]:
+			c.box(k.poutre, Vector3(x, 1.35, z), Vector3(0.13, 2.7, 0.13))
+	c.box(k.poutre, Vector3(0, 2.62, 1.2), Vector3(4.5, 0.16, 0.16))
+	c.box(k.poutre, Vector3(0, 2.62, -1.2), Vector3(4.5, 0.16, 0.16))
+	c.roof(Vector3(0, 2.72, 0), 2.6, 1.85, 0.75, k.roof, {"up": 0.1, "thick": 0.1})
+	c.panel(k.noren[0], Vector3(0, 2.25, 1.32), Vector2(4.0, 0.7), Vector3.ZERO, true)
+	_kanban(c, Vector3(2.75, 0, 1.4), 2)
+	# des rouleaux d'étoffe, des paniers, une balance
+	var cloth := [_plain(Color(0.5, 0.12, 0.08), 0.9), _plain(Color(0.12, 0.16, 0.3), 0.9), _plain(Color(0.55, 0.45, 0.2), 0.9)]
+	for i in 4:
+		c.cyl(cloth[i % 3], Vector3(-1.6 + i * 0.32, 1.17, 0.85), 0.09, 0.09, 0.6, Vector3(PI / 2, 0, 0), 8)
+	for i in 2:
+		c.cyl(k.bambou, Vector3(0.9 + i * 0.6, 1.2, 0.6), 0.22, 0.16, 0.28, Vector3.ZERO, 10)
+	c.build(sg, "Étal")
+	_solid(sg, Vector3(0, 0.5, 0.6), Vector3(4.2, 1.0, 0.9))
+
+
+## Le Registre des Lames : un tableau couvert sur un socle de pierre, ses six
+## plaques de papier, son petit toit de tuiles.
+func _registre(rg: Node3D) -> void:
+	var k := _k()
+	var c := _chantier()
+	for s: float in [-1.0, 1.0]:
+		c.box(k.pierre, Vector3(s * 1.3, 0.15, 0), Vector3(0.4, 0.3, 0.4))
+		c.box(k.vermillon, Vector3(s * 1.3, 1.4, 0), Vector3(0.16, 2.5, 0.16))
+	c.box(k.planches, Vector3(0, 1.5, 0), Vector3(2.45, 1.45, 0.08))
+	c.box(k.poutre, Vector3(0, 2.28, 0.02), Vector3(2.75, 0.12, 0.14))
+	c.box(k.poutre, Vector3(0, 0.72, 0.02), Vector3(2.75, 0.1, 0.14))
+	for i in 6:
+		c.box(k.lueur, Vector3(-0.8 + (i % 3) * 0.8, 1.8 - (i / 3) * 0.6, 0.06), Vector3(0.6, 0.44, 0.03))
+		c.box(k.poutre, Vector3(-0.8 + (i % 3) * 0.8, 2.06 - (i / 3) * 0.6, 0.07), Vector3(0.04, 0.1, 0.04))
+	c.roof(Vector3(0, 2.62, 0), 1.65, 0.62, 0.5, k.roof, {"up": 0.12, "thick": 0.08})
+	c.build(rg, "Registre")
+	_solid(rg, Vector3(0, 1.3, 0), Vector3(2.8, 2.6, 0.3))
+
+
 # ---------- Hōjō-machi, la ville libre ----------
 
 func _hojo(c: Vector3, p: Dictionary) -> void:
@@ -296,6 +269,7 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 	var D := 30.0
 	# l'enceinte, ouverte au sud (vers l'autel) et au nord (vers le lac)
 	var corners := [Vector2(-W, -D), Vector2(W, -D), Vector2(W, D), Vector2(-W, D)]
+	var walls := _chantier()
 	for i in 4:
 		var a: Vector2 = corners[i] + Vector2(c.x, c.z)
 		var b: Vector2 = corners[(i + 1) % 4] + Vector2(c.x, c.z)
@@ -303,10 +277,11 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 			# une porte au milieu des côtés nord et sud
 			var mid := (a + b) / 2.0
 			var dir := (b - a).normalized()
-			_palisade(a, mid - dir * 4.0)
-			_palisade(mid + dir * 4.0, b)
+			_enceinte(walls, a, mid - dir * 4.0)
+			_enceinte(walls, mid + dir * 4.0, b)
 		else:
-			_palisade(a, b)
+			_enceinte(walls, a, b)
+	walls.build(self, "Enceinte de Hōjō")
 	_gate(g, _at(c, 0, D) - c, 0.0, Color(0.85, 0.85, 0.82))
 	_gate(g, _at(c, 0, -D) - c, PI, Color(0.85, 0.85, 0.82))
 
@@ -316,13 +291,19 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 	# les maisons qui bordent la grand-rue
 	var houses := [[-8.5, -22.0, 7.0, 6.0], [8.5, -21.0, 6.5, 6.0], [-8.5, -12.5, 6.0, 5.5], [8.5, 14.0, 6.5, 5.5],
 		[-8.5, 21.0, 7.0, 6.0], [8.5, 22.0, 6.0, 5.5], [-19.5, 22.0, 6.0, 5.5], [19.5, -22.0, 6.0, 5.0]]
-	var noren := [Color(0.12, 0.15, 0.3), Color(0.35, 0.08, 0.06), Color(0.15, 0.2, 0.14), Color(0.12, 0.15, 0.3)]
+	houses.append_array([[-8.5, -5.0, 5.0, 5.5], [8.5, -15.2, 5.2, 5.5], [-21.5, 5.5, 5.4, 5.0], [20.0, -11.0, 6.0, 5.0], [19.5, 21.0, 6.0, 5.5]])
 	for i in houses.size():
 		var h: Array = houses[i]
 		var rot := -PI / 2 if h[0] > 0 else PI / 2
-		_machiya(g, _at(c, h[0], h[1]) - c, rot, h[2], h[3], {"noren": noren[i % noren.size()], "light": i % 2 == 0})
+		_machiya(g, _at(c, h[0], h[1]) - c, rot, h[2], h[3], {"noren": [0, 3, 0, 3][i % 4], "sign": 3 if i == 2 else -1, "light": i % 2 == 0})
+	# un entrepôt de riz, et la tour de guet à incendie avec sa cloche
+	var kr := Node3D.new()
+	g.add_child(kr)
+	kr.position = _at(c, -19.0, -5.4) - c
+	_kura(kr, 4.4, 4.6, false)
+	_hinomi(g, _at(c, 14.5, -16.0) - c)
 	# des lanternes de pierre le long de la grand-rue, des bannières
-	for z in [-18.0, -6.0, 6.0, 18.0]:
+	for z: float in [-18.0, -6.0, 6.0, 18.0]:
 		_lantern(g, _at(c, -3.6, z) - c, int(z) % 12 == 6)
 		_nobori(g, _at(c, 3.6, z + 2.0) - c, Color(0.85, 0.82, 0.78), PI / 2)
 
@@ -332,12 +313,7 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 	g.add_child(sg)
 	sg.position = stall
 	sg.rotation.y = -PI / 2
-	_box(sg, Vector3(0, 0.5, 0.6), Vector3(4.2, 1.0, 0.9), mats.bois)
-	_box(sg, Vector3(0, 1.02, 0.6), Vector3(4.3, 0.06, 1.0), mats.laque, Vector3.ZERO, false)
-	for x in [-2.1, 2.1]:
-		for z in [-1.2, 1.2]:
-			_cyl(sg, Vector3(x, 1.4, z), 0.07, 0.07, 2.8, mats.bois, false)
-	_box(sg, Vector3(0, 2.85, 0), Vector3(4.8, 0.06, 3.0), _plain(Color(0.35, 0.08, 0.06), 0.9), Vector3(0.12, 0, 0), false)
+	_etal(sg)
 	_rack(sg, Vector3(0, 0, -1.0), 0.0, [Color(0.55, 0.9, 0.7), Color(1.0, 0.55, 0.7), Color(0.3, 0.8, 0.3)])
 	_chochin(sg, Vector3(-1.8, 2.4, 1.1))
 	_chochin(sg, Vector3(1.8, 2.4, 1.1), false)
@@ -348,11 +324,12 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 	spots.marche = _at(c, 6.0, 4.5)
 
 	# ── la taverne de la Lanterne Rouge, ouverte sur la rue
-	var tav := _machiya(g, _at(c, -10.0, 5.0) - c, PI / 2, 8.0, 7.0, {"open": true, "noren": Color(0.45, 0.06, 0.05), "lantern": false})
-	for z in [-2.6, -1.0, 1.0, 2.6]:
-		_chochin(tav, Vector3(z, 2.9, 4.0), z == -1.0)
+	var tav := _machiya(g, _at(c, -10.0, 5.0) - c, PI / 2, 8.0, 7.0, {"open": true, "noren": 1, "sign": 0, "lantern": false, "props": false})
+	for z: float in [-2.6, -1.0, 1.0, 2.6]:
+		_chochin(tav, Vector3(z, 2.7, 4.0), z == -1.0)
+	_light(tav, Vector3(0, 2.2, 0), Color(1.0, 0.55, 0.25), 1.8, 7.0)
 	_box(tav, Vector3(0, 0.95, -1.8), Vector3(5.0, 1.1, 0.7), mats.laque)
-	for x in [-2.5, -1.5, 2.2]:
+	for x: float in [-2.5, -1.5, 2.2]:
 		_barrel(tav, Vector3(x, 0.4, -2.9))
 	for k in 2:
 		_box(tav, Vector3(-1.6 + k * 3.2, 0.62, 3.6), Vector3(2.2, 0.12, 0.6), mats.bois)
@@ -362,7 +339,7 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 	_folk("paysan", "civil", "hojo", _at(c, -6.5, 7.6), PI / 2, {"idle": "parler", "name": "Un paysan", "armed": false})
 
 	# ── la maison de thé du Saule, à l'est, avec son ombrelle rouge
-	var tea := _machiya(g, _at(c, 10.0, -9.0) - c, -PI / 2, 6.5, 5.5, {"noren": Color(0.15, 0.25, 0.15)})
+	var tea := _machiya(g, _at(c, 10.0, -9.0) - c, -PI / 2, 6.5, 5.5, {"noren": 2, "sign": 1})
 	var para := CylinderMesh.new(); para.top_radius = 0.0; para.bottom_radius = 1.6; para.height = 0.6; para.radial_segments = 16
 	_place(g, para, mats.rouge, _at(c, 5.2, -9.5) - c + Vector3(0, 2.4, 0))
 	_cyl(g, _at(c, 5.2, -9.5) - c + Vector3(0, 1.1, 0), 0.03, 0.03, 2.2, mats.bois, false)
@@ -373,22 +350,12 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 	_folk("villageoise", "civil", "hojo", _at(c, 4.6, -10.6), 0.3, {"idle": "parler", "name": "Une servante", "armed": false})
 
 	# ── le dojo, au fond de la ville, et sa cour d'entraînement
-	var dj := Node3D.new()
-	g.add_child(dj)
-	dj.position = _at(c, 0, -24.5) - c
-	_box(dj, Vector3(0, 0.5, 0), Vector3(15, 1.0, 8), mats.pierre)
-	for i in 6:
-		_cyl(dj, Vector3(-6.5 + i * 2.6, 2.7, 3.6), 0.2, 0.22, 3.4, mats.laque)
-	_box(dj, Vector3(0, 2.7, -3.8), Vector3(14, 3.4, 0.3), mats.platre)
-	for s in [-1, 1]:
-		_box(dj, Vector3(s * 6.9, 2.7, 0), Vector3(0.3, 3.4, 7.6), mats.platre)
-	_box(dj, Vector3(0, 4.5, 0.2), Vector3(15.6, 0.4, 8.6), mats.laque, Vector3.ZERO, false)
-	_roof(dj, Vector3(0, 5.9, 0.2), 17.0, 10.0, 2.6, mats.tuile, Vector3(0, PI / 2, 0))
-	_light(dj, Vector3(0, 3.0, 0), Color(1.0, 0.6, 0.3), 2.0, 9.0)
-	for i in 3:
-		_box(dj, Vector3(0, 0.15 + i * 0.2, 4.4 + i * 0.4), Vector3(4, 0.2, 0.4), mats.pierre)
+	var dj := _dojo(g, _at(c, 0, -24.5) - c)
+	_light(dj, Vector3(0, 3.0, -0.5), Color(1.0, 0.6, 0.3), 2.0, 9.0)
+	_lantern(dj, Vector3(-3.2, 0.25, 5.2))
+	_lantern(dj, Vector3(3.2, 0.25, 5.2), false)
 	# les poteaux de frappe (makiwara)
-	for x in [-6.0, -3.0, 3.0, 6.0]:
+	for x: float in [-6.0, -3.0, 3.0, 6.0]:
 		var mk := _at(c, x, -16.5) - c
 		_cyl(g, mk + Vector3(0, 0.9, 0), 0.12, 0.14, 1.8, mats.bois)
 		_cyl(g, mk + Vector3(0, 1.3, 0), 0.16, 0.16, 0.5, mats.paille, false)
@@ -398,13 +365,7 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 	g.add_child(rg)
 	rg.position = reg
 	rg.rotation.y = -0.4
-	for s in [-1, 1]:
-		_cyl(rg, Vector3(s * 1.3, 1.25, 0), 0.08, 0.09, 2.5, mats.laque)
-	_box(rg, Vector3(0, 1.45, 0), Vector3(2.5, 1.4, 0.1), mats.bois)
-	_box(rg, Vector3(0, 2.6, 0), Vector3(3.2, 0.1, 0.8), mats.tuile, Vector3(0.0, 0, 0), false)
-	_roof(rg, Vector3(0, 2.85, 0), 3.2, 0.9, 0.45, mats.tuile, Vector3(0, PI / 2, 0))
-	for i in 6:
-		_box(rg, Vector3(-0.85 + (i % 3) * 0.85, 1.75 - (i / 3) * 0.6, 0.07), Vector3(0.6, 0.42, 0.04), mats.papier, Vector3.ZERO, false)
+	_registre(rg)
 	_light(rg, Vector3(0, 2.2, 0.8), Color(1.0, 0.6, 0.3), 1.2, 4.0)
 	registry = {"pos": g.global_transform * (reg + Vector3(0, 0, 0.9))}
 	spots.dojo = _at(c, 0, -19.5)
@@ -416,8 +377,7 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 	# ── le sanctuaire sous le sakura
 	var sh := _at(c, -17.0, -12.0) - c
 	_plaza(g, sh + Vector3(0, -0.1, 0), Vector2(8, 8))
-	_box(g, sh + Vector3(0, 0.7, -2.4), Vector3(2.4, 1.4, 1.8), mats.laque)
-	_roof(g, sh + Vector3(0, 2.0, -2.4), 3.2, 2.6, 0.9, mats.tuile, Vector3(0, PI / 2, 0))
+	_honden(g, sh + Vector3(0, 0, -3.2))
 	_torii(g, sh + Vector3(0, 0, 3.2), 0.0, 0.42)
 	_sakura(g, sh + Vector3(-2.6, 0, 0.4), 1.15)
 	_lantern(g, sh + Vector3(2.4, 0, 1.6))
@@ -437,9 +397,9 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 		var t := float(i) / 8.0
 		var y := sin(t * PI) * 0.9
 		_box(g, pond + Vector3(-5.6 + t * 11.2, 0.25 + y, 0), Vector3(1.35, 0.16, 2.0), mats.bois, Vector3(0, 0, -cos(t * PI) * 0.28))
-		for s in [-1, 1]:
+		for s: float in [-1.0, 1.0]:
 			_cyl(g, pond + Vector3(-5.6 + t * 11.2, 0.75 + y, s * 0.95), 0.04, 0.04, 0.8, mats.rouge, false)
-	for s in [-1, 1]:
+	for s: float in [-1.0, 1.0]:
 		for i in 8:
 			var t := (float(i) + 0.5) / 8.0
 			_box(g, pond + Vector3(-5.6 + t * 11.2, 1.1 + sin(t * PI) * 0.9, s * 0.95), Vector3(1.45, 0.06, 0.06), mats.rouge, Vector3(0, 0, -cos(t * PI) * 0.28), false)
@@ -465,18 +425,15 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 		_meule(g, _at(c, mp.x, mp.y) - c)
 	var well := _at(c, 3.0, 25.0) - c
 	wells.append(g.global_transform * well)
-	_cyl(g, well + Vector3(0, 0.5, 0), 0.9, 1.0, 1.0, mats.pierre)
-	_box(g, well + Vector3(0, 2.0, 0), Vector3(2.2, 0.1, 0.2), mats.bois, Vector3.ZERO, false)
-	for x in [-1.0, 1.0]:
-		_cyl(g, well + Vector3(x, 1.3, 0), 0.06, 0.06, 1.6, mats.bois, false)
+	_puits(g, well)
 	for k in 4:
 		_barrel(g, _at(c, -3.8 + (k % 2) * 0.8, -1.8 - (k / 2) * 0.8) - c)
 	_crate(g, _at(c, 4.2, 9.0) - c)
 	_crate(g, _at(c, 4.6, 10.0) - c, 0.6)
 
 	# ── la garde de la ville : deux hommes à chaque porte, une ronde dans la grand-rue
-	for z in [D + 2.6, -D - 2.6]:
-		for s in [-1, 1]:
+	for z: float in [D + 2.6, -D - 2.6]:
+		for s: float in [-1.0, 1.0]:
 			var yaw := 0.0 if z > 0 else PI
 			var who := "saito" if z > 0 and s == -1 else ""
 			_folk("garde", "guard", "hojo", _at(c, s * 2.6, z), yaw, {"idle": "repos", "id": who, "name": "Le capitaine Saitō" if who != "" else "Un garde de Hōjō", "post": true})
@@ -502,6 +459,160 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 	_folk("paysan", "civil", "hojo", _at(c, -1.6, 15.0), -PI / 2, {"idle": "ecouter", "name": "Un voisin", "armed": false})
 
 
+## La grande salle du commandant : podium de pierre, colonnes vermillon,
+## murs de planches noires et de plâtre, la plaque 赤金, un toit irimoya aux
+## coins dressés et ses poissons dorés.
+func _grande_salle(g: Node3D, at: Vector3) -> void:
+	var k := _k()
+	var c := _chantier()
+	c.xf = Transform3D(Basis(), at)
+	var W := 15.0
+	var D := 7.4
+	var yf := 1.0
+	var yt := yf + 3.6
+	c.box(k.pierre, Vector3(0, 0.25, 0), Vector3(16.0, 1.5, 8.0))
+	c.box(k.poutre, Vector3(0, yf + 0.03, 0), Vector3(15.6, 0.06, 7.6))
+	for i in 4:
+		c.box(k.pierre, Vector3(0, 0.12 + i * 0.22, 4.0 + (3 - i) * 0.35), Vector3(4.0, 0.22, 0.35))
+	for i in 6:
+		var x := -W / 2 + i * W / 5.0
+		c.cyl(k.vermillon, Vector3(x, (yf + yt) / 2, 3.6), 0.25, 0.28, yt - yf, Vector3.ZERO, 10)
+	_mur(c, Vector3(-W / 2, 0, -D / 2), Vector3(W / 2, 0, -D / 2), yf, yt, -1.0, 1.6)
+	_mur(c, Vector3(-W / 2, 0, 3.4), Vector3(-W / 2, 0, -D / 2), yf, yt, -1.0, 1.6)
+	_mur(c, Vector3(W / 2, 0, -D / 2), Vector3(W / 2, 0, 3.4), yf, yt, -1.0, 1.6)
+	c.box(k.vermillon, Vector3(0, yt + 0.12, 3.6), Vector3(W + 0.8, 0.32, 0.36))
+	c.box(k.vermillon, Vector3(0, yt - 0.9, 3.6), Vector3(W + 0.4, 0.18, 0.26))
+	for i in 12:
+		var x := -W / 2 + i * W / 11.0
+		c.box(k.poutre, Vector3(x, yt + 0.38, 3.95), Vector3(0.24, 0.16, 0.8))
+	c.panel(k.plaques[2], Vector3(0, yt - 0.42, 3.8), Vector2(2.2, 1.0))
+	# l'estrade du commandant, son paravent
+	c.box(k.tatami, Vector3(0, yf + 0.12, -2.2), Vector3(5.0, 0.2, 2.4))
+	for i in 6:
+		c.box(k.or if i % 2 == 0 else k.sombre, Vector3(-2.0 + i * 0.8, yf + 1.1, -3.45), Vector3(0.78, 1.8, 0.05), Vector3(0, (i % 2) * 0.35 - 0.17, 0))
+	c.roof(Vector3(0, yt + 0.48, 0.1), W / 2 + 1.5, D / 2 + 1.7, 3.0, k.roof, {"hip": 0.45, "up": 0.55, "thick": 0.24, "shachi": true})
+	c.build(g, "Grande salle")
+	_solid(g, at + Vector3(0, 0.25, 0), Vector3(16.0, 1.5, 8.0))
+	_solid(g, at + Vector3(0, (yf + yt) / 2, -D / 2), Vector3(W, yt - yf, 0.3))
+	for s: float in [-1.0, 1.0]:
+		_solid(g, at + Vector3(s * W / 2, (yf + yt) / 2, 0), Vector3(0.3, yt - yf, D))
+
+
+## Un entrepôt (kura) : des murs de plâtre épais, un soubassement de tuiles
+## sombres, de petites fenêtres grillées, une porte aux montants à gradins.
+## L'armurerie d'Akagane est un kura de 7 × 6,2 m dont on enfonce la porte ;
+## ceux de Hōjō, plus petits, gardent leurs lourds battants clos.
+func _kura(kg: Node3D, w := 7.0, d := 6.2, open := true) -> void:
+	var k := _k()
+	var c := _chantier()
+	var y0 := 0.6
+	var y1 := 3.8 if w > 5.0 else 3.4
+	var hw := w / 2
+	var hd := d / 2 - 0.1
+	var side := (w - 1.2) / 2
+	c.box(k.pierre, Vector3(0, 0.15, 0), Vector3(w + 0.4, 0.9, d + 0.2))
+	for wall in [[Vector3(0, 0, -hd), Vector3(w, 0, 0.32)], [Vector3(-hw, 0, 0), Vector3(0.32, 0, d)], [Vector3(hw, 0, 0), Vector3(0.32, 0, d)],
+			[Vector3(-(hw - side / 2), 0, hd), Vector3(side, 0, 0.32)], [Vector3(hw - side / 2, 0, hd), Vector3(side, 0, 0.32)]]:
+		var at: Vector3 = wall[0]
+		var sz: Vector3 = wall[1]
+		c.box(k.platre, at + Vector3(0, (y0 + y1) / 2, 0), Vector3(sz.x, y1 - y0, sz.z))
+		c.box(k.kawara, at + Vector3(0, y0 + 0.55, 0), Vector3(sz.x + 0.04, 1.1, sz.z + 0.04))
+		c.box(k.blanc, at + Vector3(0, y0 + 1.12, 0), Vector3(sz.x + 0.06, 0.06, sz.z + 0.06))
+		for j in 3:
+			c.box(k.blanc, at + Vector3(0, y0 + 0.2 + j * 0.3, 0), Vector3(sz.x + 0.05, 0.03, sz.z + 0.05))
+	c.box(k.platre, Vector3(0, (y1 + 2.8) / 2, hd), Vector3(1.2, y1 - 2.8, 0.32))
+	# les montants à gradins autour de la porte
+	for i in 3:
+		var e := 0.15 + i * 0.12
+		c.box(k.platre, Vector3(0, 2.95 + i * 0.08, hd + 0.18 + i * 0.06), Vector3(1.2 + e * 2.0, 0.16, 0.08))
+		for sx: float in [-1.0, 1.0]:
+			c.box(k.platre, Vector3(sx * (0.6 + e), 1.75, hd + 0.18 + i * 0.06), Vector3(0.12, 2.45, 0.08))
+	if not open:
+		# les lourds battants de plâtre, clos, et leur serrure de fer
+		for sx: float in [-1.0, 1.0]:
+			c.box(k.platre, Vector3(sx * 0.3, 1.7, hd + 0.02), Vector3(0.58, 2.2, 0.22))
+		c.box(k.fer, Vector3(0, 1.6, hd + 0.15), Vector3(0.12, 0.3, 0.06))
+	# les petites fenêtres grillées, haut sur les côtés
+	for sx: float in [-1.0, 1.0]:
+		c.box(k.sombre, Vector3(sx * (hw + 0.17), y1 - 0.8, 0), Vector3(0.04, 0.55, 0.8))
+		c.box(k.platre, Vector3(sx * (hw + 0.2), y1 - 0.48, 0), Vector3(0.12, 0.1, 1.0))
+		for j in 4:
+			c.box(k.fer, Vector3(sx * (hw + 0.2), y1 - 0.8, -0.3 + j * 0.2), Vector3(0.03, 0.55, 0.03))
+	c.roof(Vector3(0, y1 + 0.02, 0), hw + 0.5, d / 2 + 0.65, 1.55 * d / 6.2, k.roof, {"up": 0.08, "thick": 0.2})
+	for sx: float in [-1.0, 1.0]:
+		c.gable(k.platre, sx * hw, -hd - 0.1, hd + 0.1, y1, Vector3(sx, 0, 0), 0.2)
+	c.build(kg, "Kura")
+	_solid(kg, Vector3(0, 0.3, 0), Vector3(w + 0.4, 0.6, d + 0.2))
+	_solid(kg, Vector3(0, (y0 + y1) / 2, -hd), Vector3(w, y1 - y0, 0.3))
+	for s: float in [-1.0, 1.0]:
+		_solid(kg, Vector3(s * hw, (y0 + y1) / 2, 0), Vector3(0.3, y1 - y0, d))
+		_solid(kg, Vector3(s * (hw - side / 2), (y0 + y1) / 2, hd), Vector3(side, y1 - y0, 0.3))
+	_solid(kg, Vector3(0, (y1 + 2.8) / 2 + 0.3, hd), Vector3(1.2, y1 - 2.8, 0.3))
+	if not open:
+		_solid(kg, Vector3(0, 1.7, hd), Vector3(1.2, 2.3, 0.3))
+
+
+## La tour de guet à incendie (hinomi-yagura) : une échelle de poteaux haute
+## de neuf mètres, une plate-forme, la cloche d'alarme sous son petit toit.
+func _hinomi(g: Node3D, at: Vector3) -> void:
+	var k := _k()
+	var c := _chantier()
+	c.xf = Transform3D(Basis(), at)
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			c.beam(k.poutre, Vector3(sx * 1.0, -0.3, sz * 1.0), Vector3(sx * 0.75, 9.4, sz * 0.75), 0.18, 0.18, Vector3.FORWARD)
+			c.box(k.pierre, Vector3(sx * 1.0, 0.05, sz * 1.0), Vector3(0.45, 0.3, 0.45))
+	for side in 4:
+		var bs := Basis(Vector3.UP, side * PI / 2)
+		for y: float in [0.6, 3.3, 6.0]:
+			c.beam(k.poutre, bs * Vector3(-0.97, y, 0.97), bs * Vector3(0.85, y + 2.6, 0.87), 0.09, 0.1, bs * Vector3.BACK)
+			c.beam(k.poutre, bs * Vector3(-0.97, y, 0.97), bs * Vector3(0.97, y, 0.97), 0.1, 0.12)
+	# l'échelle, la plate-forme, la rambarde
+	for x: float in [-0.25, 0.25]:
+		c.beam(k.poutre, Vector3(x, 0.0, 1.5), Vector3(x, 8.6, 0.85), 0.06, 0.06)
+	for i in 17:
+		var t := (i + 0.5) / 17.0
+		c.box(k.poutre, Vector3(0, t * 8.6, 1.5 - t * 0.65), Vector3(0.52, 0.045, 0.05))
+	c.box(k.planches, Vector3(0, 8.6, 0), Vector3(2.0, 0.14, 2.0))
+	for side in 4:
+		var bs := Basis(Vector3.UP, side * PI / 2)
+		c.boxb(k.poutre, bs * Vector3(0, 9.4, 0.98), Vector3(2.0, 0.07, 0.07), bs)
+		for i in 5:
+			c.boxb(k.poutre, bs * Vector3(-0.8 + i * 0.4, 9.0, 0.98), Vector3(0.05, 0.8, 0.05), bs)
+	# la cloche (hanshō) sous son toit
+	for sx: float in [-1.0, 1.0]:
+		c.box(k.poutre, Vector3(sx * 0.7, 10.1, 0), Vector3(0.1, 2.9, 0.1))
+	c.box(k.poutre, Vector3(0, 10.9, 0), Vector3(1.5, 0.1, 0.1))
+	c.cyl(_plain(Color(0.25, 0.2, 0.12), 0.4, 0.9), Vector3(0, 10.5, 0), 0.16, 0.24, 0.5, Vector3.ZERO, 12)
+	c.cyl(k.poutre, Vector3(0, 10.82, 0), 0.02, 0.02, 0.15, Vector3.ZERO, 4, false)
+	c.roof(Vector3(0, 11.45, 0), 1.25, 1.1, 0.55, k.roof, {"up": 0.15, "thick": 0.08})
+	c.build(g, "Hinomi-yagura")
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			_solid(g, at + Vector3(sx * 0.9, 4.5, sz * 0.9), Vector3(0.25, 9.0, 0.25))
+	_solid(g, at + Vector3(0, 8.6, 0), Vector3(2.0, 0.2, 2.0))
+
+
+## Le portique de la cloche (shōrō) : quatre poteaux sur un socle, la poutre
+## qui porte la cloche, un petit toit irimoya.
+func _shoro(g: Node3D, at: Vector3) -> void:
+	var k := _k()
+	var c := _chantier()
+	c.xf = Transform3D(Basis(), at)
+	c.box(k.pierre, Vector3(0, 0.0, 0), Vector3(3.2, 0.5, 2.2))
+	for sx: float in [-1.0, 1.0]:
+		for sz: float in [-1.0, 1.0]:
+			c.box(k.vermillon, Vector3(sx * 1.2, 2.2, sz * 0.75), Vector3(0.2, 4.4, 0.2))
+		c.box(k.poutre, Vector3(sx * 1.2, 0.6, 0), Vector3(0.14, 0.14, 1.7))
+	c.box(k.vermillon, Vector3(0, 4.0, 0), Vector3(3.0, 0.24, 0.26))
+	for sz: float in [-1.0, 1.0]:
+		c.box(k.vermillon, Vector3(0, 4.35, sz * 0.75), Vector3(2.8, 0.18, 0.18))
+	c.roof(Vector3(0, 4.5, 0), 2.1, 1.6, 0.95, k.roof, {"hip": 0.4, "up": 0.35, "thick": 0.12})
+	c.build(g, "Shōrō")
+	for sx: float in [-1.0, 1.0]:
+		_solid(g, at + Vector3(sx * 1.2, 2.2, 0), Vector3(0.25, 4.4, 1.7))
+
+
 # ---------- Le fort d'Akagane, tenu par les gens de l'Oni ----------
 
 func _akagane(c: Vector3, p: Dictionary) -> void:
@@ -512,45 +623,31 @@ func _akagane(c: Vector3, p: Dictionary) -> void:
 	var ash := Color(0.62, 0.55, 0.55)
 	# l'enceinte : la porte au sud, une brèche au nord-ouest, un muret à l'est
 	var cv := Vector2(c.x, c.z)
-	_palisade(cv + Vector2(-R, R), cv + Vector2(-4.2, R), 4.2)
-	_palisade(cv + Vector2(4.2, R), cv + Vector2(R, R), 4.2)
-	_palisade(cv + Vector2(R, R), cv + Vector2(R, 6.0), 4.2)
+	var pal := _chantier()
+	_palisade(pal, cv + Vector2(-R, R), cv + Vector2(-4.2, R))
+	_palisade(pal, cv + Vector2(4.2, R), cv + Vector2(R, R))
+	_palisade(pal, cv + Vector2(R, R), cv + Vector2(R, 6.0))
 	_wall(cv + Vector2(R, 6.0), cv + Vector2(R, -2.0))          # le muret effondré : on l'enjambe
-	_palisade(cv + Vector2(R, -2.0), cv + Vector2(R, -R), 4.2)
-	_palisade(cv + Vector2(R, -R), cv + Vector2(-6.0, -R), 4.2)
-	_palisade(cv + Vector2(-R, -10.0), cv + Vector2(-R, R), 4.2)
+	_palisade(pal, cv + Vector2(R, -2.0), cv + Vector2(R, -R))
+	_palisade(pal, cv + Vector2(R, -R), cv + Vector2(-6.0, -R))
+	_palisade(pal, cv + Vector2(-R, -10.0), cv + Vector2(-R, R))
+	pal.build(self, "Palissade d'Akagane")
 	# la brèche : des planches tombées, des pierres
 	for i in 7:
 		var at := _at(c, -R + 2.0 + i * 1.6, -R + _rng.randf_range(-1.2, 1.2)) - c
 		_box(g, at + Vector3(0, 0.25, 0), Vector3(1.6, 0.35, 0.5), mats.bois, Vector3(_rng.randf() * 0.6, _rng.randf() * TAU, _rng.randf() * 0.5), false)
-	_gate(g, _at(c, 0, R) - c, 0.0, Color(0.6, 0.07, 0.05))
+	_gate(g, _at(c, 0, R) - c, 0.0, Color(0.6, 0.07, 0.05), 2)
 	# les tours de guet aux angles : une plate-forme et un guetteur
 	var towers := [Vector2(-R + 2.5, R - 2.5), Vector2(R - 2.5, -R + 2.5)]
 	for tw in towers:
 		var at := _at(c, tw.x, tw.y) - c
-		for sx in [-1, 1]:
-			for sz in [-1, 1]:
-				_cyl(g, at + Vector3(sx * 1.3, 3.0, sz * 1.3), 0.14, 0.16, 6.0, mats.bois)
-		_box(g, at + Vector3(0, 6.0, 0), Vector3(3.4, 0.3, 3.4), mats.bois)
-		for i in 4:
-			var a := float(i) * PI / 2
-			_box(g, at + Vector3(sin(a) * 1.6, 6.6, cos(a) * 1.6), Vector3(3.3, 0.9, 0.12), mats.bois, Vector3(0, a, 0), false)
-		_roof(g, at + Vector3(0, 8.0, 0), 4.2, 4.2, 1.2, mats.chaume, Vector3.ZERO)
-		_chochin(g, at + Vector3(1.0, 7.2, 1.0))
-		# l'échelle
-		for k in 12:
-			_box(g, at + Vector3(0, 0.4 + k * 0.5, 1.8), Vector3(0.6, 0.06, 0.06), mats.bois, Vector3.ZERO, false)
+		_yagura(g, at)
+		_chochin(g, at + Vector3(1.0, 7.25, 1.0))
 		_folk("garde", "guard", "akagane", g.global_transform * (at + Vector3(0, 6.2, 0)), atan2(-tw.x, -tw.y) + PI, {"post": true, "lookout": true, "tint": red, "name": "Un guetteur d'Akagane"})
 
 	# la grande salle du commandant, au nord
 	var hall := _at(c, 2.0, -15.0) - c
-	_box(g, hall + Vector3(0, 0.5, 0), Vector3(16, 1.0, 8), mats.pierre)
-	for i in 5:
-		_cyl(g, hall + Vector3(-6.4 + i * 3.2, 2.8, 3.6), 0.25, 0.28, 3.6, mats.laque)
-	_box(g, hall + Vector3(0, 2.8, -3.7), Vector3(15, 3.6, 0.3), mats.bois)
-	for s in [-1, 1]:
-		_box(g, hall + Vector3(s * 7.4, 2.8, 0), Vector3(0.3, 3.6, 7.4), mats.bois)
-	_roof(g, hall + Vector3(0, 5.6, 0), 18.0, 10.0, 2.8, mats.tuile, Vector3(0, PI / 2, 0))
+	_grande_salle(g, hall)
 	_light(g, hall + Vector3(0, 3.0, 0), Color(1.0, 0.18, 0.08), 3.0, 12.0)
 	var moon := CylinderMesh.new(); moon.top_radius = 1.4; moon.bottom_radius = 1.4; moon.height = 0.05
 	var mm := StandardMaterial3D.new()
@@ -568,15 +665,8 @@ func _akagane(c: Vector3, p: Dictionary) -> void:
 	g.add_child(kg)
 	kg.position = kura
 	kg.rotation.y = PI / 2
-	_box(kg, Vector3(0, 0.3, 0), Vector3(7.4, 0.6, 6.4), mats.pierre)
-	_box(kg, Vector3(0, 2.2, -3.0), Vector3(7, 3.2, 0.3), mats.platre)
-	for s in [-1, 1]:
-		_box(kg, Vector3(s * 3.5, 2.2, 0), Vector3(0.3, 3.2, 6.2), mats.platre)
-	for s in [-1, 1]:
-		_box(kg, Vector3(s * 2.05, 2.2, 3.0), Vector3(2.9, 3.2, 0.3), mats.platre)
-	_box(kg, Vector3(0, 3.3, 3.0), Vector3(1.2, 1.0, 0.3), mats.platre)
+	_kura(kg)
 	_door(kg, Vector3(0, 0.6, 3.0))
-	_roof(kg, Vector3(0, 4.5, 0), 8.6, 7.6, 1.8, mats.tuile, Vector3(0, PI / 2, 0))
 	_light(kg, Vector3(0, 2.4, 0), Color(1.0, 0.45, 0.2), 1.3, 6.0)
 	_rack(kg, Vector3(-1.8, 0.6, -2.5), 0.0, [Color(1.0, 0.35, 0.1), Color(0.9, 0.3, 0.15)], "akagane")
 	_rack(kg, Vector3(1.8, 0.6, -2.5), 0.0, [Color(0.4, 0.9, 1.0), Color(0.6, 0.6, 0.7)], "kazekiri")
@@ -584,10 +674,7 @@ func _akagane(c: Vector3, p: Dictionary) -> void:
 
 	# la cloche d'alarme, sur son portique au milieu de la cour
 	var bp := _at(c, 6.0, 2.0) - c
-	for s in [-1, 1]:
-		_cyl(g, bp + Vector3(s * 1.2, 2.0, 0), 0.12, 0.14, 4.0, mats.laque)
-	_box(g, bp + Vector3(0, 4.0, 0), Vector3(3.0, 0.25, 0.3), mats.laque, Vector3.ZERO, false)
-	_roof(g, bp + Vector3(0, 4.6, 0), 3.4, 1.6, 0.8, mats.tuile, Vector3(0, PI / 2, 0))
+	_shoro(g, bp)
 	var bell_mesh := CylinderMesh.new(); bell_mesh.top_radius = 0.42; bell_mesh.bottom_radius = 0.62; bell_mesh.height = 1.3
 	var bn := _place(g, bell_mesh, _plain(Color(0.25, 0.2, 0.12), 0.4, 0.9), bp + Vector3(0, 3.1, 0))
 	var rope := _cyl(g, bp + Vector3(0.75, 2.6, 0), 0.025, 0.025, 1.6, mats.corde, false)
@@ -626,7 +713,7 @@ func _akagane(c: Vector3, p: Dictionary) -> void:
 	cages.append({"pos": g.global_transform * (cage + Vector3(0, 0, 1.6)), "open": false, "prisoners": [first, first + 1]})
 
 	# la garnison : deux à la porte, des rondes, deux autour du feu
-	for s in [-1, 1]:
+	for s: float in [-1.0, 1.0]:
 		_folk("garde", "guard", "akagane", _at(c, s * 2.4, R + 2.4), 0.0, {"post": true, "tint": red, "name": "Une sentinelle"})
 	var routes := [
 		[_at(c, -18.0, 16.0), _at(c, -18.0, -6.0), _at(c, -6.0, -8.0), _at(c, -6.0, 14.0)],
@@ -767,7 +854,7 @@ func _bambous(c: Vector3, p: Dictionary) -> void:
 	li.material_override = lm
 	g.add_child(li)
 	# la cabane de l'ermite
-	var hut := _machiya(g, _at(c, 0, -2.5) - c, 0.0, 4.5, 4.0, {"noren": Color(0.2, 0.25, 0.15), "h": 2.6})
+	var hut := _machiya(g, _at(c, 0, -2.5) - c, 0.0, 4.5, 4.0, {"noren": 2, "h": 2.5, "etage": false, "chaume": true})
 	hut.name = "Cabane"
 	_box(g, _at(c, 0, 1.6) - c + Vector3(0, 0.25, 0), Vector3(2.4, 0.5, 1.2), mats.bois)
 	_lantern(g, _at(c, 3.0, 1.5) - c)

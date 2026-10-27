@@ -60,6 +60,23 @@ noyé**, le **Temple de la Lune Rouge** où attend l'Oni, et :
 - **Le Cimetière des Lames**, des centaines de sabres plantés et leurs âmes bleues.
 - **Le Bosquet de bambous**, où un vieil ermite boit son thé.
 
+### Les bâtiments
+
+Tout est bâti pièce à pièce, à la japonaise. Les maisons de ville (machiya)
+ont leur socle de pierre, leurs poteaux et leurs poutres, la claire-voie de
+lattes devant le papier éclairé, la barrière de bambou courbe au pied de la
+façade, l'auvent de tuiles entre les deux niveaux, les fenêtres à barreaux de
+plâtre de l'étage bas, le noren à l'entrée et parfois une enseigne peinte.
+Les toits sont incurvés, couverts de rangs de tuiles rondes avec leur tuile de
+bout, coiffés d'un faîtage et de ses oni-gawara ; les grands bâtiments
+(portes, dojo, salle du commandant, temple) portent un toit irimoya aux coins
+relevés, parfois des poissons dorés. On trouve aussi les murs de plâtre
+coiffés de tuiles de Hōjō, ses entrepôts kura, sa tour de guet à incendie, le
+sanctuaire shintō sur pilotis vermillon, le puits couvert, la palissade de
+rondins taillés en pointe d'Akagane et ses tours contreventées, les fermes au
+toit de chaume de Kurogane, et la pagode à trois étages du temple de la Lune
+Rouge. Les petites pièces s'effacent au loin pour garder le jeu fluide.
+
 ## Le monde qui réagit
 
 - **Le feu** : une fiole d'huile se brise et s'enflamme. Le feu court dans
@@ -170,6 +187,8 @@ sauvegarde à chaque autel et depuis le menu ; **Continuer** la reprend.
 | `scripts/actors/rig.gd`, `meshy_skin.gd` | le squelette et les modèles Meshy posés dessus |
 | `scripts/world/terrain.gd`, `vegetation.gd`, `atmosphere.gd` | relief, herbe et arbres, ciel et brume |
 | `scripts/world/landmarks.gd`, `towns.gd` | les lieux bâtis, les villes, leurs habitants |
+| `scripts/world/batisses.gd` | les bâtiments : maisons de ville, portes, murs, dojo, sanctuaire, ferme, temple, pagode |
+| `scripts/world/chantier.gd` | le chantier : poutres, planches, toits de tuiles courbes, fondus en un seul maillage |
 | `scripts/ui/*.gd` | l'interface, la carte, le dialogue, la boutique, le registre, le menu |
 
 Les images (`assets/*.jpg`, `assets/kie/`) et les portraits sont peints par

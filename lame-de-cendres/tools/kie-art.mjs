@@ -1,5 +1,6 @@
 /* Peint avec kie.ai (Nano Banana) les images de la version Godot :
-   icônes d'objets, illustrations des katanas, feuillages des arbres, sols.
+   icônes d'objets, illustrations des katanas, feuillages des arbres, sols,
+   matières et enseignes des bâtiments.
    Chaque image brute passe ensuite par tools/prep-art.py.
 
    Usage :
@@ -82,6 +83,39 @@ patches of black soil and ash.` },
   terre: { kind: 'texture', size: '1:1', prompt: `${TEXTURE}
 A trodden dirt path: packed dark brown earth, small pebbles, faint footprints, a little ash and a few
 dry pine needles.` },
+  platre: { kind: 'texture', size: '1:1', prompt: `${TEXTURE}
+An old Japanese lime plaster wall (shikkui) seen straight on: warm off-white and pale ochre, soft trowel marks,
+faint rain streaks and grime, a few hairline cracks, very subtle variation, no wood, no edges, no objects.` },
+  planches: { kind: 'texture', size: '1:1', prompt: `${TEXTURE}
+Weathered Japanese cedar wall boards seen straight on: narrow vertical planks side by side running from top to bottom,
+very dark brown almost black charred wood (yakisugi) with visible grain, small knots, a few rusty nail heads, thin dark
+gaps between the planks, slightly lighter worn edges.` },
+  tuiles: { kind: 'texture', size: '1:1', prompt: `${TEXTURE}
+Traditional Japanese kawara roof tiles seen straight from above: overlapping dark charcoal grey clay tiles in
+regular horizontal rows, a soft silvery sheen on the glaze, a little moss and lichen in the gaps, slightly uneven,
+evenly lit, no perspective.` },
+  tatami: { kind: 'texture', size: '1:1', prompt: `${TEXTURE}
+Old Japanese tatami mat seen straight from above: tightly woven pale straw rush in fine parallel lines running
+vertically, warm honey and faded green tones, worn and a little stained, no border, no edges.` },
+  enseignes: { kind: 'colonnes', size: '1:1', prompt: `Four traditional Japanese wooden shop signboards (kanban), each a tall
+narrow vertical plank standing upright side by side in four columns with wide empty space between them, seen straight
+on, on a plain pure white background (#FFFFFF), no shadows. Each plank is old dark lacquered wood with a thin frame and
+two or three large bold brush calligraphy kanji painted in gold or white. One reads 酒 (sake), one reads 茶 (tea),
+one reads 刀 (sword), one reads 宿 (inn). Painterly but realistic, aged, slightly cracked lacquer.` },
+  noren: { kind: 'colonnes', size: '1:1', prompt: `Four Japanese noren shop entrance curtains, each a rectangular cloth
+hanging straight down from a thin bamboo pole and split into three vertical panels, side by side in four columns with
+wide empty space between them, seen straight on, on a plain pure white background (#FFFFFF), no shadows. From left to
+right: deep indigo blue with a large white family crest circle; dark crimson red with a white brush kanji 酒;
+faded moss green with a white kanji 茶; deep indigo with a white kanji 宿. Cotton texture, slightly faded and frayed.` },
+  chaume: { kind: 'texture', size: '1:1', prompt: `${TEXTURE}
+An old thick Japanese thatched roof (kayabuki) seen straight on: dense layers of dry susuki grass and rice straw
+laid in parallel, the stalk ends pointing down, weathered grey brown and dark umber with darker damp streaks and a
+little moss, tightly packed, evenly lit, no edges.` },
+  plaques: { kind: 'rangees', size: '1:1', prompt: `Four traditional Japanese wooden name plaques (gaku), each a wide
+horizontal board with a thick carved frame, stacked one above the other in four rows with wide empty space between
+them, seen straight on, on a plain pure white background (#FFFFFF), no shadows. Row 1: dark weathered wood, gold brush
+calligraphy 道場. Row 2: black lacquer, white calligraphy 北條. Row 3: blood red lacquer, black calligraphy 赤金.
+Row 4: black lacquer with a gold frame, gold calligraphy 月光寺. Painterly but realistic, aged, slightly cracked.` },
 };
 
 const args = process.argv.slice(2);

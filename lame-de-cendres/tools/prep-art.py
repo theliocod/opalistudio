@@ -5,6 +5,8 @@ Usage : python3 tools/prep-art.py <nom> <brut> <genre>
   bandes    : six rangées → assets/kie/<nom>-0..5.png, recadrées sur le sabre
   feuillage : fond blanc détouré → assets/kie/<nom>.png avec transparence
   texture   : raccord invisible dans les deux sens → assets/kie/<nom>.jpg + <nom>-n.jpg
+  colonnes  : quatre objets debout sur fond blanc → assets/kie/<nom>-0..3.png, détourés
+  rangees   : quatre objets couchés, l'un au-dessus de l'autre, sur fond blanc → idem
 """
 import sys
 from pathlib import Path
@@ -97,6 +99,33 @@ def main():
             crop = img.crop(box)
             crop.thumbnail((640, 160), Image.LANCZOS)
             crop.save(OUT / f'{name}-{i}.png', optimize=True)
+    elif kind in ('colonnes', 'rangees'):
+        # quatre panneaux sur fond blanc : chacun recadré sur lui-même, le blanc rendu transparent
+        img = square(img).resize((1024, 1024), Image.LANCZOS)
+        if kind == 'rangees':
+            img = img.transpose(Image.Transpose.ROTATE_90)
+        a = np.asarray(img, dtype=np.float32)
+        d = np.sqrt(((255 - a) ** 2).sum(axis=2))
+        alpha = np.clip((d - 25) / 45, 0, 1)
+        # une barre fine (la perche des noren) ne relie pas deux colonnes
+        col = alpha.sum(axis=0)
+        cols = col > col.max() * 0.15
+        runs, start = [], None
+        for x, v in enumerate(np.append(cols, False)):
+            if v and start is None:
+                start = x
+            elif not v and start is not None:
+                runs.append((start, x))
+                start = None
+        runs = sorted(sorted(runs, key=lambda r: r[0] - r[1])[:4])
+        for i, (x0, x1) in enumerate(runs):
+            ys = np.nonzero(alpha[:, x0:x1].sum(axis=1) > 2)[0]
+            crop = np.dstack([a, alpha * 255])[ys.min():ys.max() + 1, x0:x1]
+            out = Image.fromarray(crop.astype(np.uint8), 'RGBA')
+            if kind == 'rangees':
+                out = out.transpose(Image.Transpose.ROTATE_270)
+            out.thumbnail((768, 256) if kind == 'rangees' else (256, 768), Image.LANCZOS)
+            out.save(OUT / f'{name}-{i}.png', optimize=True)
     elif kind == 'feuillage':
         img = square(img).resize((1024, 1024), Image.LANCZOS)
         a = np.asarray(img, dtype=np.float32)
