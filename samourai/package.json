@@ -4,8 +4,8 @@
   "version": "0.1.0",
   "description": "Jeu d'action 3D dark fantasy : un samouraï, un sabre, des démons.",
   "scripts": {
-    "build": "esbuild src/main.js --bundle --minify --format=iife --target=es2020 --outfile=dist/game.js",
-    "dev": "esbuild src/main.js --bundle --format=iife --target=es2020 --outfile=dist/game.js --watch"
+    "build": "esbuild src/main.js --bundle --minify --format=iife --target=es2020 --loader:.jpg=dataurl --outfile=dist/game.js",
+    "dev": "esbuild src/main.js --bundle --format=iife --target=es2020 --loader:.jpg=dataurl --outfile=dist/game.js --watch"
   },
   "dependencies": {
     "three": "0.186.1"

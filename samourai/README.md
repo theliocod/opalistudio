@@ -37,6 +37,7 @@ npm run build   # version finale, minifiée
 | `src/rig.js` | le corps : squelette, armure, sabre, poses et mélanges de poses |
 | `src/world.js` | la cour du temple, la lune, la brume, les cendres |
 | `src/fx.js` | étincelles, sang d'encre, traînée de la lame |
+| `src/art.js` | la liste des images peintes présentes, écrite par `tools/kie-art.mjs` |
 
 Le décor et le samouraï sont générés par le code. Certaines animations viennent
 de Mixamo : `tools/bake-mixamo.mjs` les transfère sur notre squelette et les
@@ -46,4 +47,22 @@ Les FBX bruts ne sont pas versionnés.
 ```
 node tools/bake-mixamo.mjs chemin/vers/Animation.fbx nom-de-l-animation
 ```
+### Le décor peint
+
+Le ciel, les matières (dalles, pierre, bois laqué, écorce) et l'illustration de
+l'écran titre sont peints par kie.ai. Tant qu'une image manque, le jeu garde la
+version générée par le code.
+
+```
+node tools/kie-art.mjs --dry-run --all   # voir les prompts sans rien dépenser
+node tools/kie-art.mjs sol               # une image, pour valider le style
+node tools/kie-art.mjs --all             # toutes celles qui manquent
+npm run build
+```
+
+La clé est lue dans `KIE_API_KEY`. `tools/prep-art.py` (Python, Pillow, numpy)
+rend les textures raccordables, tire une carte de relief de chacune et compresse
+tout dans `assets/`. Les images sont intégrées à `dist/game.js`, si bien que le
+jeu s'ouvre toujours d'un double clic, sans serveur.
+
 `dist/game.js` est versionné pour que le jeu s'ouvre sans rien construire.
