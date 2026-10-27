@@ -55,9 +55,19 @@ addEventListener('blur', () => keys.clear());
 let mouseL = false, mouseR = false;
 const canvas = renderer.domElement;
 canvas.addEventListener('contextmenu', e => e.preventDefault());
+/* Le premier clic capture la souris. Si le navigateur refuse, les clics
+   suivants frappent quand même et la caméra se tourne en glissant. */
+let lockRefused = false;
+document.addEventListener('pointerlockerror', () => (lockRefused = true));
 addEventListener('mousedown', e => {
   if (state !== 'play') return;
-  if (document.pointerLockElement !== canvas) { canvas.requestPointerLock?.(); return; }
+  if (document.pointerLockElement !== canvas && !lockRefused && canvas.requestPointerLock) {
+    try {
+      const r = canvas.requestPointerLock();
+      if (r && r.catch) r.catch(() => (lockRefused = true));
+    } catch { lockRefused = true; }
+    return;
+  }
   if (e.button === 0) mouseL = true;
   if (e.button === 2) mouseR = true;
 });
@@ -145,7 +155,7 @@ function start() {
   reset();
   state = 'play';
   show(null);
-  canvas.requestPointerLock?.();
+  try { const r = canvas.requestPointerLock?.(); if (r && r.catch) r.catch(() => (lockRefused = true)); } catch { lockRefused = true; }
 }
 $('#start-btn').addEventListener('click', start);
 $('#retry-btn').addEventListener('click', start);
@@ -263,7 +273,7 @@ function controlPlayer(dt) {
     let name;
     if (buffer === 'heavy') { name = 'heavy'; comboStep = 0; }
     else {
-      if (now - lastLight > 0.9 || !a) comboStep = 0;
+      if (now - lastLight > 0.8) comboStep = 0;   // un peu de marge après la fin du coup
       name = ['light1', 'light2', 'light3'][comboStep];
       comboStep = (comboStep + 1) % 3;
       lastLight = now;
