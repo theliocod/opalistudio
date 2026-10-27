@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMPIRE — Le jeu de l'entrepreneur</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<link rel="stylesheet" href="scene.css">
+</head>
+<body>
+
+<!-- ================= ÉCRAN DE DÉPART ================= -->
+<div id="screen-start" class="screen">
+  <div class="start-wrap">
+    <div class="start-top">
+      <div class="brand">
+        <i class="fas fa-gem"></i>
+        <span>EMPIRE</span>
+      </div>
+      <a href="../landing page/index.html" class="btn btn-ghost btn-sm back-link">
+        <i class="fas fa-arrow-left"></i> OpalStudio
+      </a>
+    </div>
+    <h1 class="start-title">Tu as <span class="accent">18 ans</span>, un peu d'argent<br>et 47 ans devant toi.</h1>
+    <p class="start-sub">
+      Tu construis ton emploi du temps heure par heure, et la vie avance jour après jour.
+      Tu montes des entreprises, tu ouvres des postes, tu reçois des candidatures, tu recrutes
+      des gens qui ont chacun leur niveau et leur caractère. Tu répartis des budgets entre
+      plusieurs canaux d'acquisition, tu fixes tes prix, tu lèves des fonds, tu revends —
+      ou tu déposes le bilan. À 65 ans, on fait les comptes. Pas seulement en euros.
+    </p>
+
+    <div class="start-field">
+      <label for="player-name">Ton prénom</label>
+      <input type="text" id="player-name" class="input" placeholder="Alex" maxlength="20">
+    </div>
+
+    <h2 class="start-h2">À quoi tu ressembles</h2>
+    <div id="creator"></div>
+
+    <h2 class="start-h2">D'où tu pars</h2>
+    <div id="origins" class="origins"></div>
+
+    <div class="start-actions">
+      <button id="start-btn" class="btn btn-primary btn-lg" disabled>
+        Commencer ma vie <i class="fas fa-arrow-right"></i>
+      </button>
+      <button id="continue-btn" class="btn btn-ghost btn-lg hidden">
+        <i class="fas fa-rotate-left"></i> Reprendre ma partie
+      </button>
+    </div>
+
+    <div class="start-rules">
+      <div><i class="fas fa-calendar-day"></i><b>Un jour à la fois</b><span>Tu règles ton planning en heures, puis tu avances d'un jour, d'une semaine ou d'un mois.</span></div>
+      <div><i class="fas fa-users"></i><b>De vraies équipes</b><span>Chaque salarié a un niveau, un caractère, un salaire et un moral. Il progresse, ou il part.</span></div>
+      <div><i class="fas fa-bullseye"></i><b>Quatre canaux</b><span>Contenu, publicité et influence s'achètent. La prospection, elle, se fait.</span></div>
+      <div><i class="fas fa-brain"></i><b>Compétences plafonnées</b><span>Les livres t'emmènent loin, pas au sommet. Pour ça, il faut rencontrer les bonnes personnes.</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ================= ÉCRAN DE JEU ================= -->
+<div id="screen-game" class="screen hidden">
+  <header id="hdr" class="hdr"></header>
+  <nav id="tabs" class="tabs"></nav>
+  <main id="tab-content" class="content"></main>
+  <footer class="footer">
+    <a href="../landing page/index.html" class="brand small back-link"><i class="fas fa-arrow-left"></i> OpalStudio</a>
+    <button id="reset-btn" class="btn btn-ghost btn-sm"><i class="fas fa-trash"></i> Nouvelle vie</button>
+  </footer>
+</div>
+
+<!-- ================= ÉCRAN DE FIN ================= -->
+<div id="screen-end" class="screen hidden">
+  <div id="end-content" class="end-wrap"></div>
+</div>
+
+<!-- ================= MODALE & TOAST ================= -->
+<div id="scene" class="scene hidden"></div>
+<div id="phone" class="phone-dock"></div>
+<div id="modal" class="modal hidden"></div>
+<div id="toast" class="toast"></div>
+
+<script src="avatar.js"></script>
+<script src="data.js"></script>
+<script src="social.js"></script>
+<script src="people.js"></script>
+<script src="events.js"></script>
+<script src="game.js"></script>
+<script src="economy.js"></script>
+<script src="market.js"></script>
+<script src="health.js"></script>
+<script src="careers.js"></script>
+<script src="bourse.js"></script>
+<script src="direction.js"></script>
+<script src="rivals.js"></script>
+<script src="family.js"></script>
+<script src="capital.js"></script>
+<script src="network.js"></script>
+<script src="world.js"></script>
+<script src="finance.js"></script>
+<script src="web.js"></script>
+<script src="scene3d.js"></script>
+<script src="scene.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
