@@ -133,6 +133,12 @@
       "skillPath": ".claude/skills/dev-story/SKILL.md",
       "computedHash": "e4adff1915accc9aa0ac66eaf2532e8e1efcb812c9dccfe2f2af492fc7fcaf4b"
     },
+    "dream-loop": {
+      "source": "achimala/dream-loop",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "a570baa1effd0c25035af0d2e83b80e794711bd8cf364c99f8373fc11d030c92"
+    },
     "estimate": {
       "source": "Donchitos/Claude-Code-Game-Studios",
       "sourceType": "github",
