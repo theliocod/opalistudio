@@ -6,6 +6,7 @@
    Le personnage regarde vers +z, sa droite est en -x.
    ========================================================= */
 import * as THREE from 'three';
+import { dress } from './skin.js';
 
 export const JOINTS = ['hips', 'spine', 'chest', 'neck', 'head', 'shL', 'elL', 'shR', 'elR', 'wrR', 'hipL', 'knL', 'hipR', 'knR'];
 
@@ -160,13 +161,14 @@ export function buildRig(kind) {
   const scale = kind === 'oni' ? 1.38 : 1;
   root.scale.setScalar(scale);
 
-  return {
+  const rig = {
     root, joints: j, mats, scale,
     blade: sword,
     /* Pose donnée en quaternions, pour les animations converties de Mixamo */
     setQuats(q, hipsY) {
       for (const k of JOINTS) if (q[k]) j[k].quaternion.copy(q[k]);
       j.hips.position.y = 0.98 + hipsY;
+      skin?.sync();
     },
     setPose(p) {
       for (const k of JOINTS) {
@@ -174,8 +176,13 @@ export function buildRig(kind) {
         if (r) j[k].rotation.set(r[0], r[1], r[2]);
       }
       j.hips.position.y = 0.98 + (p.hipsY || 0);
+      skin?.sync();
     }
   };
+  /* Le modèle sculpté, s'il existe ; sinon on garde les formes simples */
+  const skin = dress(kind === 'player' ? 'samourai' : kind, rig);
+  if (skin) mats.body = skin.material;
+  return rig;
 }
 
 /* ---------- Mélanges de poses ---------- */

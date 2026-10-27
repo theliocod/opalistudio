@@ -11,6 +11,8 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { buildWorld, ARENA_RADIUS } from './world.js';
 import { particlePool } from './fx.js';
 import { Fighter, ACTIONS, enemyThink } from './combat.js';
+import ART from './art.js';
+import { modelsReady } from './skin.js';
 
 const $ = s => document.querySelector(s);
 
@@ -38,6 +40,13 @@ addEventListener('resize', () => {
 });
 
 const world = buildWorld(scene);
+/* L'illustration peinte de l'écran titre, assombrie au centre pour le texte */
+if (ART.titre) {
+  const t = $('#title');
+  t.style.backgroundImage = `radial-gradient(ellipse at 50% 48%, rgba(5, 3, 5, .72) 20%, rgba(5, 3, 5, .35) 60%, rgba(5, 3, 5, .85)), url(${ART.titre})`;
+  t.style.backgroundSize = 'cover';
+  t.style.backgroundPosition = 'center';
+}
 const fx = particlePool(scene);
 
 /* ---------- Commandes ----------
@@ -159,6 +168,9 @@ function start() {
   try { const r = canvas.requestPointerLock?.(); if (r && r.catch) r.catch(() => (lockRefused = true)); } catch { lockRefused = true; }
 }
 $('#start-btn').addEventListener('click', start);
+/* les modèles 3D se décodent pendant l'écran titre */
+$('#start-btn').disabled = true;
+modelsReady.then(() => ($('#start-btn').disabled = false));
 $('#retry-btn').addEventListener('click', start);
 $('#again-btn').addEventListener('click', start);
 

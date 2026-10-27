@@ -1,9 +1,12 @@
 /* =========================================================
    LAME DE CENDRES — Le monde
    Une cour de temple en ruine, une nuit sans vent, une lune
-   rouge. Tout est généré : aucune image, aucun modèle.
+   rouge. Le décor est construit par le code ; les matières et le
+   ciel sont peints par kie.ai quand les images sont là (src/art.js),
+   sinon on garde les textures générées.
    ========================================================= */
 import * as THREE from 'three';
+import ART from './art.js';
 
 export const ARENA_RADIUS = 13;
 
@@ -53,6 +56,68 @@ function flagstones() {
   [map, rmap].forEach(t => { t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(9, 9); t.anisotropy = 8; });
   map.colorSpace = THREE.SRGBColorSpace;
   return { map, rmap };
+}
+
+/* Une matière peinte : la couleur et son relief, répétés tous les `tile` mètres. */
+const loader = new THREE.TextureLoader();
+function painted(name, tile, opts) {
+  if (!ART[name]) return null;
+  const map = loader.load(ART[name]);
+  map.colorSpace = THREE.SRGBColorSpace;
+  const mat = new THREE.MeshStandardMaterial({ map, ...opts });
+  if (ART[name + 'N']) mat.normalMap = loader.load(ART[name + 'N']);
+  [mat.map, mat.normalMap].filter(Boolean).forEach(t => {
+    t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(1 / tile, 1 / tile); t.anisotropy = 8;
+  });
+  mat.userData.metric = true;
+  return mat;
+}
+
+/* Remet les UV d'une forme en mètres, pour qu'une même matière garde la
+   même échelle sur un pilier de sept mètres et sur un caillou. Les fûts
+   s'enroulent autour de leur axe, le reste est projeté sur la face la
+   plus proche de la normale. */
+function metricUV(geo) {
+  const uv = geo.attributes.uv, pos = geo.attributes.position, nor = geo.attributes.normal;
+  if (!uv || geo.userData.metric) return;
+  geo.userData.metric = true;
+  const p = geo.parameters || {};
+  const round = geo.type === 'CylinderGeometry' || geo.type === 'ConeGeometry';
+  const r = geo.type === 'ConeGeometry' ? p.radius : (p.radiusTop + p.radiusBottom) / 2;
+  for (let i = 0; i < uv.count; i++) {
+    const x = pos.getX(i), y = pos.getY(i), z = pos.getZ(i);
+    const nx = Math.abs(nor.getX(i)), ny = Math.abs(nor.getY(i)), nz = Math.abs(nor.getZ(i));
+    if (round && ny < 0.9) uv.setXY(i, uv.getX(i) * 2 * Math.PI * r, uv.getY(i) * p.height);
+    else if (ny >= nx && ny >= nz) uv.setXY(i, x, z);
+    else if (nx >= nz) uv.setXY(i, z, y);
+    else uv.setXY(i, x, y);
+  }
+  uv.needsUpdate = true;
+}
+
+/* Le ciel peint : un panorama enroulé deux fois autour de la cour, qui se
+   fond dans la brume en bas et dans la nuit en haut. */
+function paintedSky(fogColor) {
+  const map = loader.load(ART.ciel);
+  map.colorSpace = THREE.SRGBColorSpace;
+  map.wrapS = THREE.RepeatWrapping;
+  const R = 160, H = Math.PI * R * 9 / 21;
+  const mat = new THREE.ShaderMaterial({
+    uniforms: { map: { value: map }, fogColor: { value: fogColor } },
+    vertexShader: `varying vec2 vUv;
+      void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+    fragmentShader: `uniform sampler2D map; uniform vec3 fogColor; varying vec2 vUv;
+      void main() {
+        vec3 c = texture2D(map, vec2(vUv.x * 2.0, vUv.y)).rgb * 0.75;
+        float f = smoothstep(0.02, 0.3, vUv.y) * (1.0 - smoothstep(0.82, 1.0, vUv.y));
+        gl_FragColor = vec4(mix(fogColor, c, f), 1.0);
+      }`,
+    side: THREE.BackSide, depthWrite: false, fog: false
+  });
+  const sky = new THREE.Mesh(new THREE.CylinderGeometry(R, R, H, 96, 1, true), mat);
+  sky.position.y = H / 2 - 65;
+  sky.renderOrder = -1;
+  return sky;
 }
 
 function shadowed(m) { m.castShadow = true; m.receiveShadow = true; return m; }
@@ -169,15 +234,21 @@ export function buildWorld(scene) {
 
   /* Le sol */
   const { map, rmap } = flagstones();
-  const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 64), new THREE.MeshStandardMaterial({ map, roughnessMap: rmap, roughness: 1, metalness: 0.15 }));
+  let groundMat = painted('sol', 4, { color: 0xc4bcc0, roughnessMap: rmap, roughness: 1, metalness: 0.15 });
+  if (groundMat) rmap.repeat.set(9 / 120, 9 / 120);
+  else groundMat = new THREE.MeshStandardMaterial({ map, roughnessMap: rmap, roughness: 1, metalness: 0.15 });
+  const ground = new THREE.Mesh(new THREE.CircleGeometry(60, 64), groundMat);
   ground.rotation.x = -Math.PI / 2; ground.receiveShadow = true;
   scene.add(ground);
 
   const rand = rng(42);
-  const lacquer = new THREE.MeshStandardMaterial({ color: 0x5c0e0c, roughness: 0.6, metalness: 0.1 });
+  const lacquer = painted('laque', 2, { color: 0xe0d0cc, roughness: 0.55, metalness: 0.1 })
+    || new THREE.MeshStandardMaterial({ color: 0x5c0e0c, roughness: 0.6, metalness: 0.1 });
   const charcoal = new THREE.MeshStandardMaterial({ color: 0x111012, roughness: 0.8 });
-  const stone = new THREE.MeshStandardMaterial({ color: 0x3a3836, roughness: 0.95 });
-  const bark = new THREE.MeshStandardMaterial({ color: 0x15100e, roughness: 1 });
+  const stone = painted('pierre', 1.6, { color: 0xc0bcb8, roughness: 0.95 })
+    || new THREE.MeshStandardMaterial({ color: 0x3a3836, roughness: 0.95 });
+  const bark = painted('ecorce', 1.4, { color: 0x9a908c, roughness: 1 })
+    || new THREE.MeshStandardMaterial({ color: 0x15100e, roughness: 1 });
 
   const gate = torii(lacquer, charcoal);
   gate.position.set(0, 0, -17); scene.add(gate);
@@ -237,13 +308,16 @@ export function buildWorld(scene) {
     r.rotation.set(rand() * 3, rand() * 3, rand() * 3);
     scene.add(r);
   }
-  /* Les montagnes, silhouettes noyées dans la brume */
-  for (let i = 0; i < 9; i++) {
+  /* Les montagnes, silhouettes noyées dans la brume, ou le ciel peint qui les porte déjà */
+  if (ART.ciel) scene.add(paintedSky(fogColor));
+  else for (let i = 0; i < 9; i++) {
     const a = Math.PI / 2 + (i / 8) * Math.PI;   // l'arc derrière le temple
     const m = new THREE.Mesh(new THREE.ConeGeometry(18 + rand() * 14, 26 + rand() * 22, 5), new THREE.MeshBasicMaterial({ color: 0x0d070a }));
     m.position.set(Math.sin(a) * 85, 8, Math.cos(a) * 85 - 20);
     scene.add(m);
   }
+
+  scene.traverse(o => { if (o.isMesh && o.material.userData.metric) metricUV(o.geometry); });
 
   const ash = drift(420, 0xff6a2a, 0.07, true);
   const petals = drift(160, 0xb3122a, 0.12, false);

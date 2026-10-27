@@ -1,2 +1,6 @@
 .dream-loop/
 node_modules/
+samourai/assets/raw/
+# Les modèles bruts de Meshy (16 Mo chacun) : seuls les *-jeu.glb allégés sont versionnés
+samourai/assets/modeles/*.glb
+!samourai/assets/modeles/*-jeu.glb
