@@ -66,7 +66,11 @@ window.bake = async (url, fps = 30, clipName = '') => {
   const scale = 0.98 / bindP.Hips.y;
 
   const mixer = new THREE.AnimationMixer(obj);
-  mixer.clipAction(clip).play();
+  /* une seule lecture : la dernière image est la vraie fin, pas un retour au début */
+  const act = mixer.clipAction(clip);
+  act.setLoop(THREE.LoopOnce);
+  act.clampWhenFinished = true;
+  act.play();
   const frames = [];
   const n = Math.round(clip.duration * fps);
   const wq = new THREE.Quaternion(), wp = new THREE.Vector3(), wp2 = new THREE.Vector3();

@@ -36,11 +36,12 @@ var steel: StandardMaterial3D
 var eye_mat: StandardMaterial3D
 var body_scale := 1.0
 var feet: Array[Node3D] = []    # les chevilles, pour le coup de pied
+var evil := false               # un damné : yeux rouges, cornes, lame rougeoyante
 
 
 func _init(k: String) -> void:
 	kind = k
-	var evil := kind != "player"
+	evil = kind in ["ronin", "chef", "oni"]
 	mats.armor = _m(Color(0.11, 0.09, 0.12) if evil else Color(0.17, 0.18, 0.24), 0.38, 0.35)
 	mats.plate = _m(Color(0.23, 0.055, 0.08) if evil else Color(0.54, 0.1, 0.09), 0.5, 0.25)
 	mats.cloth = _m(Color(0.09, 0.075, 0.1) if evil else Color(0.13, 0.11, 0.13), 0.95, 0.0)
@@ -57,7 +58,7 @@ func _init(k: String) -> void:
 	eye_mat.emission = eye_mat.albedo_color
 	eye_mat.emission_energy_multiplier = 6.0
 	_build()
-	body_scale = {"oni": 1.38, "chef": 1.1}.get(kind, 1.0)
+	body_scale = {"oni": 1.38, "chef": 1.1, "moine": 1.06, "marchand": 0.97, "villageoise": 0.95, "oyuki": 0.96}.get(kind, 1.0)
 	scale = Vector3.ONE * body_scale
 
 
@@ -128,7 +129,7 @@ func _build() -> void:
 	for s in [-1, 1]:
 		var e := SphereMesh.new(); e.radius = 0.017 if kind != "player" else 0.011; e.height = e.radius * 2
 		_mesh(head, e, eye_mat, Vector3(s * 0.045, 0.1, 0.105))
-	if kind == "player":
+	if not evil:
 		for s in [-1, 1]:
 			_box(head, Vector3(0.02, 0.24, 0.015), mats.gold, Vector3(s * 0.06, 0.3, 0.1), Vector3(0, 0, -s * 0.42))
 	else:

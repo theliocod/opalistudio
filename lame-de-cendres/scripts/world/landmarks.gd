@@ -175,7 +175,7 @@ func _light(parent: Node3D, pos: Vector3, c: Color, energy: float, rng_: float) 
 	l.light_energy = energy
 	l.omni_range = rng_
 	l.omni_attenuation = 1.6
-	l.light_volumetric_fog_energy = 0.25   # un halo chaud dans la brume, pas une boule blanche
+	l.light_volumetric_fog_energy = 0.06   # à peine un halo : de près, la brume saturait en boule blanche
 	parent.add_child(l)
 	l.position = pos
 	lights.append({"light": l, "base": energy, "seed": _rng.randf() * 100.0})
@@ -441,15 +441,25 @@ func _camp(c: Vector3, p: Dictionary) -> void:
 
 func _fire(parent: Node3D, pos: Vector3) -> void:
 	var f := CPUParticles3D.new()
-	f.amount = 60
+	f.amount = 90
 	f.lifetime = 0.9
-	var q := QuadMesh.new(); q.size = Vector2(0.35, 0.35)
+	var q := QuadMesh.new(); q.size = Vector2(0.5, 0.5)
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	m.vertex_color_use_as_albedo = true
-	m.albedo_color = Color(2.5, 1.0, 0.35)
+	m.albedo_color = Color(1.4, 0.6, 0.22)
+	# une flamme douce : un dégradé rond plutôt qu'un carré
+	var soft := Gradient.new()
+	soft.set_color(0, Color(1, 1, 1, 1))
+	soft.set_color(1, Color(1, 1, 1, 0))
+	var tex := GradientTexture2D.new()
+	tex.gradient = soft
+	tex.fill = GradientTexture2D.FILL_RADIAL
+	tex.fill_from = Vector2(0.5, 0.5)
+	tex.fill_to = Vector2(1.0, 0.5)
+	m.albedo_texture = tex
 	q.material = m
 	f.mesh = q
 	f.emission_shape = CPUParticles3D.EMISSION_SHAPE_SPHERE

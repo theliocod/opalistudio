@@ -10,7 +10,7 @@ const VERMILION := Color(0.66, 0.15, 0.1)
 const PAPER := Color(0.9, 0.85, 0.74)
 const GOLD := Color(0.78, 0.56, 0.16)
 ## Lieu → icône peinte (assets/kie/carte-icones-*.png)
-const ICONS := {"autel": 0, "village": 1, "camp": 2, "croisee": 3, "sanctuaire": 4, "temple": 5, "ville": 6, "marchand": 7, "samourai": 8}
+const ICONS := {"autel": 0, "village": 1, "camp": 2, "croisee": 3, "sanctuaire": 4, "temple": 5, "hojo": 6, "akagane": 2, "cimetiere": 3, "bambous": 4, "ville": 6, "marchand": 7, "samourai": 8}
 const DESCRIPTIONS := {
 	"autel": "Un autel de pierre sous un petit torii. On s'y recueille, et l'on y revient après une mort.",
 	"village": "Les maisons éventrées d'un village de forgerons. Des ronins y ont pris leurs quartiers.",
@@ -18,6 +18,10 @@ const DESCRIPTIONS := {
 	"croisee": "Un arbre mort où pendent encore les cordes. Les jizos de pierre veillent sur personne.",
 	"sanctuaire": "Des piliers laqués que le lac a mangés. On raconte qu'une lame noire y repose.",
 	"temple": "Le grand torii, l'escalier, la salle et sa lune peinte. L'Oni n'en sort jamais.",
+	"hojo": "La dernière ville libre. Un marché, une taverne, un dojo et son Registre des Lames : six sabres à défier.",
+	"akagane": "Un fort de pieux et de tours de guet, tenu par les gens de l'Oni. Une armurerie pleine de lames volées, des prisonniers en cage.",
+	"cimetiere": "Des centaines de sabres plantés dans des tertres. Les âmes de leurs maîtres y flottent encore, bleues et froides.",
+	"bambous": "Une forêt de bambous qui grince dans le vent. Un vieil ermite y boit son thé en regardant la lune.",
 }
 
 var main
@@ -192,7 +196,7 @@ func _place_status(id: String) -> Array:
 	var chests := 0
 	var opened := 0
 	for c in main.landmarks.chests:
-		if c.place == id:
+		if c.place.begins_with(id):
 			chests += 1
 			if c.open:
 				opened += 1
@@ -210,6 +214,10 @@ func _status_text(id: String) -> String:
 		parts.append("coffres %d / %d" % [s[2], s[1]])
 	if id == "autel":
 		parts.append("on s'y relève")
+	if id == "hojo":
+		parts = ["on te pourchasse" if main.renown.hojo_hostile() else "ville libre", "marchand", "registre"]
+	if id == "akagane" and main.renown.fort_free:
+		parts.push_front("libéré")
 	return " · ".join(parts)
 
 

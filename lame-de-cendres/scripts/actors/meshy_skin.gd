@@ -17,7 +17,9 @@ const AIM := {
 	"shL": "LeftForeArm", "elL": "LeftHand", "shR": "RightForeArm", "elR": "RightHand", "wrR": "RightHand",
 	"hipL": "LeftLeg", "knL": "LeftFoot", "hipR": "RightLeg", "knR": "RightFoot",
 }
-const MODELS := {"player": "samourai", "ronin": "ronin", "chef": "ronin", "oni": "oni"}
+const MODELS := {"player": "samourai", "ronin": "ronin", "chef": "ronin", "oni": "oni",
+	"garde": "garde", "paysan": "paysan", "villageoise": "villageoise", "marchand": "marchand",
+	"noble": "noble", "moine": "moine", "onnamusha": "onnamusha", "jubei": "jubei", "kojiro": "kojiro", "oyuki": "oyuki"}
 
 var rig: Rig
 var skel: Skeleton3D

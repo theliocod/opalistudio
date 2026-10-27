@@ -9,6 +9,7 @@ uniform sampler2D mask : filter_linear, repeat_disable;
 uniform float world_size = 512.0;
 uniform float res = 257.0;
 uniform float fade_radius = 38.0;
+global uniform vec4 wind;          // xy : direction du vent, z : sa force (rafales)
 
 varying float tip;
 varying float lily;
@@ -36,9 +37,13 @@ void vertex() {
 	v.xz = mat2(vec2(cos(ang), -sin(ang)), vec2(sin(ang), cos(ang))) * v.xz;
 	v.y *= h;
 	tip = VERTEX.y;
-	float wind = sin(TIME * 1.7 + wxz.x * 0.25 + wxz.y * 0.18) * 0.5 + sin(TIME * 3.1 + wxz.x * 0.9) * 0.18;
-	v.x += wind * tip * tip * 0.35 * h;
-	v.z += wind * tip * tip * 0.18 * h;
+	// le vent : des vagues qui courent dans sa direction, plus fortes pendant les rafales
+	float gust = wind.z;
+	float wave = sin(dot(wxz, wind.xy) * 0.21 - TIME * (1.6 + gust * 1.4)) * 0.5 + 0.5;
+	float flutter = sin(TIME * 3.1 + wxz.x * 0.9 + wxz.y * 0.4) * (0.12 + gust * 0.1);
+	float bend = (0.12 + gust * 0.75) * (0.35 + wave * 0.65);
+	v.x += (wind.x * bend + wind.y * flutter) * tip * tip * 0.55 * h;
+	v.z += (wind.y * bend - wind.x * flutter) * tip * tip * 0.55 * h;
 	shade = r3;
 
 	vec3 world = vec3(wxz.x, ground, wxz.y) + v;

@@ -41,6 +41,20 @@ with black wrapped handle. Row 2: a katana with a crimson red blade wreathed in 
 silver katana wrapped in cold blue ghost flames. Row 4: a steel katana crackling with white and pale blue
 lightning. Row 5: a black blade trailing violet shadow smoke. Row 6: a legendary katana with a blood red
 blade glowing like a red moon, gold guard. ${STYLE}` },
+  katanas2: { kind: 'bandes', size: '1:1', prompt: `Six Japanese katanas for a game inventory, each one drawn perfectly
+horizontal, handle on the left and blade tip on the right, stacked one above the other in six evenly spaced
+rows, all the same length, on a plain very dark charcoal background, no labels. Row 1: a pale steel katana with a
+jade green handle wrap, thin white wind streaks swirling around the blade. Row 2: a katana with a pink-tinted blade
+engraved with cherry blossoms, a few pink petals drifting off it. Row 3: a black blade with a dark green sheen and a
+coiled serpent engraved near the guard, dripping green venom. Row 4: a thick heavy katana with a wide dark iron blade
+and a round iron guard, chipped, a monk's prayer bead tassel on the handle. Row 5: a masterwork katana with a
+mirror-bright blade, a golden guard and a white and gold handle wrap, a soft holy light. Row 6: a copper red blade
+with a black handle and a smoky dark aura, an assassin's blade. ${STYLE}` },
+  objets2: { kind: 'grille', size: '1:1', prompt: `Four inventory icons for a video game, arranged in a 2 by 2 grid,
+each object alone and centered in its own quarter with a wide empty margin, on a plain very dark charcoal
+background, no frames, no borders, no labels. Top left: a small stack of oval gold koban coins (Japanese ryo).
+Top right: a rolled technique scroll tied with a red cord, a bit of brush calligraphy visible. Bottom left: a round
+black ninja smoke bomb with a short fuse, a wisp of grey smoke. Bottom right: a smooth round river pebble. ${STYLE}` },
   erable: { kind: 'feuillage', size: '1:1', prompt: `A dense round cluster of Japanese maple leaves (momiji) on thin
 dark twigs, deep crimson and blood red autumn leaves with a few darker ones, seen from the side. ${CUTOUT}` },
   pin: { kind: 'feuillage', size: '1:1', prompt: `A dense tuft cluster of Japanese black pine needles on short twigs,

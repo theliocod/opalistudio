@@ -7,7 +7,7 @@
      node tools/kie-portraits.mjs garde moine  quelques-uns
      node tools/kie-portraits.mjs --force noble
 
-   Lit ../samourai/assets/modeles/<nom>.png, écrit assets/kie/portraits/<nom>.png (512 × 512).
+   Lit ../samourai/assets/modeles/<nom>.png (en ligne, adresse dans SHEETS_URL), écrit assets/kie/portraits/<nom>.png (512 × 512).
    La clé est lue dans KIE_API_KEY (avec Node derrière un proxy : NODE_USE_ENV_PROXY=1). */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -15,7 +15,7 @@ import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const API = 'https://api.kie.ai/api/v1/jobs';
-const UPLOAD = 'https://kieai.redpandaai.co/api/file-base64-upload';
+const SHEETS = process.env.SHEETS_URL || 'https://raw.githubusercontent.com/theliocod/opalistudio/claude/serene-thompson-wxx6c5/samourai/assets/modeles';
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const sheets = path.join(root, '..', 'samourai', 'assets', 'modeles');
 const out = path.join(root, 'assets', 'kie', 'portraits');
@@ -79,16 +79,12 @@ im.resize((512, 512), Image.LANCZOS).save(sys.argv[2], optimize=True)
   } catch (e) { console.error(`✗ ${n} : ${e.message}`); }
 }));
 
+/* kie lit l'image par une adresse publique : la planche telle qu'elle est poussée sur GitHub */
 async function upload(n) {
-  const b64 = fs.readFileSync(path.join(sheets, `${n}.png`)).toString('base64');
-  const res = await fetch(UPLOAD, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ base64Data: `data:image/png;base64,${b64}`, uploadPath: 'lame-de-cendres', fileName: `${n}.png` })
-  });
-  const json = await res.json().catch(() => ({}));
-  if (!res.ok || !json.data?.downloadUrl) throw new Error(`envoi de la planche : HTTP ${res.status} ${json.msg || ''}`.trim());
-  return json.data.downloadUrl;
+  const url = `${SHEETS}/${n}.png`;
+  const res = await fetch(url, { method: 'HEAD' });
+  if (!res.ok) throw new Error(`planche introuvable en ligne (HTTP ${res.status}) : pousse-la d'abord, ${url}`);
+  return url;
 }
 async function call(url, body) {
   const res = await fetch(url, {

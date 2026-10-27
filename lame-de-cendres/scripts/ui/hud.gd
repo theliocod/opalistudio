@@ -9,8 +9,11 @@ const PAPER := Color(0.94, 0.9, 0.85)
 const MUTED := Color(0.94, 0.9, 0.85, 0.6)
 const INK := Color(0.04, 0.03, 0.035)
 ## Les images peintes par kie.ai (assets/kie/), si elles sont là
-const ITEM_ART := {"sake": 0, "onigiri": 1, "the": 2, "encens": 3}
-const KATANA_ART := {"ronin": 0, "kurenai": 1, "shiranui": 2, "raijin": 3, "yamikaze": 4, "tsukuyomi": 5}
+const ITEM_ART := {"sake": "objets-0", "onigiri": "objets-1", "the": "objets-2", "encens": "objets-3", "fumigene": "objets2-2", "caillou": "objets2-3"}
+const KATANA_ART := {"ronin": "katanas-0", "kurenai": "katanas-1", "shiranui": "katanas-2", "raijin": "katanas-3", "yamikaze": "katanas-4", "tsukuyomi": "katanas-5",
+	"kazekiri": "katanas2-0", "sakura": "katanas2-1", "kuroi": "katanas2-2", "gojo": "katanas2-3", "masamune": "katanas2-4", "akagane": "katanas2-5"}
+const MISC_ART := {"ryo": "objets2-0", "rouleau": "objets2-1"}
+const TECH_KEYS := {"tourbillon": "tech1", "iai": "tech2", "hirondelle": "tech3", "pas_vent": "tech4", "petales": "tech5"}
 
 var serif := SystemFont.new()
 var sans := SystemFont.new()
@@ -38,6 +41,11 @@ var prompt_lbl: Label
 var toasts: VBoxContainer
 var inv: Control
 var screen: Control
+var ryo_lbl: Label
+var fame_lbl: Label
+var eye: Label
+var bars_top: ColorRect
+var bars_bottom: ColorRect
 var _banner_t := 0.0
 var _callout_t := 0.0
 var _hp_shown := 1.0
@@ -108,17 +116,24 @@ func _button(text: String, cb: Callable) -> Button:
 		sb.content_margin_left = 44
 		sb.content_margin_right = 44
 		b.add_theme_stylebox_override(state, sb)
-	b.pressed.connect(cb)
+	b.pressed.connect(func():
+		Audio.sfx("ui-clic", null, -4.0)
+		cb.call())
 	return b
 
 
 static func item_icon(id: String) -> Texture2D:
-	var p := "res://assets/kie/objets-%d.png" % ITEM_ART.get(id, 0)
+	var p := "res://assets/kie/%s.png" % ITEM_ART.get(id, "objets-0")
 	return load(p) if ResourceLoader.exists(p) else null
 
 
 static func katana_art(id: String) -> Texture2D:
-	var p := "res://assets/kie/katanas-%d.png" % KATANA_ART.get(id, 0)
+	var p := "res://assets/kie/%s.png" % KATANA_ART.get(id, "katanas-0")
+	return load(p) if ResourceLoader.exists(p) else null
+
+
+static func misc_icon(id: String) -> Texture2D:
+	var p := "res://assets/kie/%s.png" % MISC_ART.get(id, "objets2-0")
 	return load(p) if ResourceLoader.exists(p) else null
 
 
@@ -172,6 +187,14 @@ func _build_play() -> void:
 	bars.add_child(katana_img)
 	souls_lbl = _label("", 13, MUTED)
 	bars.add_child(souls_lbl)
+	var purse := HBoxContainer.new()
+	purse.add_theme_constant_override("separation", 6)
+	purse.add_child(_tex(misc_icon("ryo"), Vector2(22, 22)))
+	ryo_lbl = _label("", 15, GOLD, serif)
+	purse.add_child(ryo_lbl)
+	fame_lbl = _label("", 13, MUTED, serif)
+	purse.add_child(fame_lbl)
+	bars.add_child(purse)
 
 	# la ceinture : les objets sous les touches 1 à 4
 	var belt := HBoxContainer.new()
@@ -182,11 +205,11 @@ func _build_play() -> void:
 	for id in Arsenal.ITEMS:
 		var it: Dictionary = Arsenal.ITEMS[id]
 		var p := _panel(Color(0.03, 0.02, 0.025, 0.7), Color(1, 1, 1, 0.12))
-		p.custom_minimum_size = Vector2(76, 84)
+		p.custom_minimum_size = Vector2(70, 84)
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 2)
 		p.add_child(v)
-		v.add_child(_label(str(it.key), 11, MUTED))
+		v.add_child(_label(Settings.key_name("objet%d" % it.key), 11, MUTED))
 		var icon := item_icon(id)
 		var c := CenterContainer.new()
 		c.add_child(_tex(icon, Vector2(42, 42)) if icon else _rect(it.color, Vector2(18, 18)))
@@ -202,22 +225,43 @@ func _build_play() -> void:
 	var tech := HBoxContainer.new()
 	tech.add_theme_constant_override("separation", 8)
 	tech.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
-	tech.position = Vector2(-330, -92)
+	tech.position = Vector2(-640, -92)
+	tech.custom_minimum_size = Vector2(612, 0)
+	tech.alignment = BoxContainer.ALIGNMENT_END
 	play_ui.add_child(tech)
-	for id in ["tourbillon", "iai"]:
+	for id in TECH_KEYS:
 		var t: Dictionary = Arsenal.TECHNIQUES[id]
 		var p := _panel(Color(0.03, 0.02, 0.025, 0.7), Color(1, 1, 1, 0.12))
-		p.custom_minimum_size = Vector2(150, 64)
+		p.custom_minimum_size = Vector2(114, 64)
 		var v := VBoxContainer.new()
 		p.add_child(v)
-		var k := _label(t.key, 18, GOLD, serif)
+		var k := _label(Settings.key_name(TECH_KEYS[id]), 18, GOLD, serif)
 		v.add_child(k)
 		var nm := _label(t.name, 11, MUTED)
 		nm.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		nm.custom_minimum_size = Vector2(122, 0)
+		nm.custom_minimum_size = Vector2(96, 0)
 		v.add_child(nm)
 		tech.add_child(p)
 		techs[id] = {"panel": p, "name": nm, "key": k}
+
+	# l'œil : il s'ouvre quand un garde te soupçonne
+	eye = _label("", 40, PAPER, serif)
+	eye.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	eye.position = Vector2(-60, 58)
+	eye.custom_minimum_size = Vector2(120, 0)
+	eye.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	play_ui.add_child(eye)
+
+	# les bandes noires du cinéma
+	bars_top = _rect(Color(0, 0, 0, 1))
+	bars_top.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	bars_top.custom_minimum_size = Vector2(0, 0)
+	bars_top.size.y = 0
+	root.add_child(bars_top)
+	bars_bottom = _rect(Color(0, 0, 0, 1))
+	bars_bottom.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	bars_bottom.size.y = 0
+	root.add_child(bars_bottom)
 
 	# la boussole
 	compass = Control.new()
@@ -301,10 +345,11 @@ func set_arsenal(a: Arsenal) -> void:
 	katana_img.texture = katana_art(a.equipped)
 	var next := ""
 	for id in Arsenal.TECHNIQUES:
-		if not a.knows(id):
+		if Arsenal.TECHNIQUES[id].has("souls") and not a.knows(id):
 			next = " · prochaine technique à %d" % Arsenal.TECHNIQUES[id].souls
 			break
 	souls_lbl.text = "%d âmes%s" % [a.souls, next]
+	ryo_lbl.text = "%d ryō" % a.ryo
 	for id in slots:
 		var n: int = a.items.get(id, 0)
 		slots[id].count.text = str(n)
@@ -312,7 +357,10 @@ func set_arsenal(a: Arsenal) -> void:
 	for id in techs:
 		var known := a.knows(id)
 		techs[id].panel.modulate.a = 1.0 if known else 0.4
-		techs[id].name.text = Arsenal.TECHNIQUES[id].name if known else "Verrouillé · %d âmes" % Arsenal.TECHNIQUES[id].souls
+		var t: Dictionary = Arsenal.TECHNIQUES[id]
+		techs[id].key.text = Settings.key_name(TECH_KEYS[id])
+		techs[id].name.text = t.name if known else ("%d âmes" % t.souls if t.has("souls") else "Registre : %s" % Renown.SAMURAI[t.teacher].name.split(" ")[-1])
+		techs[id].panel.visible = known or t.has("souls") or id == "hirondelle"
 
 
 func set_boss(name: String, frac: float) -> void:
@@ -483,7 +531,10 @@ func show_inventory(a: Arsenal) -> void:
 		var t: Dictionary = Arsenal.TECHNIQUES[id]
 		var known := a.knows(id)
 		var key := ("[%s] " % t.key) if t.key != "" else "[passive] "
-		var l := _label((key + t.name) if known else "%s — %d âmes" % [t.name, t.souls], 15, PAPER if known else MUTED, serif)
+		var how: String = ("%d âmes" % t.souls) if t.has("souls") else ("vaincre %s en duel" % Renown.SAMURAI[t.teacher].name)
+		if TECH_KEYS.has(id):
+			key = "[%s] " % Settings.key_name(TECH_KEYS[id])
+		var l := _label((key + t.name) if known else "%s — %s" % [t.name, how], 15, PAPER if known else MUTED, serif)
 		_inv_techs.add_child(l)
 		var d := _label(t.desc, 13, MUTED)
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -497,7 +548,7 @@ func hide_inventory() -> void:
 
 # ---------- Écrans ----------
 
-func _screen(kanji: String, title: String, sub: String, button: String, cb: Callable, art := false) -> void:
+func _screen(kanji: String, title: String, sub: String, button: String, cb: Callable, art := false, extra := []) -> void:
 	if screen:
 		screen.queue_free()
 	screen = Control.new()
@@ -521,18 +572,31 @@ func _screen(kanji: String, title: String, sub: String, button: String, cb: Call
 	for l in [_label(kanji, 84, BLOOD, serif), _label(title, 56, PAPER, serif, 18), _label(sub, 18, MUTED, serif)]:
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(l)
-	var c := CenterContainer.new()
+	var c := HBoxContainer.new()
+	c.alignment = BoxContainer.ALIGNMENT_CENTER
+	c.add_theme_constant_override("separation", 16)
 	c.add_child(_button(button, cb))
+	for e in extra:
+		c.add_child(_button(e[0], e[1]))
 	v.add_child(c)
 	if art:
-		var help := _label("ZQSD se déplacer · Souris caméra · Clic gauche coup rapide · Clic droit coup lourd · F coup de pied · G coup tournoyant\nEspace esquive, enjamber · Maj parer et garder · E interagir, coup de grâce · R T techniques · 1 2 3 4 objets · Tab inventaire · M carte", 14, MUTED)
+		var k := func(a): return Settings.key_name(a)
+		var help := _label("%s %s %s %s se déplacer · Souris caméra · %s coup rapide · %s coup lourd · %s coup de pied · %s coup tournoyant\n%s esquive, roulade, enjamber · %s parer · %s s'accroupir · %s interagir, exécuter, assassiner · %s inventaire · %s carte · %s menu" % [
+			k.call("avant"), k.call("gauche"), k.call("arriere"), k.call("droite"), k.call("rapide"), k.call("lourd"), k.call("pied"), k.call("tournoyant"),
+			k.call("esquive"), k.call("garde"), k.call("accroupi"), k.call("action"), k.call("inventaire"), k.call("carte"), k.call("pause")], 14, MUTED)
 		help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(help)
 	play_ui.visible = false
 
 
-func show_title(cb: Callable) -> void:
-	_screen("灰刃", "LAME DE CENDRES", "La lune est rouge depuis sept nuits. Les morts de la vallée se sont relevés.\nIl ne reste que toi, et ta lame.", "DÉGAINER", cb, true)
+func show_title(cb: Callable, cont := Callable(), settings := Callable()) -> void:
+	var extra := []
+	if cont.is_valid():
+		extra.append(["CONTINUER", cont])
+	if settings.is_valid():
+		extra.append(["RÉGLAGES", settings])
+	extra.append(["QUITTER", func(): get_tree().quit()])
+	_screen("灰刃", "LAME DE CENDRES", "La lune est rouge depuis sept nuits. Les morts de la vallée se sont relevés.\nIl ne reste que toi, et ta lame.", "NOUVELLE PARTIE", cb, true, extra)
 
 
 func show_death(cb: Callable) -> void:
@@ -548,3 +612,37 @@ func hide_screen() -> void:
 		screen.queue_free()
 		screen = null
 	play_ui.visible = true
+
+
+# ---------- Réputation, furtivité, cinéma ----------
+
+func set_renown(r: Renown) -> void:
+	fame_lbl.text = "  ·  %s · renommée %d%s" % [r.title(), r.fame, ("  ·  infamie %d" % r.infamy) if r.infamy > 0 else ""]
+
+
+## L'œil qui s'ouvre : 0 personne ne te soupçonne, 1 l'alerte est donnée.
+func set_sneak(sneaking: bool, watch: float) -> void:
+	if watch >= 1.0:
+		eye.text = "◉"
+		eye.add_theme_color_override("font_color", Color(1.0, 0.2, 0.12))
+		eye.modulate.a = 1.0
+	elif watch > 0.02:
+		eye.text = "◎"
+		eye.add_theme_color_override("font_color", PAPER.lerp(Color(1.0, 0.7, 0.2), watch))
+		eye.modulate.a = 0.4 + watch * 0.6
+	elif sneaking:
+		eye.text = "◌"
+		eye.add_theme_color_override("font_color", MUTED)
+		eye.modulate.a = 0.6
+	else:
+		eye.text = ""
+
+
+## Les bandes noires d'une scène de cinéma.
+func letterbox(on: bool) -> void:
+	var h := 92.0 if on else 0.0
+	play_ui.visible = not on
+	var tw := create_tween().set_parallel(true)
+	tw.tween_property(bars_top, "size:y", h, 0.35).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(bars_bottom, "size:y", h, 0.35).set_trans(Tween.TRANS_SINE)
+	tw.tween_property(bars_bottom, "position:y", get_viewport().get_visible_rect().size.y - h, 0.35).set_trans(Tween.TRANS_SINE)

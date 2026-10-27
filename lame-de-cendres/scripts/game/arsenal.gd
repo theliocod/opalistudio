@@ -10,7 +10,12 @@ const ITEMS := {
 	"onigiri": {"name": "Onigiri", "desc": "Rend 20 points de vie et toute l'endurance.", "key": 2, "heal": 20.0, "stamina": true, "color": Color(0.92, 0.92, 0.88)},
 	"the": {"name": "Thé de Gyokuro", "desc": "L'endurance revient deux fois plus vite pendant 40 secondes.", "key": 3, "buff": "the", "duration": 40.0, "color": Color(0.45, 0.7, 0.35)},
 	"encens": {"name": "Encens de garde", "desc": "Les coups reçus font 40 % de dégâts en moins pendant 30 secondes.", "key": 4, "buff": "encens", "duration": 30.0, "color": Color(0.7, 0.55, 0.85)},
+	"fumigene": {"name": "Bombe fumigène", "desc": "Un nuage épais : les gardes autour de toi te perdent de vue, les ennemis proches titubent.", "key": 5, "smoke": true, "color": Color(0.6, 0.62, 0.66)},
+	"caillou": {"name": "Caillou", "desc": "Lancé devant toi, il fait du bruit là où il tombe : les gardes vont voir.", "key": 6, "throw": true, "color": Color(0.7, 0.68, 0.62)},
 }
+## Ce que coûtent les objets chez le marchand (en ryō)
+const PRICES := {"sake": 30, "onigiri": 15, "the": 45, "encens": 70, "fumigene": 60, "caillou": 4,
+	"kazekiri": 450, "sakura": 900, "kuroi": 1400}
 
 ## Les katanas. dmg et posture multiplient les coups ; effect : leur pouvoir.
 ## aura : la couleur de la flamme qui court sur la lame (aucune pour le premier).
@@ -33,6 +38,24 @@ const KATANAS := {
 	"tsukuyomi": {
 		"name": "Tsukuyomi, Lame de la Lune Rouge", "desc": "Arrachée à l'Oni. La lune saigne avec elle : tout ce qu'elle touche brûle et la nourrit.",
 		"dmg": 1.55, "posture": 1.4, "effect": "moon", "aura": Color(1.0, 0.12, 0.08), "trail": Color(1.0, 0.2, 0.15)},
+	"kazekiri": {
+		"name": "Kazekiri, Fend-le-Vent", "desc": "Légère comme une plume. Tes coups partent plus vite et leur souffle repousse.",
+		"dmg": 1.05, "posture": 1.0, "effect": "wind", "aura": Color(0.6, 1.0, 0.8), "trail": Color(0.7, 1.0, 0.85), "speed": 1.22},
+	"sakura": {
+		"name": "Sakura-fubuki", "desc": "Une tempête de pétales suit la lame. Ses entailles saignent longtemps.",
+		"dmg": 1.15, "posture": 1.0, "effect": "bleed", "aura": Color(1.0, 0.5, 0.7), "trail": Color(1.0, 0.6, 0.78)},
+	"kuroi": {
+		"name": "Kuroi Hebi, le Serpent noir", "desc": "Un venin vert coule dans le fil. L'empoisonné saigne et sa garde se délite.",
+		"dmg": 1.2, "posture": 1.2, "effect": "venom", "aura": Color(0.35, 0.9, 0.25), "trail": Color(0.4, 0.95, 0.3)},
+	"gojo": {
+		"name": "Gojō, la lame du Mur", "desc": "L'épaisse lame de Benkei. Lente à lever, elle brise toutes les gardes et ses coups lourds ébranlent le sol.",
+		"dmg": 1.3, "posture": 2.0, "effect": "rock", "aura": Color(0.85, 0.7, 0.45), "trail": Color(0.9, 0.78, 0.55)},
+	"masamune": {
+		"name": "Hōjō Masamune", "desc": "Le trésor du clan Hōjō, confié au plus digne. Chaque ennemi abattu te rend vie et souffle.",
+		"dmg": 1.65, "posture": 1.5, "effect": "honor", "aura": Color(1.0, 0.92, 0.65), "trail": Color(1.0, 0.95, 0.75)},
+	"akagane": {
+		"name": "Lame d'Akagane", "desc": "Le cuivre rouge des assassins. Terrible sur qui ne t'a pas vu venir : les assassinats sont plus rapides.",
+		"dmg": 1.2, "posture": 1.1, "effect": "shadow", "aura": Color(0.95, 0.45, 0.25), "trail": Color(1.0, 0.5, 0.3)},
 }
 
 ## Les techniques : apprises en abattant des ennemis (les âmes qu'ils laissent).
@@ -41,9 +64,15 @@ const TECHNIQUES := {
 	"iai": {"name": "Iai : Éclair pourpre", "desc": "Un dégainé fulgurant : tu traverses ton ennemi, intouchable le temps de l'élan.", "souls": 5, "key": "T", "action": "iai", "cost": 30.0},
 	"garde": {"name": "Garde de fer", "desc": "Ta parade pardonne davantage, et chaque parade réussie te rend 5 points de vie.", "souls": 9, "key": "", "passive": true},
 	"lune": {"name": "Souffle de la Lune", "desc": "Le coup de grâce rend toute ton endurance et la moitié de ta vie.", "souls": 16, "key": "", "passive": true},
+	# Celles qu'enseignent les lames du Registre de Hōjō, une fois vaincues en duel
+	"pas_vent": {"name": "Pas du Vent", "desc": "Tu deviens rafale : tu traverses tout ce qui se tient devant toi, et chacun saigne une seconde plus tard.", "teacher": "oyuki", "key": "V", "action": "pas_vent", "cost": 40.0},
+	"oeil": {"name": "L'Œil unique", "desc": "Après une parade, ton coup suivant tranche double et le temps ralentit.", "teacher": "jubei", "key": "", "passive": true},
+	"petales": {"name": "Mille Pétales", "desc": "Une floraison de six coups qui s'enchaînent sans laisser respirer.", "teacher": "tomoe", "key": "X", "action": "petales", "cost": 45.0},
+	"hirondelle": {"name": "Retour de l'Hirondelle", "desc": "Le coup secret de Kojirō : ta lame lance un croissant de vent qui fauche tout sur son passage.", "teacher": "kojiro", "key": "Q", "action": "hirondelle", "cost": 38.0},
 }
 
-var items := {"sake": 2, "onigiri": 1, "the": 0, "encens": 0}
+var items := {"sake": 2, "onigiri": 1, "the": 0, "encens": 0, "fumigene": 1, "caillou": 3}
+var ryo := 40
 var katanas := ["ronin"]
 var equipped := "ronin"
 var souls := 0
@@ -64,7 +93,7 @@ func add_souls(n: int) -> Array:
 	souls += n
 	var fresh := []
 	for id in TECHNIQUES:
-		if not knows(id) and souls >= TECHNIQUES[id].souls:
+		if TECHNIQUES[id].has("souls") and not knows(id) and souls >= TECHNIQUES[id].souls:
 			learned.append(id)
 			fresh.append(id)
 	return fresh
@@ -88,12 +117,20 @@ func tick(dt: float) -> void:
 			buffs.erase(b)
 
 
+## Apprend une technique (un maître vaincu) ; faux si elle était déjà connue.
+func learn(id: String) -> bool:
+	if knows(id):
+		return false
+	learned.append(id)
+	return true
+
+
 ## Ce que rapporte un coffre ou un mort : quelques objets au hasard.
 static func roll_loot(rich: bool) -> Dictionary:
 	var out := {}
 	var n := randi_range(2, 3) if rich else randi_range(0, 2)
 	for i in n:
 		var r := randf()
-		var id := "sake" if r < 0.42 else "onigiri" if r < 0.72 else "the" if r < 0.87 else "encens"
+		var id := "sake" if r < 0.38 else "onigiri" if r < 0.64 else "the" if r < 0.76 else "encens" if r < 0.86 else "caillou" if r < 0.95 else "fumigene"
 		out[id] = out.get(id, 0) + 1
 	return out

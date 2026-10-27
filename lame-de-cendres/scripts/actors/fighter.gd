@@ -69,8 +69,62 @@ static var ACTIONS := {
 	"rising": {"dur": 0.95, "windup": 0.3, "active": [0.3, 0.42], "dmg": 18, "keys": [[0, P.end1], [0.28, P.wind2], [0.42, P.end2], [0.95, {}]]},
 	"thrust": {"dur": 1.3, "windup": 0.66, "active": [0.68, 0.82], "dmg": 22, "lunge": [0.62, 0.82, 10], "arc": 0.7, "reach": 2.2, "keys": [[0, {}], [0.62, P.windT], [0.82, P.endT], [1.3, {}]]},
 	"smash": {"dur": 1.5, "windup": 0.85, "active": [0.86, 0.98], "dmg": 34, "heavy": true, "lunge": [0.78, 0.95, 6], "keys": [[0, {}], [0.82, P.windH], [0.98, P.endH], [1.5, {}]]},
+	# Les duellistes : des coups plus vifs, plus difficiles à lire
+	"quick": {"dur": 0.8, "windup": 0.36, "active": [0.38, 0.5], "dmg": 16, "keys": [[0, {}], [0.36, P.wind2], [0.5, P.end2], [0.8, {}]]},
+	"lunge": {"dur": 1.1, "windup": 0.5, "active": [0.52, 0.66], "dmg": 24, "lunge": [0.46, 0.66, 16], "arc": 0.8, "reach": 2.6, "keys": [[0, {}], [0.48, P.windT], [0.66, P.endT], [1.1, {}]]},
+	# la roulade : l'élan vient de l'animation ; intouchable pendant qu'on roule
+	"roulade": {"clip": "roulade", "from": 0.12, "to": 1.08, "speed": 1.45, "iframes": [0.03, 0.42]},
+	# l'assassinat : on saisit par-derrière et la lame entre sous les côtes
+	"assassinat": {"dur": 1.7, "silent": true, "keys": [
+		[0, {}], [0.25, {"shL": [-1.6, -0.3, 0.2], "elL": [-1.3, 0, 0], "shR": [-0.4, 0.4, -0.2], "elR": [-1.7, 0, 0], "wrR": [1.3, 0, 0], "chest": [0.15, -0.4, 0], "hipsY": -0.12}],
+		[0.7, {"shL": [-1.7, -0.2, 0.25], "elL": [-1.4, 0, 0], "shR": [-0.2, 0.6, -0.4], "elR": [-2.0, 0, 0], "wrR": [1.6, 0, 0], "chest": [0.2, -0.6, 0], "hipsY": -0.2}],
+		[0.86, {"shL": [-1.7, -0.2, 0.25], "elL": [-1.4, 0, 0], "shR": [-1.25, 0.1, 0.1], "elR": [-0.35, 0, 0], "wrR": [1.5, 0, 0], "chest": [0.3, 0.2, 0], "hipsY": -0.26}],
+		[1.35, {"shL": [-0.6, -0.2, 0.2], "elL": [-0.6, 0, 0], "shR": [-1.1, 0.2, 0.1], "elR": [-0.4, 0, 0], "wrR": [1.4, 0, 0], "chest": [0.35, 0.1, 0], "hipsY": -0.3}],
+		[1.7, {}]]},
+	"assassine": {"dur": 2.4, "hold": true, "keys": [[0, {}], [0.25, {"head": [-0.6, 0, 0], "neck": [-0.4, 0, 0], "chest": [-0.35, 0, 0], "shR": [0.3, 0, -0.7], "shL": [0.3, 0, 0.7]}],
+		[0.85, {"head": [-0.75, 0, 0], "neck": [-0.4, 0, 0], "chest": [-0.5, 0, 0], "shR": [0.2, 0, -0.9], "shL": [0.2, 0, 0.9], "hipsY": -0.05}],
+		[1.4, {"head": [0.4, 0, 0], "chest": [0.5, 0, 0], "spine": [0.3, 0, 0], "shR": [0.3, 0, -0.3], "shL": [0.3, 0, 0.3], "hipsY": -0.45, "hipL": [-1.2, 0, 0], "knL": [1.8, 0, 0], "hipR": [-1.0, 0, 0], "knR": [1.9, 0, 0]}],
+		[2.4, P.dead]]},
+	# Les techniques des maîtres du Registre
+	"pas_vent": {"dur": 0.7, "lunge": [0.05, 0.42, 24], "iframes": [0.0, 0.55], "dash": true, "keys": [
+		[0, {}], [0.05, {"chest": [0.5, -0.5, 0], "shR": [-0.3, 0.5, -0.6], "elR": [-0.2, 0, 0], "wrR": [1.2, 0, 0], "hipsY": -0.3,
+			"hipL": [-0.9, 0, 0], "knL": [1.0, 0, 0], "hipR": [0.4, 0, 0], "knR": [0.6, 0, 0], "shL": [0.3, 0, 0.5]}],
+		[0.42, P.end1], [0.7, {}]]},
+	"petales": {"dur": 1.55, "multi": [[0.08, 0.17], [0.3, 0.39], [0.52, 0.61], [0.74, 0.83], [0.96, 1.05], [1.2, 1.32]], "dmg": 13, "posture": 14,
+		"lunge": [0.0, 1.3, 2.2], "arc": 1.6, "keys": [[0, {}], [0.07, P.wind1], [0.17, P.end1], [0.29, P.wind2], [0.39, P.end2], [0.51, P.wind3], [0.61, P.end3],
+		[0.73, P.wind1], [0.83, P.end1], [0.95, P.wind2], [1.05, P.end2], [1.18, P.windH], [1.32, P.endH], [1.55, {}]]},
+	"hirondelle": {"dur": 0.9, "projectile_at": 0.36, "keys": [[0, {}], [0.3, P.windH], [0.42, P.endH], [0.9, {}]]},
+	# l'exécution du dégainé : on traverse, on s'arrête, on rengaine lentement
+	"iai_exec": {"dur": 2.6, "lunge": [0.08, 0.3, 24], "iframes": [0.0, 2.6], "keys": [
+		[0, {}], [0.07, P.windT], [0.3, P.end1], [0.9, P.end1],
+		[1.6, {"shR": [-0.9, 0.5, 0.1], "elR": [-1.2, 0, 0], "wrR": [0.9, 0.3, 0], "shL": [-0.5, -0.5, 0.2], "elL": [-1.2, 0, 0], "hipsY": -0.2, "chest": [0.1, 0.2, 0]}],
+		[2.6, {}]]},
 }
 static var CLIPS := {}
+## Toutes les animations Mixamo converties (anims/<nom>.json)
+const CLIP_FILES := ["spin-kick", "dying", "tourbillon", "revers", "degainer", "pied-direct", "saut", "repos", "marche", "course",
+	"furtif", "acquiescer", "refuser", "triste", "salut", "accueil", "seiza", "priere", "parler", "ecouter", "reflechir", "pointer",
+	"applaudir", "victoire", "assis", "assis-sol", "vieux", "vieux-marche", "femme", "femme-marche", "guet", "boire", "peur",
+	"cueillir", "comptoir", "accroupi", "accroupi-marche", "touche", "renverse", "relever", "mort-arriere", "genoux", "roulade",
+	"bloquer", "blesse", "pas-de-loup", "remercier", "agace"]
+## Les gestes : une animation jouée en entier, comme une action.
+## [début, fin (-1 : jusqu'au bout), vitesse, tenue à la fin]
+const GESTURES := {
+	"salut": [0.0, -1, 1.15, false], "accueil": [0.0, 3.2, 1.0, false], "parler": [0.0, -1, 1.0, false], "ecouter": [0.0, -1, 1.0, false],
+	"reflechir": [0.0, 3.0, 1.0, false], "pointer": [0.2, 2.6, 1.2, false], "applaudir": [0.0, -1, 1.0, false], "victoire": [0.0, -1, 1.0, false],
+	"acquiescer": [0.0, -1, 1.0, false], "refuser": [0.0, -1, 1.0, false], "peur": [0.0, 3.5, 1.0, false], "touche": [0.1, 1.3, 1.4, false],
+	"remercier": [0.0, -1, 1.0, false], "agace": [0.0, -1, 1.0, false],
+	"genoux": [0.0, -1, 1.3, true], "renverse": [0.0, -1, 1.25, true], "relever": [4.6, -1, 1.6, false], "mort-arriere": [0.0, -1, 1.2, true],
+}
+## La longueur d'une foulée (en m) de chaque marche, pour que les pieds ne glissent pas
+const STRIDE := {"marche": 1.5, "femme-marche": 1.4, "vieux-marche": 1.05, "accroupi-marche": 1.7, "blesse": 1.1, "pas-de-loup": 1.3}
+## Vie et posture de chacun
+const STATS := {
+	"player": [100, 0], "ronin": [70, 50], "chef": [150, 80], "oni": [340, 120],
+	"garde": [90, 60], "paysan": [40, 10], "villageoise": [35, 10], "marchand": [45, 10],
+	"noble": [320, 150], "moine": [300, 170], "onnamusha": [250, 120], "jubei": [240, 110], "kojiro": [280, 130], "oyuki": [200, 100],
+}
+const DAMNED := ["ronin", "chef", "oni"]
 
 const GRAVITY := 22.0
 
@@ -102,12 +156,36 @@ var combo := false
 var home := Vector3.ZERO       # là où il monte la garde
 var aggro := false
 var place := ""
+# Les gens des villes
+var role := "enemy"            # player | enemy | guard | civil | merchant | samurai
+var faction := "damnes"        # damnes | hojo | akagane
+var hostile := true            # se bat-il contre le joueur quand il est en alerte ?
+var armed := true              # porte-t-il une lame ?
+var npc_id := ""
+var display_name := ""
+var idle_clip := "repos"
+var walk_clip := "marche"
+var idle_override := ""        # un geste qui tourne en boucle (parler, pendant un dialogue)
+var route: Array = []          # la ronde : des points au sol
+var route_i := 0
+var wait_t := 0.0
+var post_yaw := 0.0            # le regard au repos, à son poste
+var alert := "calme"           # calme | doute | alerte | recherche
+var suspicion := 0.0
+var last_seen := Vector3.ZERO
+var alert_t := 0.0
+var talking := false
+var duel := false
+var yielded := false
+var fear_t := 0.0
+var parry_chance := 0.0
+var action_speed := 1.0        # les coups du joueur, plus vifs avec Kazekiri
 
 
 static func load_clips() -> void:
 	if not CLIPS.is_empty():
 		return
-	for name in ["spin-kick", "dying", "tourbillon", "revers", "degainer", "pied-direct", "saut", "repos", "marche", "course", "furtif", "acquiescer", "refuser", "triste"]:
+	for name in CLIP_FILES:
 		var f := FileAccess.open("res://anims/%s.json" % name, FileAccess.READ)
 		if f == null:
 			continue
@@ -121,6 +199,10 @@ static func load_clips() -> void:
 			q.append(row)
 		c.q = q
 		CLIPS[name] = c
+	for g in GESTURES:
+		if CLIPS.has(g):
+			var d: Array = GESTURES[g]
+			ACTIONS[g] = {"clip": g, "from": d[0], "to": CLIPS[g].duration if d[1] < 0 else d[1], "speed": d[2], "hold": d[3], "gesture": true}
 	for a in ACTIONS.values():
 		if a.has("clip"):
 			a.dur = absf(a.to - a["from"]) / absf(a.speed)
@@ -129,7 +211,7 @@ static func load_clips() -> void:
 func _init(k: String) -> void:
 	kind = k
 	load_clips()
-	var stats: Array = {"player": [100, 0], "ronin": [70, 50], "chef": [150, 80], "oni": [340, 120]}[kind]
+	var stats: Array = STATS.get(kind, [80, 50])
 	max_hp = stats[0]
 	hp = max_hp
 	max_posture = stats[1]
@@ -153,6 +235,11 @@ func _ready() -> void:
 	# les personnages sont aussi sur la couche 2 : la lueur de la caméra n'éclaire qu'eux
 	for g in find_children("*", "GeometryInstance3D", true, false):
 		g.layers |= 2
+		# les gens au loin disparaissent dans la brume : la carte graphique respire
+		if kind != "player":
+			g.visibility_range_end = 150.0
+			g.visibility_range_end_margin = 10.0
+			g.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	trail = Trail.new(Color(0.75, 0.9, 1.0) if kind == "player" else Color(1.0, 0.23, 0.16))
 	add_child(trail)
 
@@ -171,7 +258,19 @@ func is_doing(names: Array) -> bool:
 
 ## La lame blesse-t-elle en ce moment ?
 func striking() -> bool:
-	if action.is_empty() or not action.def.has("active"):
+	if action.is_empty():
+		return false
+	if action.def.has("multi"):
+		# plusieurs coups dans la même action : chaque fenêtre touche à neuf
+		var multi: Array = action.def.multi
+		for i in multi.size():
+			if action.t >= multi[i][0] and action.t <= multi[i][1]:
+				if action.get("win", -1) != i:
+					action.win = i
+					action.hits = {}
+				return true
+		return false
+	if not action.def.has("active"):
 		return false
 	var a: Array = action.def.active
 	return action.t >= a[0] and action.t <= a[1]
@@ -205,7 +304,7 @@ func flat_distance(o: Node3D) -> float:
 func step(dt: float, time: float) -> void:
 	push = Vector3.ZERO
 	if not action.is_empty():
-		action.t += dt
+		action.t += dt * (action_speed if action.def.has("dmg") or action.def.has("multi") else 1.0)
 		var l = action.def.get("lunge")
 		if l and action.t >= l[0] and action.t <= l[1]:
 			push += forward() * l[2] * dt * rig.body_scale
@@ -304,27 +403,20 @@ func _loco(dt: float, time: float) -> Dictionary:
 	var spd := speed / rig.body_scale
 	var walk_w := clampf(spd / 1.2, 0.0, 1.0)
 	var run_w := clampf((spd - 2.2) / 2.0, 0.0, 1.0)
+	var walk_name := "accroupi-marche" if sneaking and CLIPS.has("accroupi-marche") else walk_clip
+	if not CLIPS.has(walk_name):
+		walk_name = "marche"
 	# une seule phase pour la marche et la course : les pieds restent d'accord
-	var stride := lerpf(1.5, 3.6, run_w)
+	var stride := lerpf(STRIDE.get(walk_name, 1.5), 3.6, run_w)
 	phase = fposmod(phase + dt * maxf(spd, 0.6) / stride, 1.0)
-	var idle := _sample("repos", time + float(get_instance_id() % 97) * 0.1)
-	var walk := _sample("marche", phase * CLIPS.marche.duration)
+	var still := idle_override if idle_override != "" else ("accroupi" if sneaking and CLIPS.has("accroupi") else idle_clip)
+	if not CLIPS.has(still):
+		still = "repos"
+	var idle := _sample(still, time + float(get_instance_id() % 97) * 0.1)
+	var walk := _sample(walk_name, phase * CLIPS[walk_name].duration)
 	var run := _sample("course", phase * CLIPS.course.duration)
-	var moving := _blend(walk, run, run_w)
+	var moving := walk if sneaking else _blend(walk, run, run_w)
 	var body := _blend(idle, moving, walk_w)
-	if sneaking:
-		# accroupi : la posture d'infiltration, les jambes qui avancent à petits pas
-		var crouch := _sample("furtif", 0.0, false)
-		for j in ["spine", "chest", "neck", "head", "shL", "elL", "shR", "elR", "wrR"]:
-			body[j] = crouch[j]
-		# les jambes fléchies, à petits pas
-		var st := sin(phase * TAU) * walk_w
-		body.hipL = eq([-0.85 - st * 0.35, 0, 0.12])
-		body.knL = eq([1.35 + maxf(0.0, st) * 0.4, 0, 0])
-		body.hipR = eq([-0.55 + st * 0.35, 0, -0.12])
-		body.knR = eq([1.25 + maxf(0.0, -st) * 0.4, 0, 0])
-		body.hips = eq([0.25, 0, 0])
-		body.hipsY = -0.36
 	if not sheathed:
 		# l'épée en main : la garde pour le haut du corps
 		var breathe := sin(time * 2.1 + global_position.x) * 0.025
@@ -333,7 +425,7 @@ func _loco(dt: float, time: float) -> Dictionary:
 			var r: Array = G[j]
 			if j == "chest":
 				r = [r[0] + breathe + lean, r[1], r[2]]
-			body[j] = (body[j] as Quaternion).slerp(eq(r), 1.0 if not sneaking else 0.6)
+			body[j] = (body[j] as Quaternion).slerp(eq(r), 1.0 if not sneaking else 0.45)
 	if blocking:
 		for j in ["chest", "shR", "elR", "wrR", "shL", "elL"]:
 			body[j] = eq(P.parry[j])
@@ -367,13 +459,13 @@ func _clip_pose(d: Dictionary) -> Dictionary:
 
 
 func _finish(dt: float) -> void:
-	# Les morts s'affaissent puis s'effacent
+	# Les morts s'affaissent ; les damnés s'enfoncent dans la cendre, les humains restent étendus
 	if not alive:
 		dead_t += dt
 		if not action.is_empty() and action.def.has("clip"):
-			# à terre, le corps s'enfonce dans la cendre
-			var f: float = clampf((dead_t - action.def.dur - 0.3) / 1.2, 0.0, 1.0)
-			rig.position.y = -f * 1.1
+			if faction == "damnes":
+				var f: float = clampf((dead_t - action.def.dur - 0.3) / 1.2, 0.0, 1.0)
+				rig.position.y = -f * 1.1
 		elif dead_t > 1.1:
 			var f := minf(1.0, (dead_t - 1.1) / 1.2)
 			rig.rotation.x = -f * 1.35
@@ -382,13 +474,18 @@ func _finish(dt: float) -> void:
 	rotation.y = yaw
 
 	# La lame des démons rougeoie pendant qu'ils préparent leur coup
-	rig.sword.visible = not sheathed
-	if kind != "player":
+	rig.sword.visible = armed and not sheathed
+	if kind != "player" and hostile:
 		var target := 0.0
 		if alive:
 			target = 1.2 if striking() else pow(windup(), 2) * 5.0
 		glow += (target - glow) * minf(1.0, dt * 12.0)
-		rig.steel.emission_energy_multiplier = 0.15 + glow * 2.0
+		if rig.evil:
+			rig.steel.emission_energy_multiplier = 0.15 + glow * 2.0
+		else:
+			# un humain : le fil de la lame accroche une lueur de braise, sans plus
+			rig.steel.emission = Color(1.0, 0.5, 0.22)
+			rig.steel.emission_energy_multiplier = 0.05 + glow * 0.7
 
 	if skin:
 		skin.sync()
@@ -425,6 +522,9 @@ func gone() -> bool:
 	if alive:
 		return false
 	var d: Dictionary = action.get("def", {})
+	if faction != "damnes":
+		# un corps humain reste à terre : les gardes peuvent le découvrir
+		return dead_t > 60.0
 	return dead_t > (d.dur + 1.5 if d.has("clip") else 2.6)
 
 
@@ -434,21 +534,49 @@ func remove() -> void:
 	queue_free()
 
 
+## Teinte le modèle (les gardes d'Akagane portent le rouge de l'Oni).
+func tint(c: Color) -> void:
+	for mi in find_children("*", "MeshInstance3D", true, false):
+		if rig.sword.is_ancestor_of(mi):
+			continue
+		var m: MeshInstance3D = mi
+		for i in m.get_surface_override_material_count():
+			var base := m.get_active_material(i)
+			if base is StandardMaterial3D:
+				var dup: StandardMaterial3D = base.duplicate()
+				dup.albedo_color = dup.albedo_color * c
+				m.set_surface_override_material(i, dup)
+
+
+## Joue un geste s'il n'est pas déjà occupé.
+func gesture(name: String) -> void:
+	if ACTIONS.has(name) and (action.is_empty() or action.def.get("gesture", false)):
+		play(name)
+
+
 # ---------- L'intelligence des damnés ----------
 
 func think(player: Fighter, others: Array, dt: float, token: Dictionary) -> void:
+	fight(player, others, dt, token)
+
+
+## Le combat : traquer, tourner autour, frapper quand vient son tour.
+## watch : il surveille lui-même la distance (les damnés) ; sinon on l'a lancé.
+func fight(player: Fighter, others: Array, dt: float, token: Dictionary, watch := true) -> void:
 	move = Vector3.ZERO
 	if not alive or not player.alive:
 		speed *= 0.9
 		return
 	cd -= dt
 	var d := flat_distance(player)
+	if not watch:
+		aggro = true
 
 	# Ils montent la garde ; s'ils te voient, ils te traquent, puis rentrent
 	var from_home := Vector2(global_position.x - home.x, global_position.z - home.z).length()
-	if not aggro and d < 15.0:
+	if watch and not aggro and d < 15.0:
 		aggro = true
-	elif aggro and (d > 32.0 or from_home > 45.0):
+	elif watch and aggro and (d > 32.0 or from_home > 45.0):
 		aggro = false
 	if not aggro:
 		if from_home > 1.5:
@@ -463,7 +591,7 @@ func think(player: Fighter, others: Array, dt: float, token: Dictionary) -> void
 	if not action.is_empty():
 		if action.def.has("windup") and action.t < action.def.windup * 0.75:
 			turn_towards(player.global_position, 4.0, dt)
-		if combo and action.name == "slash" and action.t >= action.def.dur - 0.05:
+		if combo and action.name in ["slash", "quick"] and action.t >= action.def.dur - 0.05:
 			combo = false
 			play("rising")
 		speed *= 0.85
@@ -491,8 +619,15 @@ func think(player: Fighter, others: Array, dt: float, token: Dictionary) -> void
 	move = mv
 	speed = mv.length()
 
-	if cd <= 0.0 and d < reach + 1.2 and token.free:
+	if cd <= 0.0 and d < reach + 1.2 and (token.free or duel):
 		token.free = false
+		if role == "samurai":
+			# un duelliste varie ses coups et les enchaîne
+			var r := randf()
+			play("quick" if r < 0.35 else "lunge" if r < 0.6 and d > reach - 0.3 else "slash" if r < 0.85 else "smash")
+			combo = randf() < 0.5
+			cd = 0.7 + randf() * 1.1
+			return
 		if kind == "oni":
 			play("smash" if randf() < 0.45 else "slash")
 			combo = randf() < 0.6
