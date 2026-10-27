@@ -52,7 +52,7 @@ addEventListener('keydown', e => {
 });
 addEventListener('keyup', e => keys.delete(e.code));
 addEventListener('blur', () => keys.clear());
-let mouseL = false, mouseR = false;
+let mouseL = false, mouseR = false, mouseM = false;
 const canvas = renderer.domElement;
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 /* Le premier clic capture la souris. Si le navigateur refuse, les clics
@@ -70,6 +70,7 @@ addEventListener('mousedown', e => {
   }
   if (e.button === 0) mouseL = true;
   if (e.button === 2) mouseR = true;
+  if (e.button === 1) { mouseM = true; e.preventDefault(); }
 });
 let yaw = Math.PI, pitch = 0.32;
 addEventListener('mousemove', e => {
@@ -206,6 +207,19 @@ function strike(att, def, target) {
     return;
   }
 
+  /* le coup de pied : peu de dégâts, mais il brise la garde et repousse */
+  if (def.kick) {
+    target.hp -= def.dmg;
+    target.posture += def.posture;
+    target.pos.addScaledVector(target.pos.clone().sub(att.pos).setY(0).normalize(), 1.6 / target.scale);
+    fx.emit(chest, 26, { color: 0xffe0b0, speed: 6, up: 2, intensity: 3, lifeTime: 0.3 });
+    hitstop = 0.08; shake = 0.25;
+    if (target.hp <= 0) return kill(target);
+    if (target.posture >= target.maxPosture) { target.posture = 0; target.play('stagger'); callout('Posture brisée', 'gold'); }
+    else if (!target.striking) target.play('hit');
+    return;
+  }
+
   /* un ennemi touché */
   const riposte = target.is('stagger');
   const dmg = def.dmg * (riposte ? 2.6 : 1);
@@ -225,7 +239,7 @@ function strike(att, def, target) {
 
 function kill(f) {
   f.alive = false; f.hp = 0;
-  f.play('die');
+  f.play(f === player ? 'die' : 'dying');
   if (f === player) {
     slowmo = 1.2; shake = 0.4;
     setTimeout(() => { state = 'dead'; document.exitPointerLock?.(); show('#over'); }, 1800);
@@ -253,7 +267,8 @@ function controlPlayer(dt) {
   if (mouseL || take('KeyJ')) { buffer = 'light'; bufferT = 0.3; }
   if (mouseR || take('KeyK')) { buffer = 'heavy'; bufferT = 0.3; }
   if (take('Space')) { buffer = 'dodge'; bufferT = 0.2; }
-  mouseL = mouseR = false;
+  if (mouseM || take('KeyF')) { buffer = 'kick'; bufferT = 0.3; }
+  mouseL = mouseR = mouseM = false;
   bufferT -= dt; if (bufferT <= 0) buffer = null;
 
   const guardKey = keys.has('ShiftLeft') || keys.has('ShiftRight') || keys.has('KeyL');
@@ -268,8 +283,13 @@ function controlPlayer(dt) {
     player.yaw = Math.atan2(dir.x, dir.z);
     player.play('dodge');
     stamina -= 22; staminaWait = 0.6; buffer = null;
+  } else if (!busy && free && buffer === 'kick' && stamina > 0) {
+    const near = nearestEnemy(5.5);
+    if (near) player.yaw = Math.atan2(near.pos.x - player.pos.x, near.pos.z - player.pos.z);
+    player.play('kick');
+    stamina -= ACTIONS.kick.cost; staminaWait = 0.6; buffer = null; comboStep = 0;
   } else if (!busy && free && (buffer === 'light' || buffer === 'heavy') && stamina > 0) {
-    const now = performance.now() / 1000;
+    const now = time;   // le temps du jeu : il ralentit avec les arrêts sur impact
     let name;
     if (buffer === 'heavy') { name = 'heavy'; comboStep = 0; }
     else {
@@ -332,7 +352,9 @@ function keepInArena(f) {
 
 /* ---------- Caméra ---------- */
 const camPos = new THREE.Vector3(0, 4, 12), camLook = new THREE.Vector3();
+let debugCam = null;
 function updateCamera(dt, real) {
+  if (debugCam) { camera.position.copy(debugCam[0]); camera.lookAt(debugCam[1]); return; }
   if (!player) { /* l'écran titre : un lent travelling autour de la cour */
     const t = performance.now() / 1000 * 0.07;
     camera.position.set(Math.sin(t) * 11, 3.2, Math.cos(t) * 11);
@@ -356,7 +378,7 @@ function updateCamera(dt, real) {
 
 /* ---------- La boucle ---------- */
 const clock = new THREE.Clock();
-let time = 0;
+let time = 0, paused = false;
 function frame() {
   requestAnimationFrame(frame);
   const real = Math.min(clock.getDelta(), 1 / 20);
@@ -369,7 +391,7 @@ function frame() {
   const dt = real * scale;
   time += dt;
 
-  if (state === 'play' && player) {
+  if (state === 'play' && player && !paused) {
     controlPlayer(dt);
     token.free = !enemies.some(e => e.alive && e.action && e.action.def.windup);
     enemies.forEach(e => enemyThink(e, player, enemies, dt, token));
@@ -392,7 +414,7 @@ function frame() {
 
     /* les morts disparaissent en cendres */
     enemies = enemies.filter(e => {
-      if (!e.alive && e.deadT > 2.6) {
+      if (e.gone) {
         fx.emit(e.pos.clone().setY(0.4), 50, { color: 0xff6a2a, speed: 2, up: 2, gravity: -2, lifeTime: 1.4, intensity: 2 });
         e.dispose(); return false;
       }
@@ -429,5 +451,17 @@ frame();
 /* Pour tester sans souris : window.__game expose l'état */
 window.__game = {
   get player() { return player; }, get enemies() { return enemies; }, get state() { return state; },
-  start, setYaw: y => (yaw = y)
+  start, setYaw: y => (yaw = y), kill: f => kill(f),
+  /* fige une action à un instant donné, pour l'inspecter image par image */
+  /* caméra et lumière d'atelier, pour regarder une animation de près */
+  studio(from, to) {
+    debugCam = [new THREE.Vector3(...from), new THREE.Vector3(...to)];
+    if (!scene.getObjectByName('studio')) { const l = new THREE.AmbientLight(0xffffff, 2.2); l.name = 'studio'; scene.add(l); }
+    $('#hud').classList.add('hidden'); $('#banner').classList.add('hidden');
+  },
+  inspect(name, t) {
+    paused = true;
+    player.play(name); player.action.t = 0; player.action.root = null;
+    player.update(t, time);
+  }
 };

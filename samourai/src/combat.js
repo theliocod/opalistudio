@@ -7,6 +7,16 @@
 import * as THREE from 'three';
 import { buildRig, GUARD, mixPose, samplePose } from './rig.js';
 import { slashTrail } from './fx.js';
+import spinKick from './anims/spin-kick.json';
+import dying from './anims/dying.json';
+
+/* Les animations converties de Mixamo : chaque image donne un quaternion
+   par articulation, la hauteur des hanches et leur position au sol. */
+function prepareClip(c) {
+  c.q = c.frames.map(f => c.joints.map((_, i) => new THREE.Quaternion().fromArray(f.q, i * 4)));
+  return c;
+}
+const CLIPS = { spinKick: prepareClip(spinKick), dying: prepareClip(dying) };
 
 /* ---------- Les poses clés ---------- */
 const P = {
@@ -69,6 +79,10 @@ export const ACTIONS = {
   dodge: { dur: 0.42, keys: [[0, {}], [0.08, P.dodge], [0.3, P.dodge], [0.42, {}]] },
   hit: { dur: 0.34, keys: [[0, {}], [0.06, P.hit], [0.34, {}]] },
   stagger: { dur: 1.35, keys: [[0, {}], [0.12, P.stagger], [1.05, P.stagger2], [1.35, {}]] },
+  /* Animations Mixamo : from/to découpent le clip, speed l'accélère */
+  kick: { clip: 'spinKick', from: 0.25, to: 1.9, speed: 1.35, active: [0.5, 0.78], dmg: 10, posture: 45, kick: true, cost: 20, arc: 3.2, reach: 2.4 },
+  /* la mort des ennemis : ils titubent, puis s'effondrent ; on garde la dernière image */
+  dying: { clip: 'dying', from: 0.6, to: 4.6, speed: 1.5, hold: true },
   die: { dur: 1.1, hold: true, keys: [[0, {}], [0.25, P.hit], [1.1, P.dead]] },
 
   /* Les ennemis : de longues préparations, lisibles, que l'on peut parer */
@@ -78,7 +92,12 @@ export const ACTIONS = {
   smash: { dur: 1.5, windup: 0.85, active: [0.86, 0.98], dmg: 34, heavy: true, lunge: [0.78, 0.95, 6], keys: [[0, {}], [0.82, P.windH], [0.98, P.endH], [1.5, {}]] }
 };
 
+for (const a of Object.values(ACTIONS)) {
+  if (a.clip) a.dur = (a.to - a.from) / a.speed;
+}
+
 const tmp = new THREE.Vector3();
+const qa = new THREE.Quaternion(), qb = new THREE.Quaternion(), eul = new THREE.Euler();
 
 export class Fighter {
   constructor(kind, scene) {
@@ -160,6 +179,7 @@ export class Fighter {
     if (this.blocking) Object.assign(loco, { chest: P.parry.chest, shR: P.parry.shR, elR: P.parry.elR, wrR: P.parry.wrR, shL: P.parry.shL, elL: P.parry.elL });
 
     let pose = loco;
+    if (this.action && this.action.def.clip) return this.playClip(dt, loco);
     if (this.action) {
       const d = this.action.def;
       const ap = samplePose(d.keys, this.action.t, loco);
@@ -168,9 +188,44 @@ export class Fighter {
       pose = mixPose(loco, ap, Math.max(0, fade));
     }
     this.rig.setPose(pose);
+    this.finish(dt);
+  }
 
+  /* Joue une animation Mixamo, mélangée à la pose de marche au début et à la fin */
+  playClip(dt, loco) {
+    const a = this.action, d = a.def, c = CLIPS[d.clip];
+    const ct = Math.min(d.to, d.from + a.t * d.speed);
+    const f = ct * c.fps, i0 = Math.min(c.frames.length - 1, Math.floor(f)), i1 = Math.min(c.frames.length - 1, i0 + 1), u = f - i0;
+    const F0 = c.frames[i0], F1 = c.frames[i1];
+    /* l'élan de l'animation déplace vraiment le combattant */
+    const rx = F0.x + (F1.x - F0.x) * u, rz = F0.z + (F1.z - F0.z) * u;
+    if (a.root) {
+      const dx = (rx - a.root[0]) * this.scale, dz = (rz - a.root[1]) * this.scale;
+      const cy = Math.cos(this.yaw), sy = Math.sin(this.yaw);
+      this.pos.x += dx * cy + dz * sy; this.pos.z += -dx * sy + dz * cy;
+    }
+    a.root = [rx, rz];
+    const w = Math.max(0, Math.min(1, a.t / 0.1, d.hold ? 1 : (d.dur - a.t) / 0.15));
+    const q = {};
+    c.joints.forEach((k, i) => {
+      const r = loco[k] || [0, 0, 0];
+      qa.setFromEuler(eul.set(r[0], r[1], r[2]));
+      qb.copy(c.q[i0][i]).slerp(c.q[i1][i], u);
+      q[k] = qa.clone().slerp(qb, w);
+    });
+    const y = F0.y + (F1.y - F0.y) * u;
+    this.rig.setQuats(q, (loco.hipsY || 0) * (1 - w) + y * w);
+    this.finish(dt);
+  }
+
+  finish(dt) {
     /* Les morts s'affaissent, puis se dissipent en cendres */
-    if (!this.alive) {
+    if (!this.alive && this.action && this.action.def.clip) {
+      /* une fois à terre, le corps s'efface */
+      this.deadT += dt;
+      const f = Math.max(0, Math.min(1, (this.deadT - this.action.def.dur - 0.3) / 1.1));
+      if (f > 0) Object.values(this.rig.mats).forEach(m => { m.transparent = true; m.opacity = 1 - f; });
+    } else if (!this.alive) {
       this.deadT += dt;
       if (this.deadT > 1.1) {
         const f = Math.min(1, (this.deadT - 1.1) / 1.2);
@@ -191,7 +246,14 @@ export class Fighter {
     }
 
     this.rig.root.updateMatrixWorld(true);
-    this.trail.update(this.rig.blade.base, this.rig.blade.tip, this.striking, dt);
+    this.trail.update(this.rig.blade.base, this.rig.blade.tip, this.striking && !this.action.def.kick, dt);
+  }
+
+  /* le corps a fini de s'effacer : on peut le retirer de la scène */
+  get gone() {
+    if (this.alive) return false;
+    const d = this.action && this.action.def;
+    return this.deadT > (d && d.clip ? d.dur + 1.5 : 2.6);
   }
 
   bladeTip(out) { return this.rig.blade.tip.getWorldPosition(out); }

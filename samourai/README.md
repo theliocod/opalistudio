@@ -13,6 +13,7 @@ Ouvre `index.html` dans un navigateur (Chrome, Edge, Firefox). Rien à installer
 | Souris | tourner la caméra (clic dans le jeu pour la capturer, Échap pour la libérer) |
 | Clic gauche ou J | coup rapide, trois à la suite |
 | Clic droit ou K | coup lourd, avec un élan |
+| F ou clic molette | coup de pied tournoyant : peu de dégâts, mais il brise la garde et repousse |
 | Espace | esquiver (invulnérable au cœur de la roulade) |
 | Maj ou L | parer au moment de l'impact, garder en maintenant |
 
@@ -37,5 +38,12 @@ npm run build   # version finale, minifiée
 | `src/world.js` | la cour du temple, la lune, la brume, les cendres |
 | `src/fx.js` | étincelles, sang d'encre, traînée de la lame |
 
-Tout est généré par le code : aucune image ni aucun modèle 3D pour l'instant.
+Le décor et le samouraï sont générés par le code. Certaines animations viennent
+de Mixamo : `tools/bake-mixamo.mjs` les transfère sur notre squelette et les
+enregistre dans `src/anims/` (le coup de pied tournoyant, la mort des ennemis).
+Les FBX bruts ne sont pas versionnés.
+
+```
+node tools/bake-mixamo.mjs chemin/vers/Animation.fbx nom-de-l-animation
+```
 `dist/game.js` est versionné pour que le jeu s'ouvre sans rien construire.

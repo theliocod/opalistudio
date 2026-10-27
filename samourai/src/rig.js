@@ -163,6 +163,11 @@ export function buildRig(kind) {
   return {
     root, joints: j, mats, scale,
     blade: sword,
+    /* Pose donnée en quaternions, pour les animations converties de Mixamo */
+    setQuats(q, hipsY) {
+      for (const k of JOINTS) if (q[k]) j[k].quaternion.copy(q[k]);
+      j.hips.position.y = 0.98 + hipsY;
+    },
     setPose(p) {
       for (const k of JOINTS) {
         const r = p[k];
