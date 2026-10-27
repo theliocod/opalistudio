@@ -59,6 +59,13 @@ var respawn := Vector3.ZERO
 var burning := {}              # ennemi → temps de brûlure restant
 var oni_dead := false
 var calm := 0.0                # temps passé sans danger : on rengaine
+## Le brouillard de la carte : un pixel pour 4 m, blanc là où l'on est passé
+var fog_image: Image
+var fog_texture: ImageTexture
+var _last_reveal := Vector3(1e9, 0, 0)
+var waypoint := Vector3.ZERO
+var has_waypoint := false
+var map_view: MapView
 var _cam_pos := Vector3.ZERO
 var _cam_look := Vector3.ZERO
 
@@ -96,6 +103,10 @@ func _ready() -> void:
 	add_child(hud)
 	hud.on_use = _use_item
 	hud.on_equip = _equip
+	fog_image = Image.create(128, 128, false, Image.FORMAT_L8)
+	fog_texture = ImageTexture.create_from_image(fog_image)
+	map_view = MapView.new(self, hud.serif, hud.sans)
+	hud.add_child(map_view)
 	hud.show_title(_start)
 
 
@@ -118,6 +129,7 @@ func _inputs() -> void:
 		"avant": [KEY_W, KEY_UP], "arriere": [KEY_S, KEY_DOWN], "gauche": [KEY_A, KEY_LEFT], "droite": [KEY_D, KEY_RIGHT],
 		"rapide": [KEY_J], "lourd": [KEY_K], "pied": [KEY_F], "tournoyant": [KEY_G], "esquive": [KEY_SPACE], "garde": [KEY_SHIFT, KEY_L],
 		"action": [KEY_E], "tech1": [KEY_R], "tech2": [KEY_T], "inventaire": [KEY_TAB, KEY_I],
+		"carte": [KEY_M], "recentrer": [KEY_C],
 		"objet1": [KEY_1], "objet2": [KEY_2], "objet3": [KEY_3], "objet4": [KEY_4],
 	}
 	for a in keys:
@@ -185,10 +197,44 @@ func _respawn() -> void:
 	hud.banner(landmarks.shrines[0].name, "Tu te relèves. Les damnés ont repris leur poste.")
 
 
+func _close_map() -> void:
+	map_view.visible = false
+	hud.play_ui.visible = true
+	state = "play"
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+
+
+## Le brouillard se lève autour d'un point.
+func _reveal(at: Vector3, radius: float) -> void:
+	var s := fog_image.get_width() / Terrain.SIZE
+	var cx := (at.x + Terrain.SIZE / 2) * s
+	var cy := (at.z + Terrain.SIZE / 2) * s
+	var r := radius * s
+	for y in range(int(cy - r - 1), int(cy + r + 2)):
+		for x in range(int(cx - r - 1), int(cx + r + 2)):
+			if x < 0 or y < 0 or x >= fog_image.get_width() or y >= fog_image.get_height():
+				continue
+			var d := Vector2(x + 0.5 - cx, y + 0.5 - cy).length()
+			var v := clampf((r - d) / (r * 0.35), 0.0, 1.0)
+			if v > fog_image.get_pixel(x, y).r:
+				fog_image.set_pixel(x, y, Color(v, v, v))
+	fog_texture.update(fog_image)
+
+
+func set_waypoint(w: Vector3) -> void:
+	waypoint = Vector3(w.x, terrain.height_at(w.x, w.z), w.z)
+	has_waypoint = true
+
+
+func clear_waypoint() -> void:
+	has_waypoint = false
+
+
 func _discover(p: Dictionary) -> void:
 	if discovered.has(p.id):
 		return
 	discovered[p.id] = true
+	_reveal(Vector3(p.pos.x, 0, p.pos.y), p.radius + 20.0)
 	hud.banner(p.name, "Lieu découvert")
 
 
@@ -204,6 +250,18 @@ func _unhandled_input(ev: InputEvent) -> void:
 		return
 	if ev.is_action_pressed("ui_cancel") and state == "play":
 		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	if state == "map":
+		if ev.is_action_pressed("carte") or ev.is_action_pressed("ui_cancel"):
+			_close_map()
+		elif ev.is_action_pressed("recentrer"):
+			map_view.recenter()
+		return
+	if ev.is_action_pressed("carte") and state == "play":
+		state = "map"
+		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+		map_view.open()
+		hud.play_ui.visible = false
+		return
 	if ev.is_action_pressed("inventaire") and state in ["play", "menu"]:
 		if state == "play":
 			state = "menu"
@@ -316,6 +374,9 @@ func _process(delta: float) -> void:
 		for p in places:
 			if discovered.has(p.id):
 				marks.append({"name": p.name, "pos": Vector3(p.pos.x, 0, p.pos.y), "danger": p.id == "temple" and not oni_dead})
+		if has_waypoint:
+			var d := Vector2(player.global_position.x, player.global_position.z).distance_to(Vector2(waypoint.x, waypoint.z))
+			marks.append({"name": "◆ %d m" % d, "pos": waypoint, "color": Hud.GOLD})
 		hud.set_compass(cam_yaw, player.global_position, marks)
 
 
@@ -907,6 +968,12 @@ func _equip(id: String) -> void:
 # ---------- Le monde autour ----------
 
 func _world_events() -> void:
+	if player.global_position.distance_to(_last_reveal) > 3.0:
+		_last_reveal = player.global_position
+		_reveal(player.global_position, 42.0)
+	if has_waypoint and Vector2(player.global_position.x, player.global_position.z).distance_to(Vector2(waypoint.x, waypoint.z)) < 8.0:
+		has_waypoint = false
+		hud.toast("Repère atteint", Hud.GOLD)
 	for p in places:
 		if Vector2(player.global_position.x, player.global_position.z).distance_to(p.pos) < p.radius:
 			_discover(p)

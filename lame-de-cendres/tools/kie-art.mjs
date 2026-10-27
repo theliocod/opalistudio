@@ -45,6 +45,16 @@ blade glowing like a red moon, gold guard. ${STYLE}` },
 dark twigs, deep crimson and blood red autumn leaves with a few darker ones, seen from the side. ${CUTOUT}` },
   pin: { kind: 'feuillage', size: '1:1', prompt: `A dense tuft cluster of Japanese black pine needles on short twigs,
 very dark green needles, seen from the side, a bushy layered spray. ${CUTOUT}` },
+  washi: { kind: 'texture', size: '1:1', prompt: `Seamless tileable texture, square, flat, evenly lit, seen straight on:
+aged Japanese washi paper, warm ivory and pale ochre, visible long plant fibres, faint stains and foxing,
+very subtle, no writing, no drawing, no folds, no text.` },
+  'carte-icones': { kind: 'grille9', size: '1:1', prompt: `Nine map icons painted in Japanese sumi-e ink brush style, black ink with
+a few touches of vermilion red, arranged in a 3 by 3 grid, each icon alone and centered in its own cell with a wide
+empty margin, on a plain pure white background (#FFFFFF), no frames, no labels, no text. Row 1: a small Shinto
+torii gate; a cluster of three small village houses with thatched roofs; a war camp tent with a banner.
+Row 2: a gnarled dead tree with hanging ropes; a small ruined shrine beside water ripples; a great temple with a
+curved multi-tiered roof. Row 3: a walled castle town with a gate; a merchant's coin purse with old coins;
+a samurai kabuto helmet with crescent crest. Simple, elegant, readable at small size, consistent brush style.` },
   herbe: { kind: 'texture', size: '1:1', prompt: `${TEXTURE}
 Wild dark meadow ground: short dry dark olive and brown grass, fallen dark red maple leaves, small stones,
 patches of black soil and ash.` },

@@ -329,7 +329,7 @@ func set_compass(yaw: float, from: Vector3, markers: Array) -> void:
 	var items := [["N", Vector3(0, 0, -1), GOLD], ["E", Vector3(1, 0, 0), MUTED], ["S", Vector3(0, 0, 1), MUTED], ["O", Vector3(-1, 0, 0), MUTED]]
 	for m in markers:
 		var d: Vector3 = m.pos - from
-		items.append([m.name, d.normalized(), BLOOD if m.get("danger", false) else PAPER])
+		items.append([m.name, d.normalized(), m.get("color", BLOOD if m.get("danger", false) else PAPER)])
 	for it in items:
 		var d: Vector3 = it[1]
 		var ang := angle_difference(yaw, atan2(d.x, d.z))
@@ -337,6 +337,8 @@ func set_compass(yaw: float, from: Vector3, markers: Array) -> void:
 			continue
 		var x := 260.0 - ang / 1.3 * 260.0
 		var l := _label(it[0], 12 if it[0].length() > 1 else 15, it[2], serif if it[0].length() == 1 else sans)
+		if it[2] == GOLD:
+			l.add_theme_font_size_override("font_size", 14)
 		l.position = Vector2(x - 60, 8)
 		l.custom_minimum_size = Vector2(120, 0)
 		l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -523,7 +525,7 @@ func _screen(kanji: String, title: String, sub: String, button: String, cb: Call
 	c.add_child(_button(button, cb))
 	v.add_child(c)
 	if art:
-		var help := _label("ZQSD se déplacer · Souris caméra · Clic gauche coup rapide · Clic droit coup lourd · F coup de pied\nEspace esquive · Maj parer et garder · E interagir, coup de grâce · R T techniques · 1 2 3 4 objets · Tab inventaire", 14, MUTED)
+		var help := _label("ZQSD se déplacer · Souris caméra · Clic gauche coup rapide · Clic droit coup lourd · F coup de pied · G coup tournoyant\nEspace esquive, enjamber · Maj parer et garder · E interagir, coup de grâce · R T techniques · 1 2 3 4 objets · Tab inventaire · M carte", 14, MUTED)
 		help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		v.add_child(help)
 	play_ui.visible = false

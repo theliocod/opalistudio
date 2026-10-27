@@ -51,6 +51,22 @@ def main():
         for i in range(4):
             x, y = (i % 2) * 512, (i // 2) * 512
             img.crop((x, y, x + 512, y + 512)).resize((256, 256), Image.LANCZOS).save(OUT / f'{name}-{i}.png', optimize=True)
+    elif kind == 'grille9':
+        # neuf icônes à l'encre sur fond blanc : on les détoure par leur noirceur
+        img = square(img).resize((1536, 1536), Image.LANCZOS)
+        for i in range(9):
+            x, y = (i % 3) * 512, (i // 3) * 512
+            cell = np.asarray(img.crop((x + 16, y + 16, x + 496, y + 496)), dtype=np.float32)
+            d = np.sqrt(((255 - cell) ** 2).sum(axis=2))
+            alpha = np.clip((d - 30) / 70, 0, 1)
+            rgb = np.clip((cell - 255 * (1 - alpha[..., None])) / np.maximum(alpha[..., None], 0.05), 0, 255)
+            out = Image.fromarray(np.dstack([rgb, alpha * 255]).astype(np.uint8), 'RGBA')
+            box = out.getbbox() or (0, 0, 480, 480)
+            out = out.crop(box)
+            side = max(out.size)
+            sq = Image.new('RGBA', (side, side), (0, 0, 0, 0))
+            sq.paste(out, ((side - out.size[0]) // 2, (side - out.size[1]) // 2))
+            sq.resize((192, 192), Image.LANCZOS).save(OUT / f'{name}-{i}.png', optimize=True)
     elif kind == 'bandes':
         # chaque sabre est une bande d'encre séparée des autres par du fond :
         # on cherche les six bandes les plus marquées plutôt que de couper au hasard
