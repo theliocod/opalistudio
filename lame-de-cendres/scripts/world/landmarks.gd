@@ -252,6 +252,8 @@ func _light(parent: Node3D, pos: Vector3, c: Color, energy: float, rng_: float) 
 	l.shadow_blur = 1.6
 	l.shadow_bias = 0.06
 	l.shadow_normal_bias = 1.2
+	# deux passes d'ombre au lieu de six : bien plus léger pour la carte graphique
+	l.omni_shadow_mode = OmniLight3D.SHADOW_DUAL_PARABOLOID
 	parent.add_child(l)
 	l.position = pos
 	lights.append({"light": l, "base": energy, "seed": _rng.randf() * 100.0, "on": true})

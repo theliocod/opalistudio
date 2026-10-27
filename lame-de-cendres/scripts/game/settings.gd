@@ -4,6 +4,7 @@ class_name Settings
 extends RefCounted
 
 const PATH := "user://reglages.cfg"
+const VERSION := 2              # 2 : les Mac démarrent en qualité moyenne
 const QUALITY := ["Basse", "Moyenne", "Haute", "Ultra"]
 const AA := ["Aucun", "FXAA", "MSAA ×2", "MSAA ×4", "TAA"]
 const MODES := ["Fenêtré", "Plein écran", "Plein écran exclusif"]
@@ -47,12 +48,21 @@ static func load_cfg() -> void:
 	data = {}
 	for s in DEFAULTS:
 		data[s] = DEFAULTS[s].duplicate()
+	# les pilotes graphiques des Mac supportent mal la qualité haute : on part de la moyenne
+	var mac := OS.get_name() == "macOS"
+	if mac:
+		data.affichage.qualite = 1
+		data.affichage.aa = 1
 	var cf := ConfigFile.new()
 	if cf.load(PATH) != OK:
 		return
 	for s in DEFAULTS:
 		for k in DEFAULTS[s]:
-			data[s][k] = cf.get_value(s, k, DEFAULTS[s][k])
+			data[s][k] = cf.get_value(s, k, data[s][k])
+	if mac and int(cf.get_value("meta", "version", 1)) < 2:
+		data.affichage.qualite = mini(int(data.affichage.qualite), 1)
+		data.affichage.aa = mini(int(data.affichage.aa), 1)
+		save_cfg()
 	for a in ACTIONS:
 		if cf.has_section_key("touches", a[0]):
 			keys[a[0]] = cf.get_value("touches", a[0])
@@ -65,6 +75,7 @@ static func save_cfg() -> void:
 			cf.set_value(s, k, data[s][k])
 	for a in keys:
 		cf.set_value("touches", a, keys[a])
+	cf.set_value("meta", "version", VERSION)
 	cf.save(PATH)
 
 
@@ -137,7 +148,7 @@ static func apply(game) -> void:
 		var env: Environment = game.atmosphere.env
 		env.ssao_enabled = q >= 1
 		env.ssil_enabled = q >= 3
-		env.volumetric_fog_enabled = q >= 1
+		env.volumetric_fog_enabled = q >= 2
 		env.glow_enabled = true
 		env.tonemap_exposure = float(value("affichage", "luminosite"))
 		game.atmosphere.moon.shadow_enabled = true
