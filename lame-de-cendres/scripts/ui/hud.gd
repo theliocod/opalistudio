@@ -375,15 +375,27 @@ func set_compass(yaw: float, from: Vector3, markers: Array) -> void:
 		c.queue_free()
 	compass_items.clear()
 	var items := [["N", Vector3(0, 0, -1), GOLD], ["E", Vector3(1, 0, 0), MUTED], ["S", Vector3(0, 0, 1), MUTED], ["O", Vector3(-1, 0, 0), MUTED]]
-	for m in markers:
+	# les lieux les plus proches d'abord : un nom lointain ne recouvre pas un nom proche
+	var near := markers.duplicate()
+	near.sort_custom(func(a, b): return (a.pos - from).length_squared() < (b.pos - from).length_squared() or a.get("color") == GOLD)
+	for m in near:
 		var d: Vector3 = m.pos - from
 		items.append([m.name, d.normalized(), m.get("color", BLOOD if m.get("danger", false) else PAPER)])
+	var taken: Array = []
 	for it in items:
 		var d: Vector3 = it[1]
 		var ang := angle_difference(yaw, atan2(d.x, d.z))
 		if absf(ang) > 1.3:
 			continue
 		var x := 260.0 - ang / 1.3 * 260.0
+		var wide: float = 14.0 if it[0].length() == 1 else 7.0 * it[0].length()
+		var clash := false
+		for t in taken:
+			if absf(t[0] - x) < (t[1] + wide) / 2.0 + 6.0:
+				clash = true
+		if clash and it[0].length() > 1:
+			continue
+		taken.append([x, wide])
 		var l := _label(it[0], 12 if it[0].length() > 1 else 15, it[2], serif if it[0].length() == 1 else sans)
 		if it[2] == GOLD:
 			l.add_theme_font_size_override("font_size", 14)
@@ -580,8 +592,8 @@ func _screen(kanji: String, title: String, sub: String, button: String, cb: Call
 		c.add_child(_button(e[0], e[1]))
 	v.add_child(c)
 	if art:
-		var k := func(a): return Settings.key_name(a)
-		var help := _label("%s %s %s %s se déplacer · Souris caméra · %s coup rapide · %s coup lourd · %s coup de pied · %s coup tournoyant\n%s esquive, roulade, enjamber · %s parer · %s s'accroupir · %s interagir, exécuter, assassiner · %s inventaire · %s carte · %s menu" % [
+		var k := func(a): return Settings.key_name(a).split(" / ")[0]
+		var help := _label("%s%s%s%s se déplacer · Souris caméra · %s coup rapide · %s coup lourd · %s coup de pied · %s coup tournoyant\n%s esquive, roulade, enjamber · %s parer · %s s'accroupir · %s interagir, exécuter, assassiner · %s inventaire · %s carte · %s menu" % [
 			k.call("avant"), k.call("gauche"), k.call("arriere"), k.call("droite"), k.call("rapide"), k.call("lourd"), k.call("pied"), k.call("tournoyant"),
 			k.call("esquive"), k.call("garde"), k.call("accroupi"), k.call("action"), k.call("inventaire"), k.call("carte"), k.call("pause")], 14, MUTED)
 		help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

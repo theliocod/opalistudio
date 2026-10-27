@@ -35,9 +35,58 @@ func _init(h: Hud) -> void:
 	row.add_child(_side)
 	_tabs = TabContainer.new()
 	_tabs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_tabs.theme = _theme()
 	_tabs.visible = false
 	row.add_child(_tabs)
 	visible = false
+
+
+## Un thème sombre et doré pour les onglets, listes et curseurs.
+func _theme() -> Theme:
+	var th := Theme.new()
+	var panel := StyleBoxFlat.new()
+	panel.bg_color = Color(0.03, 0.02, 0.025, 0.94)
+	panel.border_color = Color(Hud.GOLD, 0.35)
+	panel.set_border_width_all(1)
+	panel.set_content_margin_all(26)
+	th.set_stylebox("panel", "TabContainer", panel)
+	for st in ["tab_selected", "tab_unselected", "tab_hovered"]:
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = Color(0.45, 0.06, 0.07, 0.95) if st == "tab_selected" else Color(0.06, 0.04, 0.05, 0.9 if st == "tab_unselected" else 1.0)
+		sb.border_color = Color(Hud.GOLD, 0.5 if st == "tab_selected" else 0.15)
+		sb.border_width_top = 2 if st == "tab_selected" else 1
+		sb.set_content_margin_all(10)
+		sb.content_margin_left = 22
+		sb.content_margin_right = 22
+		th.set_stylebox(st, "TabContainer", sb)
+	th.set_color("font_selected_color", "TabContainer", Hud.GOLD)
+	th.set_color("font_unselected_color", "TabContainer", Hud.MUTED)
+	th.set_color("font_hovered_color", "TabContainer", Hud.PAPER)
+	var f := FontVariation.new()
+	f.base_font = hud.serif
+	f.spacing_glyph = 3
+	th.set_font("font", "TabContainer", f)
+	th.set_font_size("font_size", "TabContainer", 19)
+	for cls in ["Button", "OptionButton"]:
+		for st in ["normal", "hover", "pressed", "focus"]:
+			var sb := StyleBoxFlat.new()
+			sb.bg_color = Color(0.08, 0.05, 0.06, 0.95) if st != "hover" else Color(0.3, 0.06, 0.07, 0.95)
+			sb.border_color = Color(Hud.GOLD, 0.25 if st != "hover" else 0.6)
+			sb.set_border_width_all(1)
+			sb.set_content_margin_all(8)
+			th.set_stylebox(st, cls, sb)
+		th.set_color("font_color", cls, Hud.PAPER)
+		th.set_color("font_hover_color", cls, Hud.GOLD)
+	var grab := StyleBoxFlat.new()
+	grab.bg_color = Hud.BLOOD
+	grab.set_content_margin_all(3)
+	th.set_stylebox("grabber_area", "HSlider", grab)
+	th.set_stylebox("grabber_area_highlight", "HSlider", grab)
+	var rail := StyleBoxFlat.new()
+	rail.bg_color = Color(1, 1, 1, 0.12)
+	rail.set_content_margin_all(3)
+	th.set_stylebox("slider", "HSlider", rail)
+	return th
 
 
 func open(g, from_title := false) -> void:

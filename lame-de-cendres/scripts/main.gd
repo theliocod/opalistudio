@@ -1971,7 +1971,7 @@ func _world_events() -> void:
 		var mv := Vector3(sin(cam_yaw), 0, cos(cam_yaw)) * Input.get_axis("arriere", "avant") + Vector3(-cos(cam_yaw), 0, sin(cam_yaw)) * Input.get_axis("gauche", "droite")
 		if not _wall_ahead(mv).is_empty():
 			it = {"text": "%s · Enjamber le muret" % Settings.key_name("esquive")}
-	hud.prompt(it.get("text", "") if state == "play" else "")
+	hud.prompt(it.get("text", "") if state == "play" and Settings.value("jeu", "aide") else "")
 	# on ne tombe pas hors du monde
 	if player.global_position.y < terrain.height_at(player.global_position.x, player.global_position.z) - 3.0:
 		player.global_position.y = terrain.height_at(player.global_position.x, player.global_position.z) + 1.0
