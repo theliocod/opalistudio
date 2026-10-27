@@ -58,6 +58,7 @@ var discovered := {}
 var respawn := Vector3.ZERO
 var burning := {}              # ennemi → temps de brûlure restant
 var oni_dead := false
+var calm := 0.0                # temps passé sans danger : on rengaine
 var _cam_pos := Vector3.ZERO
 var _cam_look := Vector3.ZERO
 
@@ -87,6 +88,7 @@ func _ready() -> void:
 	fill.omni_range = 9.0
 	fill.light_volumetric_fog_energy = 0.0
 	fill.shadow_enabled = false
+	fill.light_cull_mask = 2
 	camera.add_child(fill)
 	fill.position = Vector3(0.6, 0.4, -1.0)
 	camera.make_current()
@@ -114,7 +116,7 @@ func _add_lake() -> void:
 func _inputs() -> void:
 	var keys := {
 		"avant": [KEY_W, KEY_UP], "arriere": [KEY_S, KEY_DOWN], "gauche": [KEY_A, KEY_LEFT], "droite": [KEY_D, KEY_RIGHT],
-		"rapide": [KEY_J], "lourd": [KEY_K], "pied": [KEY_F], "esquive": [KEY_SPACE], "garde": [KEY_SHIFT, KEY_L],
+		"rapide": [KEY_J], "lourd": [KEY_K], "pied": [KEY_F], "tournoyant": [KEY_G], "esquive": [KEY_SPACE], "garde": [KEY_SHIFT, KEY_L],
 		"action": [KEY_E], "tech1": [KEY_R], "tech2": [KEY_T], "inventaire": [KEY_TAB, KEY_I],
 		"objet1": [KEY_1], "objet2": [KEY_2], "objet3": [KEY_3], "objet4": [KEY_4],
 	}
@@ -142,6 +144,7 @@ func _start() -> void:
 	add_child(player)
 	player.global_position = respawn + Vector3(0, 0.3, 0)
 	player.yaw = PI
+	player.sheathed = true
 	for sp in landmarks.spawns:
 		var e := Fighter.new(sp.kind)
 		add_child(e)
@@ -217,6 +220,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 	elif ev.is_action_pressed("lourd"):
 		_buffer("heavy", 0.3)
 	elif ev.is_action_pressed("pied"):
+		_buffer("frontkick", 0.3)
+	elif ev.is_action_pressed("tournoyant"):
 		_buffer("kick", 0.3)
 	elif ev.is_action_pressed("esquive"):
 		_buffer("dodge", 0.2)
@@ -270,6 +275,8 @@ func _physics_process(dt: float) -> void:
 	if player.striking():
 		for e in enemies:
 			_strike(player, player.action.def, e)
+		if player.action.def.get("kick", false):
+			_kick_doors()
 	for e in enemies:
 		if e.striking():
 			_strike(e, e.action.def, player)
@@ -341,7 +348,19 @@ func _control(dt: float) -> void:
 	var free: bool = a.is_empty() or (a.def.has("combo") and a.t >= a.def.combo) or (a.name == "parry" and a.t > 0.2)
 	var recovering: bool = not a.is_empty() and a.def.has("active") and a.t > a.def.active[1]
 
-	if not busy and buffer == "dodge" and stamina > 0.0 and (free or recovering) and not player.is_doing(["dodge"]):
+	# l'épée est au fourreau : on dégaine d'abord, le coup demandé suivra
+	var wants_blade := buffer in ["light", "heavy", "tourbillon", "iai", "parry"] or Input.is_action_pressed("garde")
+	if player.sheathed and wants_blade and not busy and free and not player.is_doing(["degainer"]):
+		player.play("degainer")
+		if buffer != "parry":
+			buffer_t = maxf(buffer_t, 1.2)
+	elif not busy and buffer == "dodge" and (free or recovering) and not _wall_ahead(mv).is_empty():
+		var w: Dictionary = _wall_ahead(mv)
+		player.yaw = atan2(w.dir.x, w.dir.y)
+		player.play("saut")
+		player.collision_mask = 1 | 2
+		buffer = ""
+	elif not busy and buffer == "dodge" and stamina > 0.0 and (free or recovering) and not player.is_doing(["dodge"]):
 		var dir := mv if mv.length_squared() > 0.01 else -player.forward()
 		player.yaw = atan2(dir.x, dir.z)
 		player.play("dodge")
@@ -351,11 +370,13 @@ func _control(dt: float) -> void:
 		player.play(buffer)
 		_spend(Arsenal.TECHNIQUES[buffer].cost)
 		combo_step = 0
-	elif not busy and free and buffer == "kick" and stamina > 0.0:
+	elif not busy and free and buffer in ["kick", "frontkick"] and stamina > 0.0:
 		_face_nearest(5.5, mv)
-		player.play("kick")
-		_spend(Fighter.ACTIONS.kick.cost)
+		player.play(buffer)
+		_spend(Fighter.ACTIONS[buffer].cost)
 		combo_step = 0
+	elif not busy and free and player.sheathed and buffer != "":
+		pass
 	elif not busy and free and buffer in ["light", "heavy"] and stamina > 0.0:
 		var name := "heavy"
 		if buffer == "light":
@@ -374,7 +395,10 @@ func _control(dt: float) -> void:
 		player.play("parry")
 		buffer = ""
 
-	player.blocking = Input.is_action_pressed("garde") and player.action.is_empty() and stamina > 0.0
+	if not player.is_doing(["saut"]):
+		player.collision_mask = 1 | 2 | Landmarks.WALL_LAYER
+	player.blocking = Input.is_action_pressed("garde") and player.action.is_empty() and stamina > 0.0 and not player.sheathed
+	_sheath_logic(dt)
 	if player.action.is_empty():
 		var spd := 1.8 if player.blocking else 5.4
 		player.move = mv * spd
@@ -395,6 +419,45 @@ func _control(dt: float) -> void:
 	if stamina_wait <= 0.0:
 		var regen := (10.0 if player.blocking else 30.0) * (2.0 if arsenal.buffs.has("the") else 1.0)
 		stamina = minf(100.0, stamina + regen * dt)
+
+
+## Un ennemi te repère : on dégaine. Plus rien autour depuis un moment : on rengaine.
+func _sheath_logic(dt: float) -> void:
+	var danger := false
+	for e in enemies:
+		if e.alive and e.aggro and e.flat_distance(player) < 25.0:
+			danger = true
+	if danger:
+		calm = 0.0
+		if player.sheathed and player.action.is_empty():
+			player.play("degainer")
+	elif player.action.is_empty():
+		calm += dt
+		if calm > 8.0 and not player.sheathed:
+			player.play("rengainer")
+			calm = 0.0
+
+
+## Un muret juste devant, que l'on peut enjamber : la direction pour le franchir.
+func _wall_ahead(mv: Vector3) -> Dictionary:
+	var p := Vector2(player.global_position.x, player.global_position.z)
+	var look := Vector2(mv.x, mv.z) if mv.length_squared() > 0.01 else Vector2(player.forward().x, player.forward().z)
+	look = look.normalized()
+	for w in landmarks.walls:
+		var a: Vector2 = w[0]
+		var b: Vector2 = w[1]
+		var ab := b - a
+		var t := clampf((p - a).dot(ab) / ab.length_squared(), 0.0, 1.0)
+		var q := a + ab * t
+		var to := q - p
+		var d := to.length()
+		if d < 0.3 or d > 2.3 or to.normalized().dot(look) < 0.6:
+			continue
+		var n := Vector2(-ab.y, ab.x).normalized()
+		if n.dot(to) < 0.0:
+			n = -n
+		return {"dir": n, "dist": d}
+	return {}
 
 
 func _spend(n: float) -> void:
@@ -452,7 +515,7 @@ func _strike(att: Fighter, def: Dictionary, target: Fighter) -> void:
 		for foot in att.rig.feet:
 			var fp: Vector3 = foot.global_position
 			var dy := fp.y - target.global_position.y
-			if Vector2(fp.x - chest.x, fp.z - chest.z).length() < 0.75 * target.rig.body_scale and dy > 0.3 and dy < 2.0 * target.rig.body_scale:
+			if Vector2(fp.x - chest.x, fp.z - chest.z).length() < 0.95 * target.rig.body_scale and dy > 0.3 and dy < 2.0 * target.rig.body_scale:
 				hit = true
 		if not hit:
 			return
@@ -538,7 +601,7 @@ func _hit_enemy(def: Dictionary, target: Fighter, chest: Vector3) -> void:
 		target.hp -= def.dmg
 		target.posture += def.posture
 		var away := (target.global_position - player.global_position) * Vector3(1, 0, 1)
-		target.knock += away.normalized() * 16.0 / target.rig.body_scale
+		target.knock += away.normalized() * def.get("push", 16.0) / target.rig.body_scale
 		Fx.burst(self, chest, 26, Color(1.0, 0.88, 0.7), 6.0, 2.0, 14.0, 0.3, 3.0)
 		hitstop = 0.08
 		shake = 0.25
@@ -590,6 +653,20 @@ func _hit_enemy(def: Dictionary, target: Fighter, chest: Vector3) -> void:
 		hud.callout("Posture brisée", Hud.GOLD)
 	elif not riposte and not super_armor and (target.kind != "oni" or def.get("heavy", false)):
 		target.play("hit")
+
+
+## Un pied qui rencontre une porte fermée la fait voler en éclats.
+func _kick_doors() -> void:
+	for d in landmarks.doors:
+		if d.open:
+			continue
+		for foot in player.rig.feet:
+			if foot.global_position.distance_to(d.pos + Vector3(0, 0.6, 0)) < 1.1:
+				landmarks.break_door(d, player.forward())
+				Fx.burst(self, d.pos + Vector3(0, 1.0, 0), 50, Color(0.55, 0.35, 0.2), 6.0, 2.0, 12.0, 0.7, 1.4, 0.1)
+				shake = 0.3
+				hitstop = 0.06
+				break
 
 
 func _burns(dt: float) -> void:
@@ -715,8 +792,15 @@ func _interact() -> void:
 			var d := e.global_position - player.global_position
 			player.yaw = atan2(d.x, d.z)
 			e.yaw = player.yaw + PI
+			player.sheathed = false
 			player.play("finisher")
 			e.play("executed")
+		"door":
+			var d: Dictionary = target.door
+			var to: Vector3 = d.pos - player.global_position
+			player.yaw = atan2(to.x, to.z)
+			player.play("frontkick")
+			_spend(0.0)
 		"chest":
 			var c: Dictionary = target.chest
 			c.open = true
@@ -740,6 +824,9 @@ func _interactable() -> Dictionary:
 		for e in enemies:
 			if e.alive and e.is_doing(["stagger"]) and e.flat_distance(player) < 2.8:
 				return {"kind": "finisher", "enemy": e, "text": "E · Coup de grâce"}
+	for d in landmarks.doors:
+		if not d.open and player.global_position.distance_to(d.pos) < 2.4:
+			return {"kind": "door", "door": d, "text": "E · Enfoncer la porte"}
 	for c in landmarks.chests:
 		if not c.open and player.global_position.distance_to(c.pos) < 2.4:
 			return {"kind": "chest", "chest": c, "text": "E · Ouvrir le coffre"}
@@ -824,6 +911,10 @@ func _world_events() -> void:
 		if Vector2(player.global_position.x, player.global_position.z).distance_to(p.pos) < p.radius:
 			_discover(p)
 	var it := _interactable()
+	if it.is_empty() and player.action.is_empty():
+		var mv := Vector3(sin(cam_yaw), 0, cos(cam_yaw)) * Input.get_axis("arriere", "avant") + Vector3(-cos(cam_yaw), 0, sin(cam_yaw)) * Input.get_axis("gauche", "droite")
+		if not _wall_ahead(mv).is_empty():
+			it = {"text": "Espace · Enjamber le muret"}
 	hud.prompt(it.get("text", ""))
 	# on ne tombe pas hors du monde
 	if player.global_position.y < terrain.height_at(player.global_position.x, player.global_position.z) - 3.0:

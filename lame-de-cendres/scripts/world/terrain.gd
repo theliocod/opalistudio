@@ -156,6 +156,10 @@ func _build_mesh() -> void:
 	mat.set_shader_parameter("mask", mask_texture)
 	mat.set_shader_parameter("stone", load("res://assets/pierre.jpg"))
 	mat.set_shader_parameter("flags", load("res://assets/sol.jpg"))
+	if ResourceLoader.exists("res://assets/kie/herbe.jpg"):
+		mat.set_shader_parameter("grass_tex", load("res://assets/kie/herbe.jpg"))
+		mat.set_shader_parameter("dirt_tex", load("res://assets/kie/terre.jpg"))
+		mat.set_shader_parameter("painted", true)
 	mesh.surface_set_material(0, mat)
 	var mi := MeshInstance3D.new()
 	mi.mesh = mesh

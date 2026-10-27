@@ -10,7 +10,8 @@ func _initialize() -> void:
 	var rig := Rig.new("player")
 	root.add_child(rig)
 	await process_frame
-	for clip in ["tourbillon", "revers"]:
+	var wanted := OS.get_environment("CLIPS").split(",") if OS.get_environment("CLIPS") != "" else PackedStringArray(["tourbillon", "revers"])
+	for clip in wanted:
 		var c: Dictionary = Fighter.CLIPS[clip]
 		var n: int = c.frames.size()
 		var prev := {}
@@ -24,10 +25,12 @@ func _initialize() -> void:
 			var tip := rig.blade_tip.global_position
 			var fl := rig.feet[0].global_position
 			var fr := rig.feet[1].global_position
+			var hand: Vector3 = rig.joints.wrR.global_position
+			var hip: Vector3 = rig.joints.hipL.global_position
 			var t: float = float(i) / c.fps
 			if prev:
 				var dt: float = t - prev.t
-				line += "  %.2f  lame %4.1f m/s  pieds %4.1f / %4.1f  pied haut %.2f\n" % [t, tip.distance_to(prev.tip) / dt, fl.distance_to(prev.fl) / dt, fr.distance_to(prev.fr) / dt, maxf(fl.y, fr.y)]
+				line += "  %.2f  lame %4.1f m/s  pieds %4.1f / %4.1f  pied haut %.2f  main-hanche %.2f\n" % [t, tip.distance_to(prev.tip) / dt, fl.distance_to(prev.fl) / dt, fr.distance_to(prev.fr) / dt, maxf(fl.y, fr.y), hand.distance_to(hip)]
 			prev = {"t": t, "tip": tip, "fl": fl, "fr": fr}
 		print(line)
 	quit()

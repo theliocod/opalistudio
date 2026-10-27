@@ -7,6 +7,10 @@ func _initialize() -> void:
 	var main = load("res://main.tscn").instantiate()
 	root.add_child(main)
 	await process_frame
+	# l'écran titre et l'interface ne doivent pas cacher la vue
+	if main.hud:
+		main.hud.hide_screen()
+		main.hud.play_ui.visible = false
 	print("monde bâti en %d ms" % (Time.get_ticks_msec() - t0))
 	var cam := Camera3D.new()
 	cam.far = 1200.0

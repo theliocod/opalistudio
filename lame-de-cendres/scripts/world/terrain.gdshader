@@ -6,6 +6,9 @@ render_mode diffuse_burley;
 uniform sampler2D mask : filter_linear, repeat_disable;
 uniform sampler2D stone : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform sampler2D flags : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D grass_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform sampler2D dirt_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
+uniform bool painted = false;
 uniform float water_level = -1.2;
 
 varying vec3 wpos;
@@ -38,6 +41,13 @@ void fragment() {
 	vec3 grass = mix(vec3(0.075, 0.085, 0.05), vec3(0.15, 0.13, 0.065), n1);
 	grass = mix(grass, vec3(0.2, 0.07, 0.05), smoothstep(0.62, 0.8, fbm(wpos.xz * 0.03)) * 0.5);
 	vec3 dirt = mix(vec3(0.13, 0.095, 0.07), vec3(0.2, 0.15, 0.11), n2);
+	if (painted) {
+		// le sol peint, à deux échelles pour casser la répétition
+		vec3 g1 = texture(grass_tex, wpos.xz * 0.11).rgb;
+		vec3 g2 = texture(grass_tex, wpos.xz * 0.027 + 0.37).rgb;
+		grass = mix(g1, g2, 0.35) * (0.75 + n1 * 0.5);
+		dirt = mix(texture(dirt_tex, wpos.xz * 0.14).rgb, texture(dirt_tex, wpos.xz * 0.035).rgb, 0.3) * 0.9;
+	}
 	// la roche peinte, plaquée sur les trois axes pour ne pas s'étirer sur les pentes
 	vec3 bw = pow(abs(wnrm), vec3(4.0)); bw /= bw.x + bw.y + bw.z;
 	vec3 tri = texture(stone, wpos.zy * 0.12).rgb * bw.x + texture(stone, wpos.xz * 0.12).rgb * bw.y + texture(stone, wpos.xy * 0.12).rgb * bw.z;

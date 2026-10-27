@@ -53,6 +53,13 @@ static var ACTIONS := {
 	"tourbillon": {"clip": "tourbillon", "from": 0.45, "to": 2.0, "speed": 1.25, "active": [0.4, 0.78], "dmg": 30, "posture": 30, "arc": 3.2, "reach": 2.8, "cost": 35},
 	"iai": {"dur": 0.62, "active": [0.1, 0.34], "dmg": 40, "posture": 25, "lunge": [0.08, 0.3, 22], "iframes": [0.04, 0.36], "arc": 1.2, "reach": 2.4, "cost": 30,
 		"keys": [[0, {}], [0.07, P.windT], [0.3, P.end1], [0.62, {}]]},
+	# le coup de pied direct : le pied part à 0,95 s et rentre à 1,3 s de l'animation
+	"frontkick": {"clip": "pied-direct", "from": 0.45, "to": 1.85, "speed": 1.4, "active": [0.33, 0.62], "dmg": 8, "posture": 30, "kick": true, "push": 20.0, "cost": 14, "lunge": [0.2, 0.42, 3.5]},
+	# dégainer : la main saisit la poignée à 0,6 s ; la lame apparaît alors
+	"degainer": {"clip": "degainer", "from": 0.0, "to": 1.45, "speed": 1.3, "combo": 0.75, "draw_at": 0.48},
+	"rengainer": {"clip": "degainer", "from": 1.45, "to": 0.0, "speed": -1.6, "sheath_at": 0.52},
+	# le saut : les pieds passent au-dessus d'un muret de 90 cm entre 0,35 et 0,85 s
+	"saut": {"clip": "saut", "from": 0.05, "to": 1.15, "speed": 1.1, "vault": true},
 	"finisher": {"clip": "revers", "from": 0.3, "to": 2.3, "speed": 1.0, "active": [0.6, 1.05], "finisher": true},
 	"executed": {"dur": 2.2, "keys": [[0, {}], [0.15, P.stagger], [2.2, P.stagger2]]},
 	"dying": {"clip": "dying", "from": 0.6, "to": 4.6, "speed": 1.5, "hold": true},
@@ -82,6 +89,7 @@ var hp := 100.0
 var max_posture := 0.0
 var posture := 0.0
 var blocking := false
+var sheathed := false          # l'épée au fourreau (le joueur, hors combat)
 var glow := 0.0
 var move := Vector3.ZERO       # déplacement voulu (m/s), décidé par le joueur ou l'IA
 var push := Vector3.ZERO       # déplacement imposé cette image (élan)
@@ -98,7 +106,7 @@ var place := ""
 static func load_clips() -> void:
 	if not CLIPS.is_empty():
 		return
-	for name in ["spin-kick", "dying", "tourbillon", "revers"]:
+	for name in ["spin-kick", "dying", "tourbillon", "revers", "degainer", "pied-direct", "saut"]:
 		var f := FileAccess.open("res://anims/%s.json" % name, FileAccess.READ)
 		if f == null:
 			continue
@@ -114,7 +122,7 @@ static func load_clips() -> void:
 		CLIPS[name] = c
 	for a in ACTIONS.values():
 		if a.has("clip"):
-			a.dur = (a.to - a["from"]) / a.speed
+			a.dur = absf(a.to - a["from"]) / absf(a.speed)
 
 
 func _init(k: String) -> void:
@@ -134,13 +142,16 @@ func _init(k: String) -> void:
 	cs.position.y = 0.9 * rig.body_scale
 	add_child(cs)
 	collision_layer = 2
-	collision_mask = 1 | 2
+	collision_mask = 1 | 2 | Landmarks.WALL_LAYER
 	floor_snap_length = 0.6
 	floor_max_angle = deg_to_rad(50)
 
 
 func _ready() -> void:
 	skin = MeshySkin.dress(rig)
+	# les personnages sont aussi sur la couche 2 : la lueur de la caméra n'éclaire qu'eux
+	for g in find_children("*", "GeometryInstance3D", true, false):
+		g.layers |= 2
 	trail = Trail.new(Color(0.75, 0.9, 1.0) if kind == "player" else Color(1.0, 0.23, 0.16))
 	add_child(trail)
 
@@ -197,6 +208,10 @@ func step(dt: float, time: float) -> void:
 		var l = action.def.get("lunge")
 		if l and action.t >= l[0] and action.t <= l[1]:
 			push += forward() * l[2] * dt * rig.body_scale
+		if action.def.has("draw_at") and action.t >= action.def.draw_at:
+			sheathed = false
+		if action.def.has("sheath_at") and action.t >= action.def.sheath_at:
+			sheathed = true
 		if action.t >= action.def.dur and not action.def.get("hold", false):
 			action = {}
 
@@ -205,7 +220,7 @@ func step(dt: float, time: float) -> void:
 	phase += dt * (3.0 + speed * 2.1)
 	var s := sin(phase)
 	var c := cos(phase)
-	var G := Rig.GUARD
+	var G := Rig.RELAX if sheathed else Rig.GUARD
 	var breathe := sin(time * 2.1 + global_position.x) * 0.025
 	var loco: Dictionary = G.duplicate(true)
 	loco.chest = [G.chest[0] + breathe + k * 0.18, G.chest[1], G.chest[2]]
@@ -215,6 +230,10 @@ func step(dt: float, time: float) -> void:
 	loco.knL = [G.knL[0] * (1 - k) + (0.25 + maxf(0, -c) * 1.1) * k, 0, 0]
 	loco.knR = [G.knR[0] * (1 - k) + (0.25 + maxf(0, c) * 1.1) * k, 0, 0]
 	loco.shL = [G.shL[0] + s * 0.15 * k, G.shL[1], G.shL[2]]
+	if sheathed:
+		# les bras balancent avec le pas
+		loco.shL = [G.shL[0] + s * 0.4 * k, G.shL[1], G.shL[2]]
+		loco.shR = [G.shR[0] - s * 0.4 * k, G.shR[1], G.shR[2]]
 	if blocking:
 		for j in ["chest", "shR", "elR", "wrR", "shL", "elL"]:
 			loco[j] = P.parry[j]
@@ -237,7 +256,7 @@ func _play_clip(loco: Dictionary) -> void:
 	var a := action
 	var d: Dictionary = a.def
 	var c: Dictionary = CLIPS[d.clip]
-	var ct: float = minf(d.to, d["from"] + a.t * d.speed)
+	var ct: float = clampf(d["from"] + a.t * d.speed, minf(d["from"], d.to), maxf(d["from"], d.to))
 	var n: int = c.frames.size()
 	var f: float = ct * c.fps
 	var i0 := mini(n - 1, int(f))
@@ -281,6 +300,7 @@ func _finish(dt: float) -> void:
 	rotation.y = yaw
 
 	# La lame des démons rougeoie pendant qu'ils préparent leur coup
+	rig.sword.visible = not sheathed
 	if kind != "player":
 		var target := 0.0
 		if alive:

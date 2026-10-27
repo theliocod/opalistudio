@@ -17,6 +17,15 @@ const GUARD := {
 	"hipL": [-0.3, 0, 0.06], "knL": [0.4, 0, 0], "hipR": [0.22, 0, -0.06], "knR": [0.32, 0, 0],
 }
 
+## Au fourreau : les bras pendent, le corps se relâche.
+const RELAX := {
+	"hipsY": -0.02,
+	"hips": [0, 0, 0], "spine": [0.03, 0, 0], "chest": [0.02, 0, 0], "neck": [0, 0, 0], "head": [0, 0, 0],
+	"shR": [0.05, 0, -0.12], "elR": [-0.25, 0, 0], "wrR": [0, 0, 0],
+	"shL": [0.05, 0, 0.12], "elL": [-0.25, 0, 0],
+	"hipL": [-0.04, 0, 0.04], "knL": [0.08, 0, 0], "hipR": [0.04, 0, -0.04], "knR": [0.08, 0, 0],
+}
+
 var kind := "player"
 var joints := {}
 var mats := {}

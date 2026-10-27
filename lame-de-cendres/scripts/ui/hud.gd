@@ -8,6 +8,9 @@ const GOLD := Color(0.85, 0.7, 0.35)
 const PAPER := Color(0.94, 0.9, 0.85)
 const MUTED := Color(0.94, 0.9, 0.85, 0.6)
 const INK := Color(0.04, 0.03, 0.035)
+## Les images peintes par kie.ai (assets/kie/), si elles sont là
+const ITEM_ART := {"sake": 0, "onigiri": 1, "the": 2, "encens": 3}
+const KATANA_ART := {"ronin": 0, "kurenai": 1, "shiranui": 2, "raijin": 3, "yamikaze": 4, "tsukuyomi": 5}
 
 var serif := SystemFont.new()
 var sans := SystemFont.new()
@@ -19,6 +22,7 @@ var st_fill: ColorRect
 var souls_lbl: Label
 var katana_lbl: Label
 var katana_dot: ColorRect
+var katana_img: TextureRect
 var slots := {}
 var techs := {}
 var compass: Control
@@ -108,6 +112,26 @@ func _button(text: String, cb: Callable) -> Button:
 	return b
 
 
+static func item_icon(id: String) -> Texture2D:
+	var p := "res://assets/kie/objets-%d.png" % ITEM_ART.get(id, 0)
+	return load(p) if ResourceLoader.exists(p) else null
+
+
+static func katana_art(id: String) -> Texture2D:
+	var p := "res://assets/kie/katanas-%d.png" % KATANA_ART.get(id, 0)
+	return load(p) if ResourceLoader.exists(p) else null
+
+
+func _tex(t: Texture2D, size: Vector2) -> TextureRect:
+	var r := TextureRect.new()
+	r.texture = t
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	r.custom_minimum_size = size
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return r
+
+
 func _bar(parent: Control, w: float, h: float, c: Color) -> Array:
 	var back := _rect(Color(0, 0, 0, 0.6), Vector2(w, h))
 	parent.add_child(back)
@@ -144,6 +168,8 @@ func _build_play() -> void:
 	row.add_child(dot_box)
 	katana_lbl = _label("", 15, PAPER, serif, 1)
 	row.add_child(katana_lbl)
+	katana_img = _tex(null, Vector2(150, 34))
+	bars.add_child(katana_img)
 	souls_lbl = _label("", 13, MUTED)
 	bars.add_child(souls_lbl)
 
@@ -156,13 +182,15 @@ func _build_play() -> void:
 	for id in Arsenal.ITEMS:
 		var it: Dictionary = Arsenal.ITEMS[id]
 		var p := _panel(Color(0.03, 0.02, 0.025, 0.7), Color(1, 1, 1, 0.12))
-		p.custom_minimum_size = Vector2(70, 64)
+		p.custom_minimum_size = Vector2(76, 84)
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 2)
 		p.add_child(v)
 		v.add_child(_label(str(it.key), 11, MUTED))
-		var sw := _rect(it.color, Vector2(18, 18))
-		var c := CenterContainer.new(); c.add_child(sw); v.add_child(c)
+		var icon := item_icon(id)
+		var c := CenterContainer.new()
+		c.add_child(_tex(icon, Vector2(42, 42)) if icon else _rect(it.color, Vector2(18, 18)))
+		v.add_child(c)
 		var n := _label("0", 14, PAPER)
 		n.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 		v.add_child(n)
@@ -270,6 +298,7 @@ func set_arsenal(a: Arsenal) -> void:
 	var k := a.katana()
 	katana_lbl.text = k.name
 	katana_dot.color = k.aura if k.aura != null else PAPER
+	katana_img.texture = katana_art(a.equipped)
 	var next := ""
 	for id in Arsenal.TECHNIQUES:
 		if not a.knows(id):
@@ -411,6 +440,9 @@ func show_inventory(a: Arsenal) -> void:
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.disabled = n == 0
 		b.flat = true
+		b.icon = item_icon(id)
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", 56)
 		b.add_theme_color_override("font_color", PAPER)
 		b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.3))
 		b.pressed.connect(func(): on_use.call(id); show_inventory(a))
@@ -419,9 +451,16 @@ func show_inventory(a: Arsenal) -> void:
 		var k: Dictionary = Arsenal.KATANAS[id]
 		var owned: bool = id in a.katanas
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(0, 74)
+		b.custom_minimum_size = Vector2(0, 112)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.text = (k.name + ("\n· portée ·" if id == a.equipped else "")) if owned else "???"
+		b.text = (k.name + (" · portée" if id == a.equipped else "")) if owned else "???"
+		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		b.icon = katana_art(id)
+		b.expand_icon = true
+		b.add_theme_constant_override("icon_max_width", 260)
+		if not owned:
+			b.add_theme_color_override("icon_disabled_color", Color(0, 0, 0, 0.55))
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.disabled = not owned
 		var sb := StyleBoxFlat.new()

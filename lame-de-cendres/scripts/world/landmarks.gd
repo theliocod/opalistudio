@@ -8,6 +8,10 @@ var mats := {}
 var chests: Array = []        # {node, lid, place, pos, open}
 var shrines: Array = []       # {pos, name}
 var spawns: Array = []        # {kind, pos, place}
+var doors: Array = []         # {panel, shape, pos, open}
+var walls: Array = []         # murets que l'on peut enjamber : [a, b] au sol (x, z)
+var _walls_body: StaticBody3D
+const WALL_LAYER := 4
 var lights: Array = []        # {light, base, seed}
 var _body: StaticBody3D
 var _rng := RandomNumberGenerator.new()
@@ -29,6 +33,12 @@ func build(t: Terrain, places: Array) -> void:
 	_body = StaticBody3D.new()
 	_body.name = "Constructions"
 	add_child(_body)
+	# les murets ont leur propre couche : le saut les ignore le temps de passer
+	_walls_body = StaticBody3D.new()
+	_walls_body.name = "Murets"
+	_walls_body.collision_layer = WALL_LAYER
+	add_child(_walls_body)
+	_murets(places)
 	for p in places:
 		var c := Vector3(p.pos.x, terrain.height_at(p.pos.x, p.pos.y), p.pos.y)
 		match p.id:
@@ -186,7 +196,7 @@ func _torii(parent: Node3D, pos: Vector3, rot_y: float, s: float) -> void:
 	_box(g, Vector3(0, 7.72, 0), Vector3(10.6, 0.2, 0.8), mats.tuile, Vector3.ZERO, false)
 
 
-func _house(parent: Node3D, pos: Vector3, rot_y: float, broken: bool) -> void:
+func _house(parent: Node3D, pos: Vector3, rot_y: float, broken: bool, door := false) -> void:
 	var g := Node3D.new()
 	parent.add_child(g)
 	g.position = pos
@@ -201,10 +211,54 @@ func _house(parent: Node3D, pos: Vector3, rot_y: float, broken: bool) -> void:
 		_box(g, Vector3(w / 2, 1.7, 0), Vector3(0.18, 2.4, d), mats.bois)
 	for x in [-w / 2, w / 2]:
 		_cyl(g, Vector3(x, 1.7, d / 2), 0.12, 0.12, 2.4, mats.bois)
+	if door:
+		# une façade fermée, et une porte que l'on peut enfoncer
+		var side := (w - 1.4) / 2
+		for x in [-(w / 2 - side / 2), w / 2 - side / 2]:
+			_box(g, Vector3(x, 1.7, d / 2), Vector3(side, 2.4, 0.16), mats.bois)
+		_box(g, Vector3(0, 2.75, d / 2), Vector3(1.4, 0.3, 0.16), mats.bois)
+		_door(g, Vector3(0, 0.5, d / 2))
 	var roof := _roof(g, Vector3(0, 3.6, 0), w + 1.4, d + 1.6, 1.5, mats.chaume if _rng.randf() < 0.5 else mats.tuile, Vector3(0, PI / 2, 0))
 	if broken:
 		roof.rotation = Vector3(0.25, PI / 2, -0.35)
 		roof.position = Vector3(0.8, 2.6, 0.3)
+
+
+## Une porte de bois sur charnière basse : un coup de pied la couche au sol.
+func _door(parent: Node3D, pos: Vector3) -> void:
+	var hinge := Node3D.new()
+	parent.add_child(hinge)
+	hinge.position = pos
+	var panel := MeshInstance3D.new()
+	var b := BoxMesh.new()
+	b.size = Vector3(1.36, 2.1, 0.08)
+	panel.mesh = b
+	panel.material_override = mats.laque
+	hinge.add_child(panel)
+	panel.position = Vector3(0, 1.05, 0)
+	for y in [0.35, 1.05, 1.75]:
+		var bar := MeshInstance3D.new()
+		var bb := BoxMesh.new(); bb.size = Vector3(1.4, 0.08, 0.12)
+		bar.mesh = bb
+		bar.material_override = mats.bois
+		hinge.add_child(bar)
+		bar.position = Vector3(0, y, 0.02)
+	var s := BoxShape3D.new()
+	s.size = Vector3(1.36, 2.1, 0.12)
+	var cs := CollisionShape3D.new()
+	cs.shape = s
+	cs.transform = hinge.global_transform * Transform3D(Basis(), Vector3(0, 1.05, 0))
+	_body.add_child(cs)
+	doors.append({"hinge": hinge, "shape": cs, "pos": hinge.global_position, "open": false})
+
+
+func break_door(d: Dictionary, push: Vector3) -> void:
+	d.open = true
+	d.shape.disabled = true
+	# la porte bascule vers l'intérieur, dans le sens du coup
+	var local: Vector3 = d.hinge.global_transform.basis.inverse() * push
+	var tw := create_tween()
+	tw.tween_property(d.hinge, "rotation:x", (PI / 2 - 0.05) * signf(local.z if absf(local.z) > 0.01 else 1.0), 0.35).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 
 
 func _chest(parent: Node3D, pos: Vector3, rot_y: float, place: String) -> void:
@@ -241,6 +295,78 @@ func _ground(p: Vector3) -> Vector3:
 	return Vector3(p.x, terrain.height_at(p.x, p.z), p.z)
 
 
+# ---------- Les murets ----------
+
+## Un muret de pierres sèches entre deux points du sol, qui épouse le relief.
+func _wall(a: Vector2, b: Vector2, h := 0.85) -> void:
+	walls.append([a, b])
+	var n := maxi(1, int(a.distance_to(b) / 1.8))
+	for i in n:
+		var p0 := a.lerp(b, float(i) / n)
+		var p1 := a.lerp(b, float(i + 1) / n)
+		var mid := (p0 + p1) / 2.0
+		var y := minf(terrain.height_at(p0.x, p0.y), terrain.height_at(p1.x, p1.y))
+		var len := p0.distance_to(p1) + 0.12
+		var rot := atan2(p1.x - p0.x, p1.y - p0.y) + PI / 2
+		var mi := MeshInstance3D.new()
+		var bm := BoxMesh.new()
+		bm.size = Vector3(len, h + 0.3, 0.55 + _rng.randf() * 0.1)
+		mi.mesh = bm
+		mi.material_override = mats.pierre
+		add_child(mi)
+		mi.position = Vector3(mid.x, y + (h + 0.3) / 2 - 0.3, mid.y)
+		mi.rotation = Vector3(_rng.randf_range(-0.03, 0.03), rot, _rng.randf_range(-0.03, 0.03))
+		var cap := MeshInstance3D.new()
+		var cm := BoxMesh.new()
+		cm.size = Vector3(len, 0.12, 0.7)
+		cap.mesh = cm
+		cap.material_override = mats.pierre
+		mi.add_child(cap)
+		cap.position = Vector3(0, (h + 0.3) / 2, 0)
+		var s := BoxShape3D.new()
+		s.size = Vector3(len, h + 1.2, 0.6)
+		var cs := CollisionShape3D.new()
+		cs.shape = s
+		cs.transform = Transform3D(Basis().rotated(Vector3.UP, rot), Vector3(mid.x, y + (h + 1.2) / 2 - 0.3, mid.y))
+		_walls_body.add_child(cs)
+
+
+## Un arc de muret autour d'un centre, entre deux angles.
+func _wall_arc(c: Vector2, r: float, a0: float, a1: float) -> void:
+	var n := maxi(2, int(absf(a1 - a0) * r / 3.0))
+	for i in n:
+		var t0 := lerpf(a0, a1, float(i) / n)
+		var t1 := lerpf(a0, a1, float(i + 1) / n)
+		_wall(c + Vector2(sin(t0), cos(t0)) * r, c + Vector2(sin(t1), cos(t1)) * r)
+
+
+func _murets(places: Array) -> void:
+	var by := {}
+	for p in places:
+		by[p.id] = p
+	# le village, ceint d'un muret ouvert là où arrivent les chemins
+	var v: Vector2 = by.village.pos
+	var gaps := []
+	for to in [Vector2(-75, 105), Vector2(30, 85), Vector2(0, -20), Vector2(-100, 20)]:
+		var d: Vector2 = to - v
+		gaps.append(atan2(d.x, d.y))
+	gaps.sort()
+	for i in gaps.size():
+		var g0: float = gaps[i] + 0.16
+		var g1: float = (gaps[(i + 1) % gaps.size()] + (TAU if i == gaps.size() - 1 else 0.0)) - 0.16
+		_wall_arc(v, 27.0, g0, g1)
+	# le temple : un enclos ouvert devant le grand torii
+	var t: Vector2 = by.temple.pos
+	_wall(t + Vector2(-17, 24), t + Vector2(-4.5, 24))
+	_wall(t + Vector2(4.5, 24), t + Vector2(17, 24))
+	_wall(t + Vector2(-17, 24), t + Vector2(-17, -10))
+	_wall(t + Vector2(17, 24), t + Vector2(17, -10))
+	# des murets de champs, en travers de la vallée
+	for seg in [[Vector2(-20, 15), Vector2(5, 2)], [Vector2(15, -45), Vector2(32, -62)], [Vector2(40, 60), Vector2(62, 45)],
+			[Vector2(-85, 80), Vector2(-60, 70)], [Vector2(70, -5), Vector2(95, 10)], [Vector2(-125, 5), Vector2(-108, -12)]]:
+		_wall(seg[0], seg[1])
+
+
 # ---------- Les lieux ----------
 
 ## L'autel des Cendres : là où tout commence, où l'on se repose.
@@ -265,7 +391,7 @@ func _village(c: Vector3, p: Dictionary) -> void:
 	for i in spots.size():
 		var s: Vector3 = spots[i]
 		var at := _ground(c + s) - c
-		_house(g, at, atan2(-s.x, -s.z) + PI, i % 3 == 1)
+		_house(g, at, atan2(-s.x, -s.z) + PI, i % 3 == 1, i in [0, 5])
 	_cyl(g, _ground(c + Vector3(0, 0, 0)) - c + Vector3(0, 0.5, 0), 1.1, 1.2, 1.0, mats.pierre)
 	_box(g, _ground(c) - c + Vector3(0, 1.9, 0), Vector3(2.6, 0.12, 0.2), mats.bois, Vector3.ZERO, false)
 	for x in [-1.2, 1.2]:
@@ -273,6 +399,7 @@ func _village(c: Vector3, p: Dictionary) -> void:
 	_lantern(g, _ground(c + Vector3(3, 0, 4)) - c)
 	_lantern(g, _ground(c + Vector3(-4, 0, -3)) - c)
 	_chest(g, _ground(c + Vector3(-14.5, 0, -9.2)) - c + Vector3(0, 0.5, 0), 0.8, p.id)
+	_chest(g, _ground(c + Vector3(14.6, 0, 10.0)) - c + Vector3(0, 0.5, 0), -2.3, p.id)
 	for s in [Vector3(-6, 0, 3), Vector3(5, 0, -4), Vector3(2, 0, 8)]:
 		_spawn("ronin", c + s, p.id)
 

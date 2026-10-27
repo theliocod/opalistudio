@@ -10,6 +10,9 @@ const GRASS_STEP := 0.4
 var terrain: Terrain
 var grass: MultiMeshInstance3D
 var rng := RandomNumberGenerator.new()
+## Les arbres posés : [position, espèce], pour la carte.
+var trees: Array = []
+var _species := ""
 
 
 func build(t: Terrain, avoid: Array) -> void:
@@ -33,9 +36,17 @@ func build(t: Terrain, avoid: Array) -> void:
 	stone.uv1_world_triplanar = true
 	stone.uv1_scale = Vector3(0.35, 0.35, 0.35)
 
-	_scatter(_tree_maple(bark, maple_leaves), 260, avoid, 0.35, true)
-	_scatter(_tree_pine(bark, pine_leaves), 420, avoid, 0.45, true)
+	# Les couronnes peintes par kie.ai, quand elles sont là ; sinon des formes simples
+	var maple_cards := _leaf_mat("res://assets/kie/erable.png", Color(0.75, 0.7, 0.7), Color(0.3, 0.04, 0.02))
+	var pine_cards := _leaf_mat("res://assets/kie/pin.png", Color(0.42, 0.48, 0.44), Color(0.03, 0.05, 0.03))
+	for v in 2:
+		_species = "erable"
+		_scatter(_maple_cards(bark, maple_cards, v) if maple_cards else _tree_maple(bark, maple_leaves), 130, avoid, 0.35, true)
+		_species = "pin"
+		_scatter(_pine_cards(bark, pine_cards, v) if pine_cards else _tree_pine(bark, pine_leaves), 210, avoid, 0.45, true)
+	_species = "mort"
 	_scatter(_tree_dead(bark), 140, avoid, 0.5, true)
+	_species = ""
 	_scatter(_rock(stone), 360, avoid, 0.9, false)
 
 
@@ -94,6 +105,111 @@ func _build_grass() -> void:
 func follow(pos: Vector3) -> void:
 	if grass:
 		grass.global_position = Vector3(snappedf(pos.x, GRASS_STEP), 0.0, snappedf(pos.z, GRASS_STEP))
+
+
+# ---------- Les arbres à cartes de feuillage ----------
+
+func _leaf_mat(path: String, tint: Color, back: Color) -> ShaderMaterial:
+	if not ResourceLoader.exists(path):
+		return null
+	var m := ShaderMaterial.new()
+	m.shader = load("res://scripts/world/foliage.gdshader")
+	m.set_shader_parameter("leaves", load(path))
+	m.set_shader_parameter("tint", Vector3(tint.r, tint.g, tint.b))
+	m.set_shader_parameter("translucency", back)
+	return m
+
+
+## Une carte de feuillage : un carré peint, tourné et posé dans la couronne.
+func _card(st: SurfaceTool, size: float, xf: Transform3D) -> void:
+	var q := QuadMesh.new()
+	q.size = Vector2(size, size)
+	st.append_from(q, 0, xf)
+
+
+## Les normales des cartes pointent hors de la couronne : elle s'éclaire comme un volume.
+func _round_normals(st: SurfaceTool, centers: Array) -> SurfaceTool:
+	var arr := st.commit_to_arrays()
+	var verts: PackedVector3Array = arr[Mesh.ARRAY_VERTEX]
+	var normals := PackedVector3Array()
+	normals.resize(verts.size())
+	for k in verts.size():
+		var v := verts[k]
+		var best: Vector3 = centers[0]
+		for c in centers:
+			if v.distance_squared_to(c) < v.distance_squared_to(best):
+				best = c
+		normals[k] = (v - best + Vector3(0, 0.3, 0)).normalized()
+	arr[Mesh.ARRAY_NORMAL] = normals
+	var out := SurfaceTool.new()
+	out.create_from_arrays(arr)
+	return out
+
+
+func _branches(trunk: SurfaceTool, r: RandomNumberGenerator, n: int, y0: float, y1: float, length: float) -> void:
+	for k in n:
+		var br := CylinderMesh.new()
+		br.top_radius = 0.04
+		br.bottom_radius = 0.1
+		br.height = length * r.randf_range(0.8, 1.2)
+		br.radial_segments = 5
+		var a := r.randf() * TAU
+		var b := Basis().rotated(Vector3(cos(a), 0, sin(a)), r.randf_range(0.7, 1.1))
+		var y := r.randf_range(y0, y1)
+		_append(trunk, br, Transform3D(b, Vector3(0, y, 0) + b * Vector3(0, br.height / 2, 0)))
+
+
+func _maple_cards(bark: Material, leaves: Material, variant: int) -> ArrayMesh:
+	var r := RandomNumberGenerator.new(); r.seed = 11 + variant * 7
+	var trunk := SurfaceTool.new(); trunk.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var cyl := CylinderMesh.new(); cyl.top_radius = 0.14; cyl.bottom_radius = 0.32; cyl.height = 4.2; cyl.radial_segments = 8
+	var lean := r.randf_range(-0.12, 0.12)
+	_append(trunk, cyl, Transform3D(Basis().rotated(Vector3.FORWARD, lean), Vector3(0, 2.1, 0)))
+	_branches(trunk, r, 5, 2.6, 3.9, 2.0)
+	var crown := SurfaceTool.new(); crown.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var c := Vector3(sin(lean) * -2.0, 5.0 + variant * 0.4, 0)
+	var centers := [c]
+	# trois grandes cartes croisées, puis des touffes autour
+	for k in 3:
+		_card(crown, 5.2, Transform3D(Basis().rotated(Vector3.UP, k * PI / 3.0 + r.randf() * 0.2), c))
+	_card(crown, 4.6, Transform3D(Basis().rotated(Vector3.RIGHT, -PI / 2), c + Vector3(0, 0.6, 0)))
+	for k in 7:
+		var a := r.randf() * TAU
+		var off := Vector3(cos(a) * r.randf_range(1.2, 2.0), r.randf_range(-0.8, 1.0), sin(a) * r.randf_range(1.2, 2.0))
+		centers.append(c + off * 0.6)
+		_card(crown, r.randf_range(2.2, 3.0), Transform3D(Basis().rotated(Vector3.UP, r.randf() * TAU).rotated(Vector3.RIGHT, r.randf_range(-0.5, 0.5)), c + off))
+	var mesh := trunk.commit()
+	mesh.surface_set_material(0, bark)
+	_round_normals(crown, centers).commit(mesh)
+	mesh.surface_set_material(1, leaves)
+	return mesh
+
+
+func _pine_cards(bark: Material, leaves: Material, variant: int) -> ArrayMesh:
+	var r := RandomNumberGenerator.new(); r.seed = 23 + variant * 5
+	var trunk := SurfaceTool.new(); trunk.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var h := 8.5 + variant * 1.5
+	var cyl := CylinderMesh.new(); cyl.top_radius = 0.09; cyl.bottom_radius = 0.34; cyl.height = h; cyl.radial_segments = 8
+	var bend := r.randf_range(-0.08, 0.08)
+	_append(trunk, cyl, Transform3D(Basis().rotated(Vector3.FORWARD, bend), Vector3(0, h / 2, 0)))
+	_branches(trunk, r, 6, h * 0.45, h * 0.9, 2.2)
+	var crown := SurfaceTool.new(); crown.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var centers := []
+	# des étages de « nuages » d'aiguilles, comme les pins noirs japonais
+	var tiers := 4
+	for k in tiers:
+		var y := h * (0.5 + 0.5 * float(k) / (tiers - 1))
+		var size := lerpf(5.6, 2.8, float(k) / (tiers - 1))
+		var c := Vector3(sin(bend) * -y + r.randf_range(-0.5, 0.5), y, r.randf_range(-0.5, 0.5))
+		centers.append(c)
+		for j in 2:
+			_card(crown, size, Transform3D(Basis().rotated(Vector3.UP, j * PI / 2 + k * 0.6), c))
+		_card(crown, size * 0.95, Transform3D(Basis().rotated(Vector3.RIGHT, -PI / 2).rotated(Vector3.UP, k), c + Vector3(0, 0.25, 0)))
+	var mesh := trunk.commit()
+	mesh.surface_set_material(0, bark)
+	_round_normals(crown, centers).commit(mesh)
+	mesh.surface_set_material(1, leaves)
+	return mesh
 
 
 # ---------- Les arbres, faits de formes simples assemblées ----------
@@ -200,6 +316,9 @@ func _scatter(mesh: Mesh, count: int, avoid: Array, max_slope: float, collide: b
 		var sc := rng.randf_range(0.7, 1.35)
 		var b := Basis().rotated(Vector3.UP, rng.randf() * TAU).scaled(Vector3(sc, sc * rng.randf_range(0.85, 1.2), sc))
 		xfs.append(Transform3D(b, Vector3(x, h - 0.15, z)))
+	if _species != "":
+		for xf in xfs:
+			trees.append([xf.origin, _species])
 	var mm := MultiMesh.new()
 	mm.transform_format = MultiMesh.TRANSFORM_3D
 	mm.mesh = mesh
