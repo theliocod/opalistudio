@@ -12,7 +12,16 @@ var doors: Array = []         # {panel, shape, pos, open}
 var walls: Array = []         # murets que l'on peut enjamber : [a, b] au sol (x, z)
 var _walls_body: StaticBody3D
 const WALL_LAYER := 4
-var lights: Array = []        # {light, base, seed}
+## Les lanternes elles-mêmes vivent sur leur propre couche : leur lumière ne les
+## éclaire pas (à quelques centimètres, le chapeau de pierre virait au blanc)
+const LAMP_LAYER := 128
+var lights: Array = []        # {light, base, seed, on}
+var lamps: Array = []         # lanternes que l'on peut souffler ou faire tomber : {pos, light, parts, kind, lit}
+var flammables: Array = []    # tentes, meules de paille : le feu les prend {pos, r, node, shape, kind, burnt}
+var wells: Array = []         # là où l'on remplit sa gourde
+var focus := Vector3.ZERO     # autour de qui les lumières projettent des ombres (le joueur)
+var max_shadows := 5          # combien de lumières proches projettent des ombres (les réglages)
+var _shadow_t := 0.0
 var _body: StaticBody3D
 var _rng := RandomNumberGenerator.new()
 
@@ -50,11 +59,65 @@ func build(t: Terrain, places: Array) -> void:
 			"temple": _temple(c, p)
 
 
-func _process(_dt: float) -> void:
+func _process(dt: float) -> void:
 	var t := Time.get_ticks_msec() / 1000.0
 	for l in lights:
+		if not l.on:
+			continue
 		var f: float = 0.85 + sin(t * 9.0 + l.seed) * 0.08 + sin(t * 23.0 + l.seed * 3.0) * 0.06
 		l.light.light_energy = l.base * f
+	_shadow_t -= dt
+	if _shadow_t <= 0.0:
+		_shadow_t = 0.35
+		_shadows()
+
+
+## Seules les lumières les plus proches du joueur projettent des ombres :
+## les personnages s'ancrent dans la lumière des lanternes, sans tout ralentir.
+func _shadows() -> void:
+	var near := []
+	for l in lights:
+		var d: float = l.light.global_position.distance_to(focus)
+		if l.on and d < l.light.omni_range + 18.0:
+			near.append([d, l])
+	near.sort_custom(func(a, b): return a[0] < b[0])
+	var keep := {}
+	for i in mini(max_shadows, near.size()):
+		keep[near[i][1].light] = true
+	for l in lights:
+		var on: bool = keep.has(l.light)
+		if l.light.shadow_enabled != on:
+			l.light.shadow_enabled = on
+
+
+## Une lanterne qu'on souffle : plus de lumière, plus de flamme. Vrai si elle brûlait.
+func snuff(lamp: Dictionary) -> bool:
+	if not lamp.lit:
+		return false
+	lamp.lit = false
+	for part in lamp.flames:
+		part.visible = false
+	if lamp.light:
+		lamp.light.visible = false
+		lamp.light.shadow_enabled = false
+		for l in lights:
+			if l.light == lamp.light:
+				l.on = false
+	return true
+
+
+## La lumière qui tombe en un point, de 0 (le noir) à 1 (en pleine lanterne).
+func light_at(p: Vector3) -> float:
+	var v := 0.0
+	for l in lights:
+		if not l.on:
+			continue
+		var lt: OmniLight3D = l.light
+		var d := lt.global_position.distance_to(p)
+		if d < lt.omni_range:
+			var k := 1.0 - d / lt.omni_range
+			v += k * k * minf(1.0, l.base / 2.5)
+	return clampf(v, 0.0, 1.0)
 
 
 # ---------- Matières ----------
@@ -97,11 +160,12 @@ func _place(parent: Node3D, mesh: Mesh, mat: Material, pos: Vector3, rot := Vect
 	return mi
 
 
-func _collide(shape: Shape3D, xf: Transform3D) -> void:
+func _collide(shape: Shape3D, xf: Transform3D) -> CollisionShape3D:
 	var cs := CollisionShape3D.new()
 	cs.shape = shape
 	cs.transform = xf
 	_body.add_child(cs)
+	return cs
 
 
 func _box(parent: Node3D, pos: Vector3, size: Vector3, mat: Material, rot := Vector3.ZERO, collide := true) -> MeshInstance3D:
@@ -154,9 +218,14 @@ func _lantern(parent: Node3D, pos: Vector3, light := true) -> void:
 	_cyl(g, Vector3(0, 0.15, 0), 0.45, 0.55, 0.3, mats.pierre)
 	_cyl(g, Vector3(0, 0.85, 0), 0.16, 0.2, 1.1, mats.pierre, false)
 	_cyl(g, Vector3(0, 1.5, 0), 0.42, 0.32, 0.22, mats.pierre, false)
-	_box(g, Vector3(0, 1.83, 0), Vector3(0.5, 0.45, 0.5), mats.pierre, Vector3.ZERO, false)
+	# la tête de la lanterne est ajourée : elle ne bloque pas sa propre lumière
+	var head := _box(g, Vector3(0, 1.83, 0), Vector3(0.5, 0.45, 0.5), mats.pierre, Vector3.ZERO, false)
+	head.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	head.layers = LAMP_LAYER
 	var cap := CylinderMesh.new(); cap.top_radius = 0.0; cap.bottom_radius = 0.62; cap.height = 0.45; cap.radial_segments = 6
-	_place(g, cap, mats.pierre, Vector3(0, 2.28, 0))
+	var top := _place(g, cap, mats.pierre, Vector3(0, 2.28, 0))
+	top.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	top.layers = LAMP_LAYER
 	var flame := SphereMesh.new(); flame.radius = 0.07; flame.height = 0.14
 	var fm := StandardMaterial3D.new()
 	fm.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
@@ -164,21 +233,29 @@ func _lantern(parent: Node3D, pos: Vector3, light := true) -> void:
 	fm.emission_enabled = true
 	fm.emission = Color(1.0, 0.55, 0.2)
 	fm.emission_energy_multiplier = 1.8
-	_place(g, flame, fm, Vector3(0, 1.83, 0))
+	var fl := _place(g, flame, fm, Vector3(0, 1.83, 0))
+	fl.layers = LAMP_LAYER
+	var l: OmniLight3D = null
 	if light:
-		_light(g, Vector3(0, 1.9, 0), Color(1.0, 0.5, 0.2), 3.0, 10.0)
+		l = _light(g, Vector3(0, 1.9, 0), Color(1.0, 0.5, 0.2), 3.0, 10.0)
+	lamps.append({"pos": g.global_position + Vector3(0, 1.8, 0), "light": l, "flames": [fl], "kind": "pierre", "lit": true})
 
 
-func _light(parent: Node3D, pos: Vector3, c: Color, energy: float, rng_: float) -> void:
+func _light(parent: Node3D, pos: Vector3, c: Color, energy: float, rng_: float) -> OmniLight3D:
 	var l := OmniLight3D.new()
 	l.light_color = c
 	l.light_energy = energy
 	l.omni_range = rng_
 	l.omni_attenuation = 1.6
 	l.light_volumetric_fog_energy = 0.06   # à peine un halo : de près, la brume saturait en boule blanche
+	l.light_cull_mask = 0xFFFFF & ~LAMP_LAYER
+	l.shadow_blur = 1.6
+	l.shadow_bias = 0.06
+	l.shadow_normal_bias = 1.2
 	parent.add_child(l)
 	l.position = pos
-	lights.append({"light": l, "base": energy, "seed": _rng.randf() * 100.0})
+	lights.append({"light": l, "base": energy, "seed": _rng.randf() * 100.0, "on": true})
+	return l
 
 
 func _torii(parent: Node3D, pos: Vector3, rot_y: float, s: float) -> void:
@@ -418,7 +495,8 @@ func _camp(c: Vector3, p: Dictionary) -> void:
 		var at: Vector3 = _ground(g.global_transform * t) - c
 		var tent := _roof(g, at + Vector3(0, 1.4, 0), 3.6, 4.4, 2.8, mats.toile if _rng.randf() < 0.5 else mats.toile_sombre, Vector3(0, _rng.randf() * TAU, 0))
 		var s := BoxShape3D.new(); s.size = Vector3(3.2, 2.6, 4.2)
-		_collide(s, g.global_transform * tent.transform)
+		var cs := _collide(s, g.global_transform * tent.transform)
+		flammables.append({"pos": tent.global_position - Vector3(0, 1.2, 0), "r": 2.2, "node": tent, "shape": cs, "kind": "tente", "burnt": false})
 	# Le feu de camp
 	var fire_at := _ground(c) - c
 	for i in 8:
@@ -441,15 +519,16 @@ func _camp(c: Vector3, p: Dictionary) -> void:
 
 func _fire(parent: Node3D, pos: Vector3) -> void:
 	var f := CPUParticles3D.new()
-	f.amount = 90
-	f.lifetime = 0.9
-	var q := QuadMesh.new(); q.size = Vector2(0.5, 0.5)
+	f.amount = 70
+	f.lifetime = 0.8
+	var q := QuadMesh.new(); q.size = Vector2(0.38, 0.5)
 	var m := StandardMaterial3D.new()
 	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
 	m.blend_mode = BaseMaterial3D.BLEND_MODE_ADD
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
 	m.billboard_mode = BaseMaterial3D.BILLBOARD_PARTICLES
 	m.vertex_color_use_as_albedo = true
-	m.albedo_color = Color(1.4, 0.6, 0.22)
+	m.albedo_color = Color(0.95, 0.42, 0.14)
 	# une flamme douce : un dégradé rond plutôt qu'un carré
 	var soft := Gradient.new()
 	soft.set_color(0, Color(1, 1, 1, 1))

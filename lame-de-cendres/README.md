@@ -36,7 +36,8 @@ QWERTY. Toutes se réassignent dans **Échap → Commandes**.
 | E | parler · exécuter un ennemi déséquilibré · assassiner par-derrière · ouvrir, prendre, libérer |
 | R, T, A (Q), V, X | techniques : Tourbillon, Iai, Retour de l'Hirondelle, Pas du Vent, Mille Pétales |
 | 1 à 6 | saké, onigiri, thé, encens, bombe fumigène, caillou |
-| Tab ou I | inventaire |
+| 7 à 0 | fiole d'huile, bandage, pierre à aiguiser, gourde |
+| Tab ou I | inventaire (clic droit : jeter un objet ou une lame) |
 | M | carte |
 | Échap | menu : sauvegarder, charger, réglages, commandes |
 
@@ -58,6 +59,37 @@ noyé**, le **Temple de la Lune Rouge** où attend l'Oni, et :
   brèche s'ouvre au nord-ouest, un muret effondré à l'est.
 - **Le Cimetière des Lames**, des centaines de sabres plantés et leurs âmes bleues.
 - **Le Bosquet de bambous**, où un vieil ermite boit son thé.
+
+## Le monde qui réagit
+
+- **Le feu** : une fiole d'huile se brise et s'enflamme. Le feu court dans
+  l'herbe sèche dans le sens du vent, embrase les tentes, les meules de paille
+  et les lanternes de papier tranchées, et laisse la terre noircie. Les gens
+  fuient en criant, les ennemis pris dedans brûlent. Toi aussi : une roulade
+  ou l'eau étouffent les flammes. La pluie l'arrête net.
+- **La charge** : chaque objet, chaque lame et même les ryō ont un poids.
+  Léger, tu cours ; chargé, tu t'essouffles ; lourd, tu roules mal ;
+  surchargé, tu ne roules plus du tout. Une lame lourde frappe plus lentement.
+  Le marchand rachète les lames en trop, et on peut jeter ce qui pèse.
+- **Les blessures** : un coup de lame peut ouvrir une plaie qui saigne (le
+  sang goutte sur le sol) ; le bandage l'arrête. Sous un tiers de vie tu
+  boites, sous un quart ton cœur cogne. Tomber de plus de quatre mètres coûte
+  cher, au-delà de sept tu t'effondres.
+- **Le souffle** : l'endurance vidée, tu halètes, tu cours moins vite et tes
+  coups partent plus lents et plus mous. Il faut savoir reculer.
+- **La lame** : le sang l'émousse, la pierre à aiguiser la rend tranchante deux
+  minutes (il faut s'agenouiller, loin des ennemis).
+- **La pluie** arrive d'elle-même : le sol noircit et luit, l'orage gronde,
+  les gardes voient et entendent moins, les feux s'éteignent.
+- **L'eau** ralentit, éclabousse (et s'entend), éteint les flammes ; trop
+  profonde, l'armure t'entraînerait au fond. La gourde se remplit aux puits et
+  au bassin.
+- **La lumière** : dans l'ombre on est vu de moins loin. L'indicateur au bas
+  de l'écran dit si tu es dans l'ombre ou la lumière. Une lanterne de pierre se
+  souffle (E), mais un garde qui la voit s'éteindre vient voir.
+
+Les personnages ont une ombre de contact sous les pieds, et les lanternes les
+plus proches projettent de vraies ombres (leur nombre dépend de la qualité).
 
 ## L'infiltration
 
@@ -128,6 +160,9 @@ sauvegarde à chaque autel et depuis le menu ; **Continuer** la reprend.
 | `scripts/game/cinematics.gd` | assassinats et exécutions mis en scène |
 | `scripts/game/audio.gd` | musique selon l'humeur, bruitages, vent et feux |
 | `scripts/game/wind.gd` | le vent, ses rafales, les feuilles et les pétales |
+| `scripts/game/fire.gd` | le feu qui prend, se propage avec le vent et noircit le sol |
+| `scripts/game/weather.gd` | la pluie, l'orage, le sol mouillé |
+| `scripts/game/condition.gd` | le corps du samouraï : charge, plaies, flammes, eau, chutes, lame |
 | `scripts/game/settings.gd`, `savegame.gd` | réglages et sauvegarde |
 | `scripts/actors/fighter.gd` | un combattant : actions, gestes, animations Mixamo, IA des damnés |
 | `scripts/actors/folk.gd` | les gens des villes : promeneurs, gardes, samouraïs |

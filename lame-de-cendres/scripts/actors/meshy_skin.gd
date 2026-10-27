@@ -128,8 +128,8 @@ func _attach(r: Rig, model: Node3D) -> bool:
 		mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		mi.extra_cull_margin = 2.0
 
-	# Les yeux des damnés brûlent toujours, devant le visage du modèle
-	if rig.kind != "player":
+	# Les yeux des damnés brûlent toujours, devant le visage du modèle (eux seuls)
+	if rig.evil:
 		var head := skel.find_bone("Head")
 		var head_xf := skel_xf * skel.get_bone_global_rest(head)
 		var front := _face_front(model, head_xf.origin)

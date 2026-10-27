@@ -232,9 +232,10 @@ func _init(k: String) -> void:
 
 func _ready() -> void:
 	skin = MeshySkin.dress(rig)
-	# les personnages sont aussi sur la couche 2 : la lueur de la caméra n'éclaire qu'eux
+	# les personnages sont sur la couche 2 seulement : l'ombre portée à leurs pieds
+	# (un décalque sur la couche 1) assombrit le sol, pas leurs jambes
 	for g in find_children("*", "GeometryInstance3D", true, false):
-		g.layers |= 2
+		g.layers = 2
 		# les gens au loin disparaissent dans la brume : la carte graphique respire
 		if kind != "player":
 			g.visibility_range_end = 150.0
@@ -242,6 +243,42 @@ func _ready() -> void:
 			g.visibility_range_fade_mode = GeometryInstance3D.VISIBILITY_RANGE_FADE_SELF
 	trail = Trail.new(Color(0.75, 0.9, 1.0) if kind == "player" else Color(1.0, 0.23, 0.16))
 	add_child(trail)
+	_contact_shadow()
+
+
+## L'ombre de contact : une tache douce sous les pieds, qui pose le personnage
+## sur le sol même là où aucune lumière ne projette d'ombre.
+static var _blob_tex: Texture2D
+var blob: Decal
+
+
+func _contact_shadow() -> void:
+	if _blob_tex == null:
+		var g := Gradient.new()
+		g.set_color(0, Color(0, 0, 0, 0.82))
+		g.add_point(0.45, Color(0, 0, 0, 0.5))
+		g.set_color(g.get_point_count() - 1, Color(0, 0, 0, 0))
+		var t := GradientTexture2D.new()
+		t.gradient = g
+		t.fill = GradientTexture2D.FILL_RADIAL
+		t.fill_from = Vector2(0.5, 0.5)
+		t.fill_to = Vector2(1.0, 0.5)
+		t.width = 128
+		t.height = 128
+		_blob_tex = t
+	blob = Decal.new()
+	blob.texture_albedo = _blob_tex
+	blob.modulate = Color(0, 0, 0, 1)
+	blob.albedo_mix = 1.0
+	blob.size = Vector3(1.15, 2.4, 1.0) * rig.body_scale
+	blob.upper_fade = 0.25
+	blob.lower_fade = 0.35
+	blob.cull_mask = 1
+	blob.distance_fade_enabled = true
+	blob.distance_fade_begin = 45.0
+	blob.distance_fade_length = 15.0
+	add_child(blob)
+	blob.position = Vector3(0, 0.6, 0)
 
 
 func forward() -> Vector3:

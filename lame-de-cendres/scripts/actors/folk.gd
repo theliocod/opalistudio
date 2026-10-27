@@ -12,6 +12,16 @@ static func think(f: Fighter, game, dt: float) -> void:
 		return
 	f.fear_t = maxf(0.0, f.fear_t - dt)
 	f.wait_t -= dt
+	# en feu : on court droit devant en hurlant, on ne pense plus à rien d'autre
+	if game.burning.has(f) and not f.duel and f.npc_id != "gonryu":
+		var dir: Vector3 = f.get_meta("flee", Vector3.ZERO)
+		if dir == Vector3.ZERO or randf() < dt * 0.7:
+			dir = Vector3(randf_range(-1, 1), 0, randf_range(-1, 1)).normalized()
+			f.set_meta("flee", dir)
+		f.idle_override = "peur"
+		walk_to(f, f.global_position + dir * 6.0, 4.4, dt, game.enemies)
+		return
+	f.remove_meta("flee")
 	match f.role:
 		"civil", "merchant": _civil(f, game, dt)
 		"guard": _guard(f, game, dt)

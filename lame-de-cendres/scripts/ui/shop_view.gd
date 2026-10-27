@@ -4,7 +4,7 @@ class_name ShopView
 extends Control
 
 const KATANAS := ["kazekiri", "sakura", "kuroi"]
-const ITEMS := ["sake", "onigiri", "the", "encens", "fumigene", "caillou"]
+const ITEMS := ["sake", "onigiri", "the", "encens", "bandage", "gourde", "pierre", "fumigene", "caillou", "huile"]
 
 var hud: Hud
 var game
@@ -86,9 +86,20 @@ func _refresh() -> void:
 		var price := r.price(Arsenal.PRICES[id])
 		var label: String = "%s   (tu en as %d)" % [it.name, a.items.get(id, 0)]
 		_list.add_child(_row(Hud.item_icon(id), Vector2(60, 60), label, it.desc, price, false, func(): _buy_item(id, price), it.color))
+	# il rachète aussi : au tiers de la valeur pour une lame, un peu mieux si tu es célèbre
+	var sell := []
+	for id in a.katanas:
+		if id != a.equipped:
+			sell.append(id)
+	if not sell.is_empty():
+		_list.add_child(hud._label("VENDRE TES LAMES  ·  tu portes %.1f kg" % a.load_kg(), 16, Hud.GOLD, hud.serif, 6))
+		for id in sell:
+			var k: Dictionary = Arsenal.KATANAS[id]
+			var value := int(Arsenal.VALUES.get(id, 100) * (0.33 + minf(0.12, r.fame / 800.0)))
+			_list.add_child(_row(Hud.katana_art(id), Vector2(260, 60), k.name, "%.1f kg de moins à porter. Une fois vendue, elle est à lui." % k.get("weight", 1.2), value, false, func(): _sell_katana(id, value), k.aura, "Vendre"))
 
 
-func _row(icon: Texture2D, size: Vector2, title: String, desc: String, price: int, owned: bool, buy: Callable, accent) -> Control:
+func _row(icon: Texture2D, size: Vector2, title: String, desc: String, price: int, owned: bool, buy: Callable, accent, verb := "Acheter") -> Control:
 	var p := hud._panel(Color(0.04, 0.03, 0.035, 0.8), Color(1, 1, 1, 0.1))
 	var h := HBoxContainer.new()
 	h.add_theme_constant_override("separation", 18)
@@ -106,8 +117,8 @@ func _row(icon: Texture2D, size: Vector2, title: String, desc: String, price: in
 	h.add_child(right)
 	right.add_child(hud._label("%d ryō" % price, 18, Hud.GOLD, hud.serif))
 	var b := Button.new()
-	b.text = "Possédée" if owned else "Acheter"
-	b.disabled = owned or game.arsenal.ryo < price
+	b.text = "Possédée" if owned else verb
+	b.disabled = owned or (verb == "Acheter" and game.arsenal.ryo < price)
 	b.custom_minimum_size = Vector2(130, 0)
 	b.pressed.connect(buy)
 	right.add_child(b)
@@ -122,6 +133,18 @@ func _buy_katana(id: String, price: int) -> void:
 	a.add_katana(id)
 	Audio.sfx("pieces")
 	game.hud.toast("Nouveau katana : " + Arsenal.KATANAS[id].name, Arsenal.KATANAS[id].aura)
+	game.hud.set_arsenal(a)
+	_refresh()
+
+
+func _sell_katana(id: String, value: int) -> void:
+	var a: Arsenal = game.arsenal
+	if not id in a.katanas or id == a.equipped:
+		return
+	a.katanas.erase(id)
+	a.ryo += value
+	Audio.sfx("pieces")
+	game.hud.toast("Vendue : %s (+%d ryō)" % [Arsenal.KATANAS[id].name, value], Hud.GOLD)
 	game.hud.set_arsenal(a)
 	_refresh()
 

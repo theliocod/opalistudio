@@ -12,6 +12,7 @@ var _t := 0.0
 var leaves: CPUParticles3D
 var petals: CPUParticles3D
 var emitters: Array = []        # d'autres particules que le vent emporte (les sakuras)
+var storm := 0.0                # la pluie forcit le vent
 
 
 func _ready() -> void:
@@ -55,7 +56,7 @@ func step(dt: float, focus: Vector3, blossoms := false) -> void:
 	_t += dt
 	angle = 0.7 + _noise.get_noise_1d(_t * 0.02) * 2.2
 	var gust := clampf(0.3 + _noise.get_noise_1d(_t * 0.35 + 50.0) * 1.1 + maxf(0.0, _noise.get_noise_1d(_t * 1.3 + 9.0)) * 0.5, 0.05, 1.0)
-	strength = lerpf(strength, gust, minf(1.0, dt * 1.2))
+	strength = lerpf(strength, clampf(gust + storm * 0.35, 0.0, 1.0), minf(1.0, dt * 1.2))
 	var dir := Vector2(cos(angle), sin(angle))
 	RenderingServer.global_shader_parameter_set("wind", Vector4(dir.x, dir.y, strength, _t))
 	var push := Vector3(dir.x, 0, dir.y) * (0.6 + strength * 5.5)

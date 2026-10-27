@@ -10,6 +10,7 @@ uniform float world_size = 512.0;
 uniform float res = 257.0;
 uniform float fade_radius = 38.0;
 global uniform vec4 wind;          // xy : direction du vent, z : sa force (rafales)
+global uniform float wetness;
 
 varying float tip;
 varying float lily;
@@ -57,8 +58,8 @@ void fragment() {
 	vec3 col = mix(base, top, tip);
 	vec3 red = mix(vec3(0.25, 0.02, 0.02), vec3(1.1, 0.06, 0.04), smoothstep(0.6, 1.0, tip));
 	col = mix(col, red, lily);
-	ALBEDO = col;
+	ALBEDO = col * mix(1.0, 0.7, wetness);
 	EMISSION = lily * red * smoothstep(0.75, 1.0, tip) * 0.6;
-	ROUGHNESS = 0.8;
+	ROUGHNESS = mix(0.8, 0.35, wetness);
 	BACKLIGHT = vec3(0.1, 0.05, 0.03) * tip;
 }

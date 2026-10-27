@@ -55,6 +55,13 @@ each object alone and centered in its own quarter with a wide empty margin, on a
 background, no frames, no borders, no labels. Top left: a small stack of oval gold koban coins (Japanese ryo).
 Top right: a rolled technique scroll tied with a red cord, a bit of brush calligraphy visible. Bottom left: a round
 black ninja smoke bomb with a short fuse, a wisp of grey smoke. Bottom right: a smooth round river pebble. ${STYLE}` },
+  objets3: { kind: 'grille', size: '1:1', prompt: `Four inventory icons for a video game, arranged in a 2 by 2 grid,
+each object alone and centered in its own quarter with a wide empty margin, on a plain very dark charcoal
+background, no frames, no borders, no labels. Top left: a small round brown ceramic flask of lamp oil stoppered
+with a twisted cloth wick, a drip of oil on its side. Top right: a rolled strip of off-white cotton bandage, slightly
+frayed, tied with a thin string. Bottom left: a rectangular Japanese whetstone, pale grey with a darker wet stripe,
+on a small wooden base. Bottom right: a dried calabash gourd water bottle tied with a red cord and a wooden stopper.
+${STYLE}` },
   erable: { kind: 'feuillage', size: '1:1', prompt: `A dense round cluster of Japanese maple leaves (momiji) on thin
 dark twigs, deep crimson and blood red autumn leaves with a few darker ones, seen from the side. ${CUTOUT}` },
   pin: { kind: 'feuillage', size: '1:1', prompt: `A dense tuft cluster of Japanese black pine needles on short twigs,

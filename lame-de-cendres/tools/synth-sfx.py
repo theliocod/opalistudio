@@ -247,6 +247,70 @@ def main():
     # l'interface
     save('ui-clic', biquad(noise(0.08), 'bp', 2200, 3) * env(0.08, 0.001, 0.012) + partials(0.08, 1800, [1], [0.02], [0.3]), 0.5)
     save('ui-papier', biquad(noise(0.45), 'bp', 3500, 0.8) * env(0.45, 0.08, 0.15, 0.3, 0.1), 0.4)
+    # ── le réalisme : la pluie, l'orage, le feu qui prend, le verre, l'eau, le cœur
+    d = 10.0
+    t = t_axis(d)
+    rain = biquad(biquad(noise(d), 'lp', 3200), 'hp', 280) * (0.8 + 0.2 * np.sin(2 * np.pi * t / d * 3))
+    for k in range(2200):
+        at = int(rng.uniform(0, d - 0.02) * SR)
+        drop = biquad(noise(0.012), 'bp', rng.uniform(1800, 6500), 4) * env(0.012, 0.0003, 0.003)
+        rain[at:at + len(drop)] += drop * rng.uniform(0.3, 1.4)
+    save('pluie', loopable(rain, 1.0), 0.55)
+    for i in range(2):
+        d = 6.0
+        t = t_axis(d)
+        rumble = biquad(noise(d), 'lp', 140 + i * 40) * env(d, 0.08 + i * 0.3, 1.6, 0.15, 1.0) * (0.7 + 0.3 * np.sin(2 * np.pi * 1.7 * t))
+        crack = biquad(noise(d), 'bp', 1600, 0.8) * env(d, 0.002, 0.09) * (1.6 if i == 0 else 0.5)
+        save(f'tonnerre-{i + 1}', reverb(rumble * 2.2 + crack, 2.5, 0.35, 1500), 0.95)
+    save('souffle', biquad(noise(0.55), 'bp', np.geomspace(2600, 1400, int(0.55 * SR)), 1.2) * env(0.55, 0.06, 0.18, 0.2, 0.15), 0.5)
+    for i in range(3):
+        d = 0.45
+        t = t_axis(d)
+        splash = biquad(noise(d), 'bp', np.geomspace(500 + i * 120, 2200, int(d * SR)), 1.5) * env(d, 0.004, 0.08)
+        bubbles = np.zeros(int(d * SR))
+        for k in range(5):
+            at = int(rng.uniform(0.02, 0.25) * SR)
+            b0 = rng.uniform(450, 1300)
+            tb = t_axis(0.06)
+            bub = np.sin(2 * np.pi * np.cumsum(b0 * (1 + tb * 6)) / SR) * np.exp(-tb / 0.015)
+            bubbles[at:at + len(bub)] += bub * 0.4
+        save(f'eclaboussure-{i + 1}', splash + bubbles, 0.6)
+    d = 1.4
+    t = t_axis(d)
+    whoosh_fire = biquad(noise(d), 'lp', np.geomspace(250, 2800, int(d * SR))) * env(d, 0.18, 0.45, 0.25, 0.4)
+    pops = np.zeros(int(d * SR))
+    for k in range(40):
+        at = int(rng.uniform(0.15, d - 0.05) * SR)
+        pop = biquad(noise(0.03), 'bp', rng.uniform(1200, 4500), 3) * env(0.03, 0.0005, 0.006)
+        pops[at:at + len(pop)] += pop * rng.uniform(0.3, 1.0)
+    save('embrasement', whoosh_fire * 1.4 + thump(d, 70, 40) * 0.4 + pops, 0.85)
+    d = 0.9
+    glass = partials(d, 3100, [1, 1.37, 1.91, 2.43, 3.12], [0.12, 0.09, 0.07, 0.05, 0.04], [1, 0.8, 0.6, 0.5, 0.4])
+    shards = np.zeros(int(d * SR))
+    for k in range(18):
+        at = int(rng.uniform(0, 0.25) * SR)
+        c = partials(0.15, rng.uniform(4000, 8000), [1, 1.6], [0.03, 0.02], [1, 0.5])
+        shards[at:at + len(c)] += c * rng.uniform(0.3, 0.8)
+    save('verre', glass * 0.6 + shards + biquad(noise(d), 'hp', 4000) * env(d, 0.001, 0.04) * 0.8 + thump(d, 160, 80) * 0.3, 0.8)
+    d = 1.05
+    beat = mix(thump(0.25, 70, 42), delay(thump(0.22, 62, 40) * 0.7, 0.27))
+    save('coeur', np.concatenate([beat, np.zeros(int(d * SR) - len(beat))]), 0.8)
+    d = 1.8
+    t = t_axis(d)
+    strokes = np.clip(np.sin(2 * np.pi * t / d * 2 - 0.4), 0, 1) ** 1.5
+    scrape = biquad(noise(d), 'bp', 3400 + 900 * np.sin(2 * np.pi * t / d * 2), 5) * strokes
+    save('aiguiser', scrape + partials(d, 2600, [1, 2.7], [0.6, 0.3], [0.08, 0.05]), 0.6)
+    # le souffle court : une inspiration sifflée, une expiration rauque
+    for i in range(2):
+        d = 0.95
+        inhale = biquad(noise(0.32), 'bp', np.geomspace(1700 + i * 150, 2300, int(0.32 * SR)), 2.2) * env(0.32, 0.08, 0.12, 0.1, 0.12) * 0.45
+        exhale = biquad(noise(0.42), 'bp', np.geomspace(1100 - i * 80, 650, int(0.42 * SR)), 1.6) * env(0.42, 0.02, 0.2, 0.15, 0.2)
+        rasp = biquad(noise(0.42), 'bp', 280 + i * 30, 4) * env(0.42, 0.02, 0.18) * 0.5
+        out = np.zeros(int(d * SR))
+        out[:len(inhale)] += inhale
+        at = int(0.4 * SR)
+        out[at:at + len(exhale)] += exhale + rasp
+        save(f'halete-{i + 1}', out, 0.45)
 
 
 if __name__ == '__main__':

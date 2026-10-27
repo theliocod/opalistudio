@@ -9,7 +9,8 @@ const PAPER := Color(0.94, 0.9, 0.85)
 const MUTED := Color(0.94, 0.9, 0.85, 0.6)
 const INK := Color(0.04, 0.03, 0.035)
 ## Les images peintes par kie.ai (assets/kie/), si elles sont là
-const ITEM_ART := {"sake": "objets-0", "onigiri": "objets-1", "the": "objets-2", "encens": "objets-3", "fumigene": "objets2-2", "caillou": "objets2-3"}
+const ITEM_ART := {"sake": "objets-0", "onigiri": "objets-1", "the": "objets-2", "encens": "objets-3", "fumigene": "objets2-2", "caillou": "objets2-3",
+	"huile": "objets3-0", "bandage": "objets3-1", "pierre": "objets3-2", "gourde": "objets3-3"}
 const KATANA_ART := {"ronin": "katanas-0", "kurenai": "katanas-1", "shiranui": "katanas-2", "raijin": "katanas-3", "yamikaze": "katanas-4", "tsukuyomi": "katanas-5",
 	"kazekiri": "katanas2-0", "sakura": "katanas2-1", "kuroi": "katanas2-2", "gojo": "katanas2-3", "masamune": "katanas2-4", "akagane": "katanas2-5"}
 const MISC_ART := {"ryo": "objets2-0", "rouleau": "objets2-1"}
@@ -44,6 +45,10 @@ var screen: Control
 var ryo_lbl: Label
 var fame_lbl: Label
 var eye: Label
+var light_lbl: Label
+var status_lbl: Label
+var vignette: ColorRect
+var on_drop: Callable            # (objet ou katana, est-ce un katana)
 var bars_top: ColorRect
 var bars_bottom: ColorRect
 var _banner_t := 0.0
@@ -196,23 +201,27 @@ func _build_play() -> void:
 	purse.add_child(fame_lbl)
 	bars.add_child(purse)
 
-	# la ceinture : les objets sous les touches 1 à 4
+	# l'état du corps : charge, blessures, flammes, lame
+	status_lbl = _label("", 13, MUTED)
+	bars.add_child(status_lbl)
+
+	# la ceinture : les objets sous les touches 1 à 0
 	var belt := HBoxContainer.new()
-	belt.add_theme_constant_override("separation", 8)
+	belt.add_theme_constant_override("separation", 5)
 	belt.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
 	belt.position = Vector2(28, -92)
 	play_ui.add_child(belt)
 	for id in Arsenal.ITEMS:
 		var it: Dictionary = Arsenal.ITEMS[id]
 		var p := _panel(Color(0.03, 0.02, 0.025, 0.7), Color(1, 1, 1, 0.12))
-		p.custom_minimum_size = Vector2(70, 84)
+		p.custom_minimum_size = Vector2(58, 80)
 		var v := VBoxContainer.new()
 		v.add_theme_constant_override("separation", 2)
 		p.add_child(v)
 		v.add_child(_label(Settings.key_name("objet%d" % it.key), 11, MUTED))
 		var icon := item_icon(id)
 		var c := CenterContainer.new()
-		c.add_child(_tex(icon, Vector2(42, 42)) if icon else _rect(it.color, Vector2(18, 18)))
+		c.add_child(_tex(icon, Vector2(38, 38)) if icon else _rect(it.color, Vector2(18, 18)))
 		v.add_child(c)
 		var n := _label("0", 14, PAPER)
 		n.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -251,6 +260,30 @@ func _build_play() -> void:
 	eye.custom_minimum_size = Vector2(120, 0)
 	eye.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	play_ui.add_child(eye)
+	light_lbl = _label("", 12, MUTED)
+	light_lbl.set_anchors_preset(Control.PRESET_CENTER_TOP)
+	light_lbl.position = Vector2(-90, 104)
+	light_lbl.custom_minimum_size = Vector2(180, 0)
+	light_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	play_ui.add_child(light_lbl)
+
+	# le bord de l'écran rougit quand on saigne, s'embrase quand on brûle
+	vignette = ColorRect.new()
+	vignette.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vignette.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vs := ShaderMaterial.new()
+	var sh := Shader.new()
+	sh.code = """shader_type canvas_item;
+uniform vec4 tint : source_color = vec4(0.6, 0.0, 0.0, 1.0);
+uniform float amount = 0.0;
+void fragment() {
+	float d = distance(UV, vec2(0.5)) * 1.45;
+	COLOR = vec4(tint.rgb, smoothstep(0.45, 1.05, d) * amount);
+}"""
+	vs.shader = sh
+	vignette.material = vs
+	play_ui.add_child(vignette)
+	play_ui.move_child(vignette, 0)
 
 	# les bandes noires du cinéma
 	bars_top = _rect(Color(0, 0, 0, 1))
@@ -485,19 +518,21 @@ func _build_inventory() -> void:
 	var c3 := _panel(); c3.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_inv_techs = VBoxContainer.new(); _inv_techs.add_theme_constant_override("separation", 10)
 	c3.add_child(_inv_techs); cols.add_child(c3)
-	box.add_child(_label("Tab pour fermer · clique un objet pour l'utiliser, un katana pour le porter", 13, MUTED))
+	box.add_child(_label("Tab pour fermer · clic : utiliser un objet, porter un katana · clic droit : le poser au sol (on porte moins lourd)", 13, MUTED))
 	inv.visible = false
 
 
 func show_inventory(a: Arsenal) -> void:
 	for n in _inv_items.get_children() + _inv_katanas.get_children() + _inv_techs.get_children():
 		n.queue_free()
-	_inv_items.add_child(_label("OBJETS", 16, GOLD, serif, 6))
+	var kg := a.load_kg()
+	var w := Arsenal.burden(kg)
+	_inv_items.add_child(_label("OBJETS  ·  charge %.1f kg, %s" % [kg, w.label], 16, GOLD, serif, 4))
 	for id in Arsenal.ITEMS:
 		var it: Dictionary = Arsenal.ITEMS[id]
 		var n: int = a.items.get(id, 0)
 		var b := Button.new()
-		b.text = "%s   ×%d\n%s" % [it.name, n, it.desc]
+		b.text = "%s   ×%d   (%.1f kg)\n%s" % [it.name, n, Arsenal.WEIGHTS.get(id, 0.3), it.desc]
 		b.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		b.disabled = n == 0
@@ -508,6 +543,10 @@ func show_inventory(a: Arsenal) -> void:
 		b.add_theme_color_override("font_color", PAPER)
 		b.add_theme_color_override("font_disabled_color", Color(1, 1, 1, 0.3))
 		b.pressed.connect(func(): on_use.call(id); show_inventory(a))
+		b.gui_input.connect(func(ev):
+			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_RIGHT and on_drop.is_valid():
+				on_drop.call(id, false)
+				show_inventory(a))
 		_inv_items.add_child(b)
 	for id in Arsenal.KATANAS:
 		var k: Dictionary = Arsenal.KATANAS[id]
@@ -515,7 +554,7 @@ func show_inventory(a: Arsenal) -> void:
 		var b := Button.new()
 		b.custom_minimum_size = Vector2(0, 112)
 		b.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		b.text = (k.name + (" · portée" if id == a.equipped else "")) if owned else "???"
+		b.text = (k.name + (" · portée" if id == a.equipped else "") + "   %.1f kg" % k.get("weight", 1.2)) if owned else "???"
 		b.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		b.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.icon = katana_art(id)
@@ -536,6 +575,10 @@ func show_inventory(a: Arsenal) -> void:
 		b.add_theme_color_override("font_color", PAPER)
 		b.mouse_entered.connect(func(): _inv_detail.text = (k.name + " — " + k.desc) if owned else "Une lame dont tu n'as entendu que la légende.")
 		b.pressed.connect(func(): on_equip.call(id); show_inventory(a))
+		b.gui_input.connect(func(ev):
+			if ev is InputEventMouseButton and ev.pressed and ev.button_index == MOUSE_BUTTON_RIGHT and on_drop.is_valid() and id != a.equipped:
+				on_drop.call(id, true)
+				show_inventory(a))
 		_inv_katanas.add_child(b)
 	_inv_detail.text = a.katana().desc
 	_inv_techs.add_child(_label("TECHNIQUES · %d âmes" % a.souls, 16, GOLD, serif, 6))
@@ -632,8 +675,75 @@ func set_renown(r: Renown) -> void:
 	fame_lbl.text = "  ·  %s · renommée %d%s" % [r.title(), r.fame, ("  ·  infamie %d" % r.infamy) if r.infamy > 0 else ""]
 
 
+## L'état du corps, en une ligne sous les barres.
+func set_status(c: Condition, a: Arsenal, p: Fighter, wet: float) -> void:
+	var parts := []
+	var w: Dictionary = c.weight
+	parts.append("[color=#%s]%.1f kg · %s[/color]" % [Color(w.color).to_html(false), c.kg, w.label])
+	if c.burn > 0.0:
+		parts.append("[color=#ff8a30]en feu ! roule ou trouve de l'eau[/color]")
+	if c.bleed > 0.0:
+		parts.append("[color=#d02020]hémorragie (bandage)[/color]")
+	elif p.hp / p.max_hp < 0.35:
+		parts.append("[color=#c04040]blessé[/color]")
+	if c.winded > 0.0:
+		parts.append("[color=#c8b070]à bout de souffle[/color]")
+	var blood := float(p.rig.get_meta("blood", 0.0))
+	if c.sharp > 0.0:
+		parts.append("[color=#cfd8e8]lame affûtée[/color]")
+	elif blood > 0.4:
+		parts.append("[color=#a03030]lame ensanglantée[/color]")
+	if c.water > 0.15:
+		parts.append("[color=#8fb0d0]dans l'eau[/color]")
+	elif wet > 0.5:
+		parts.append("[color=#8fb0d0]trempé[/color]")
+	_status_rich(parts)
+
+
+var _status: RichTextLabel
+
+
+func _status_rich(parts: Array) -> void:
+	if _status == null:
+		_status = RichTextLabel.new()
+		_status.bbcode_enabled = true
+		_status.fit_content = true
+		_status.scroll_active = false
+		_status.custom_minimum_size = Vector2(520, 0)
+		_status.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		_status.add_theme_font_size_override("normal_font_size", 13)
+		_status.add_theme_color_override("default_color", MUTED)
+		_status.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		_status.add_theme_constant_override("outline_size", 4)
+		status_lbl.get_parent().add_child(_status)
+		status_lbl.visible = false
+	_status.text = "  ·  ".join(parts)
+
+
+## Le bord de l'écran : le sang qui bat, les flammes.
+func set_vignette(c: Condition, p: Fighter, t: float) -> void:
+	var m: ShaderMaterial = vignette.material
+	var hurt := clampf(1.0 - (p.hp / p.max_hp) / 0.35, 0.0, 1.0) if p.alive else 0.0
+	if c.burn > 0.0:
+		m.set_shader_parameter("tint", Color(1.0, 0.35, 0.05))
+		m.set_shader_parameter("amount", 0.55 + sin(t * 18.0) * 0.12)
+	elif hurt > 0.0 or c.bleed > 0.0:
+		var beat := pow(maxf(0.0, sin(t * 6.5)), 6.0)
+		m.set_shader_parameter("tint", Color(0.5, 0.0, 0.02))
+		m.set_shader_parameter("amount", maxf(hurt, 0.25 if c.bleed > 0.0 else 0.0) * (0.55 + beat * 0.45))
+	else:
+		m.set_shader_parameter("amount", 0.0)
+
+
 ## L'œil qui s'ouvre : 0 personne ne te soupçonne, 1 l'alerte est donnée.
-func set_sneak(sneaking: bool, watch: float) -> void:
+## light : combien la lumière te découvre, de 0 (l'ombre) à 1.
+func set_sneak(sneaking: bool, watch: float, light := 0.0) -> void:
+	if sneaking:
+		var n := int(round(clampf(light, 0.0, 1.0) * 5.0))
+		light_lbl.text = ("ombre " if n <= 1 else "lumière ") + "▮".repeat(n) + "▯".repeat(5 - n)
+		light_lbl.add_theme_color_override("font_color", MUTED.lerp(GOLD, clampf(light, 0.0, 1.0)))
+	else:
+		light_lbl.text = ""
 	if watch >= 1.0:
 		eye.text = "◉"
 		eye.add_theme_color_override("font_color", Color(1.0, 0.2, 0.12))

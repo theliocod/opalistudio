@@ -41,6 +41,9 @@ func sight(f: Fighter) -> float:
 		r *= 0.55
 	if f.alert != "calme":
 		r *= 1.25
+	# dans l'ombre on se fond ; sous une lanterne, on se voit de loin. La pluie brouille tout.
+	var lit := clampf(0.15 + game.exposure * 1.2, 0.0, 1.0)
+	r *= lerpf(0.6, 1.3, lit) * game.weather.sight_factor()
 	if game.smoke_t > 0.0 and game.player.global_position.distance_to(game.smoke_at) < 6.0:
 		r = 0.0
 	return r
@@ -59,7 +62,8 @@ func step(dt: float) -> void:
 		var seen: float = _sees(f, p)
 		# le bruit : courir tout près, ou se battre à portée d'oreille
 		var d: float = f.flat_distance(p)
-		if loud and d < 7.0:
+		var hear: float = 7.0 * game.weather.noise_factor() * (1.5 if game.condition.water > 0.15 else 1.0)
+		if loud and d < hear:
 			seen = maxf(seen, 0.6)
 		if game.combat_noise_t > 0.0 and f.global_position.distance_to(game.combat_noise_at) < 16.0:
 			seen = maxf(seen, 0.5)

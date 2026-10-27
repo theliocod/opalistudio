@@ -10,6 +10,7 @@ uniform sampler2D grass_tex : source_color, filter_linear_mipmap_anisotropic, re
 uniform sampler2D dirt_tex : source_color, filter_linear_mipmap_anisotropic, repeat_enable;
 uniform bool painted = false;
 uniform float water_level = -1.2;
+global uniform float wetness;      // la pluie : le sol fonce et luit
 
 varying vec3 wpos;
 varying vec3 wnrm;
@@ -62,7 +63,9 @@ void fragment() {
 	// De la neige sale sur les sommets
 	col = mix(col, vec3(0.55, 0.52, 0.55), smoothstep(48.0, 62.0, wpos.y + n1 * 8.0) * (1.0 - smoothstep(0.5, 0.7, slope)));
 
-	ALBEDO = col * (0.85 + n2 * 0.3);
-	ROUGHNESS = mix(0.95, 0.35, 1.0 - smoothstep(water_level, water_level + 0.8, wpos.y));
-	SPECULAR = 0.3;
+	// mouillé, le sol fonce ; des flaques naissent dans les creux du bruit
+	float puddle = smoothstep(0.55, 0.75, n2) * wetness;
+	ALBEDO = col * (0.85 + n2 * 0.3) * mix(1.0, 0.58, wetness) * mix(1.0, 0.7, puddle);
+	ROUGHNESS = mix(mix(0.95, 0.35, 1.0 - smoothstep(water_level, water_level + 0.8, wpos.y)), 0.12, max(wetness * 0.55, puddle));
+	SPECULAR = mix(0.3, 0.6, wetness);
 }

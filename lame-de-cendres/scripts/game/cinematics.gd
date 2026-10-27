@@ -81,8 +81,8 @@ func _begin(s: Dictionary) -> void:
 	# une lumière de plateau sur les personnages
 	var fill: OmniLight3D = game.camera.get_node_or_null("Lueur")
 	if fill:
-		fill.light_energy = 2.2
-		fill.omni_range = 12.0
+		fill.light_energy = 1.2
+		fill.omni_range = 10.0
 	var p: Fighter = game.player
 	var mid := (p.global_position + v.global_position) / 2.0
 	cam_pos = game.camera.global_position
@@ -185,8 +185,8 @@ func _end() -> void:
 	game.hud.letterbox(false)
 	var fill: OmniLight3D = game.camera.get_node_or_null("Lueur")
 	if fill:
-		fill.light_energy = 0.7
-		fill.omni_range = 9.0
+		fill.light_energy = 0.55
+		fill.omni_range = 11.0
 
 
 ## La caméra de cinéma : un plan de côté, bas, qui tourne doucement.

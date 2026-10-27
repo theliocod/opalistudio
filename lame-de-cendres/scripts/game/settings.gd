@@ -16,6 +16,7 @@ const ACTIONS := [
 	["garde", "Parer, garder"], ["esquive", "Esquive, roulade, enjamber"], ["accroupi", "S'accroupir"], ["action", "Interagir, achever, assassiner"],
 	["tech1", "Tourbillon de cendres"], ["tech2", "Iai : Éclair pourpre"], ["tech3", "Retour de l'Hirondelle"], ["tech4", "Pas du Vent"], ["tech5", "Mille Pétales"],
 	["objet1", "Saké"], ["objet2", "Onigiri"], ["objet3", "Thé"], ["objet4", "Encens"], ["objet5", "Bombe fumigène"], ["objet6", "Caillou"],
+	["objet7", "Fiole d'huile"], ["objet8", "Bandage"], ["objet9", "Pierre à aiguiser"], ["objet10", "Gourde"],
 	["inventaire", "Inventaire"], ["carte", "Carte"], ["pause", "Menu"],
 ]
 const DEFAULTS := {
@@ -142,7 +143,9 @@ static func apply(game) -> void:
 		game.atmosphere.moon.shadow_enabled = true
 		game.atmosphere.moon.directional_shadow_max_distance = [40.0, 70.0, 90.0, 140.0][q]
 	RenderingServer.directional_shadow_atlas_set_size([1024, 2048, 4096, 8192][q], true)
-	vp.positional_shadow_atlas_size = [1024, 2048, 4096, 4096][q]
+	vp.positional_shadow_atlas_size = [1024, 2048, 4096, 8192][q]
+	if game.landmarks:
+		game.landmarks.max_shadows = [1, 3, 5, 8][q]
 	if game.camera:
 		game.camera.fov = float(value("affichage", "fov"))
 	if game.vegetation and game.vegetation.grass:

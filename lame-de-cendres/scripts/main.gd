@@ -49,6 +49,10 @@ var audio: Audio
 var wind: Wind
 var stealth: Stealth
 var cine: Cinematics
+var fire: FireSystem
+var weather: Weather
+var condition: Condition
+var exposure := 0.0             # la lumière qui tombe sur le joueur (lanternes, feux)
 var arsenal := Arsenal.new()
 var renown := Renown.new()
 var player: Fighter
@@ -99,6 +103,7 @@ var _danger_t := 0.0
 var _mood_hold := 0.0
 var _step_phase := 0.0
 var _infamy_decay := 0.0
+var _status_t := 0.0
 ## Le brouillard de la carte : un pixel pour 4 m, blanc là où l'on est passé
 var fog_image: Image
 var fog_texture: ImageTexture
@@ -133,6 +138,14 @@ func _ready() -> void:
 	add_child(stealth)
 	stealth.setup(self)
 	wind.emitters = landmarks.emitters
+	weather = Weather.new()
+	add_child(weather)
+	weather.setup(self)
+	fire = FireSystem.new()
+	add_child(fire)
+	fire.setup(self)
+	fire.flammables = landmarks.flammables
+	condition = Condition.new(self)
 	cine = Cinematics.new()
 	cine.game = self
 	add_child(cine)
@@ -141,6 +154,7 @@ func _ready() -> void:
 	for p in places:
 		if p.id == "camp":
 			fires.append(Vector3(p.pos.x, terrain.height_at(p.pos.x, p.pos.y), p.pos.y))
+	fire.hazards = fires
 	for f in fires:
 		var fp: AudioStreamPlayer3D = audio.loop_player("feu", "Ambiance", true)
 		add_child(fp)
@@ -152,12 +166,14 @@ func _ready() -> void:
 	add_child(camera)
 	# une lueur discrète qui suit le regard : le samouraï reste lisible la nuit
 	var fill := OmniLight3D.new()
-	fill.light_color = Color(0.75, 0.8, 1.0)
-	fill.light_energy = 0.7
-	fill.omni_range = 9.0
+	# elle éclaire tout ce qui est proche, décor compris : les personnages ne
+	# semblent plus découpés et collés sur la nuit
+	fill.light_color = Color(0.7, 0.75, 1.0)
+	fill.light_energy = 0.55
+	fill.omni_range = 11.0
+	fill.omni_attenuation = 1.5
 	fill.light_volumetric_fog_energy = 0.0
 	fill.shadow_enabled = false
-	fill.light_cull_mask = 2
 	camera.add_child(fill)
 	fill.position = Vector3(0.6, 0.4, -1.0)
 	fill.name = "Lueur"
@@ -166,6 +182,7 @@ func _ready() -> void:
 	add_child(hud)
 	hud.on_use = _use_item
 	hud.on_equip = _equip
+	hud.on_drop = _drop_owned
 	fog_image = Image.create(128, 128, false, Image.FORMAT_L8)
 	fog_texture = ImageTexture.create_from_image(fog_image)
 	map_view = MapView.new(self, hud.serif, hud.sans)
@@ -218,6 +235,7 @@ func _inputs() -> void:
 		"action": [KEY_E], "tech1": [KEY_R], "tech2": [KEY_T], "tech3": [KEY_Q], "tech4": [KEY_V], "tech5": [KEY_X],
 		"accroupi": [KEY_C, KEY_CTRL], "inventaire": [KEY_TAB, KEY_I], "carte": [KEY_M], "recentrer": [KEY_C], "pause": [KEY_ESCAPE, KEY_P],
 		"objet1": [KEY_1], "objet2": [KEY_2], "objet3": [KEY_3], "objet4": [KEY_4], "objet5": [KEY_5], "objet6": [KEY_6],
+		"objet7": [KEY_7], "objet8": [KEY_8], "objet9": [KEY_9], "objet10": [KEY_0],
 	}
 	for a in keys:
 		if InputMap.has_action(a):
@@ -248,6 +266,8 @@ func _start(save: Dictionary) -> void:
 	player = Fighter.new("player")
 	player.role = "player"
 	add_child(player)
+	condition = Condition.new(self)
+	condition.attach(player)
 	player.global_position = respawn + Vector3(0, 0.3, 0)
 	player.yaw = PI
 	player.sheathed = true
@@ -476,7 +496,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 		_interact()
 	elif ev.is_action_pressed("accroupi"):
 		player.sneaking = not player.sneaking
-	for i in 6:
+	for i in 10:
 		if ev.is_action_pressed("objet%d" % (i + 1)):
 			for id in Arsenal.ITEMS:
 				if Arsenal.ITEMS[id].key == i + 1:
@@ -536,6 +556,12 @@ func _physics_process(dt: float) -> void:
 			e.action = {}
 	cine.step(dt)
 	stealth.step(dt)
+	weather.step(dt, player.global_position)
+	fire.step(dt)
+	condition.step(dt)
+	var chest := player.global_position + Vector3(0, 1.0, 0)
+	exposure = maxf(landmarks.light_at(chest), fire.light_at(chest))
+	_strike_lamps()
 
 	# les coups qui partent cherchent leur cible
 	if player.striking() and not cine.active():
@@ -577,6 +603,8 @@ func _process(delta: float) -> void:
 		return
 	_camera(real)
 	vegetation.follow(player.global_position)
+	landmarks.focus = player.global_position
+	wind.storm = weather.rain
 	wind.step(real, player.global_position, zone.get("id", "") == "hojo")
 	Blood.tint_blade(player.rig, real)
 	_music(real)
@@ -598,7 +626,12 @@ func _process(delta: float) -> void:
 			var d := Vector2(player.global_position.x, player.global_position.z).distance_to(Vector2(waypoint.x, waypoint.z))
 			marks.append({"name": "◆ %d m" % d, "pos": waypoint, "color": Hud.GOLD})
 		hud.set_compass(cam_yaw, player.global_position, marks)
-		hud.set_sneak(player.sneaking, _watchers())
+		hud.set_sneak(player.sneaking, _watchers(), exposure)
+		hud.set_vignette(condition, player, time)
+		_status_t -= real
+		if _status_t <= 0.0:
+			_status_t = 0.25
+			hud.set_status(condition, arsenal, player, weather.wet)
 
 
 ## Le boss qui se bat contre toi en ce moment : l'Oni, ou le commandant d'Akagane.
@@ -686,17 +719,19 @@ func _control(dt: float) -> void:
 		Audio.sfx("saut", player.global_position)
 		buffer = ""
 	elif not busy and buffer == "dodge" and stamina > 0.0 and (free or recovering) and not player.is_doing(["dodge"]):
-		# en mouvement : une roulade ; à l'arrêt : un pas en arrière
-		if mv.length_squared() > 0.01:
+		# en mouvement : une roulade ; à l'arrêt, surchargé ou dans l'eau : un pas en arrière
+		if mv.length_squared() > 0.01 and condition.can_roll():
 			player.yaw = atan2(mv.x, mv.z)
 			player.play("roulade")
 			player.sneaking = false
 		else:
-			var dir := -player.forward()
-			player.yaw = atan2(dir.x, dir.z)
+			var dir := -player.forward() if mv.length_squared() < 0.01 else mv.normalized()
+			player.yaw = atan2(-dir.x, -dir.z) if mv.length_squared() > 0.01 else atan2(dir.x, dir.z)
 			player.play("dodge")
+			if not condition.can_roll() and mv.length_squared() > 0.01:
+				hud.callout("Trop chargé pour rouler" if condition.weight.roll < 0.0 else "L'eau te retient", Hud.MUTED)
 		Audio.sfx("saut", player.global_position, -6.0)
-		_spend(22.0)
+		_spend(22.0 * absf(condition.weight.roll))
 	elif not busy and free and buffer in techs and arsenal.knows(buffer) and stamina > 0.0 and not player.sheathed:
 		_face_nearest(6.0 if buffer != "hirondelle" else 18.0, mv)
 		player.play(buffer)
@@ -735,10 +770,11 @@ func _control(dt: float) -> void:
 	if not player.is_doing(["saut"]) and not cine.busy(player):
 		player.collision_mask = 1 | 2 | Landmarks.WALL_LAYER
 	player.blocking = Input.is_action_pressed("garde") and player.action.is_empty() and stamina > 0.0 and not player.sheathed
-	player.action_speed = arsenal.katana().get("speed", 1.0)
+	# une lame lourde se lève plus lentement, une lame légère part plus vite
+	player.action_speed = arsenal.katana().get("speed", 1.0 + (1.2 - arsenal.katana().get("weight", 1.2)) * 0.12) * lerpf(1.0, condition.arm_factor(), 0.75)
 	_sheath_logic(dt)
 	if player.action.is_empty() or player.action.def.get("gesture", false):
-		var spd := 1.8 if player.blocking else (2.3 if player.sneaking else 5.4)
+		var spd: float = (1.8 if player.blocking else (2.3 if player.sneaking else 5.4)) * condition.speed_factor()
 		player.move = mv * spd
 		player.speed = mv.length() * spd
 		if player.blocking:
@@ -758,7 +794,7 @@ func _control(dt: float) -> void:
 
 	stamina_wait -= dt
 	if stamina_wait <= 0.0:
-		var regen := (10.0 if player.blocking else 30.0) * (2.0 if arsenal.buffs.has("the") else 1.0)
+		var regen: float = (10.0 if player.blocking else 30.0) * (2.0 if arsenal.buffs.has("the") else 1.0) * condition.weight.regen
 		stamina = minf(100.0, stamina + regen * dt)
 
 
@@ -935,6 +971,7 @@ func _hit_player(att: Fighter, def: Dictionary, chest: Vector3) -> void:
 	else:
 		player.hp -= dmg
 		player.play("hit")
+		condition.wound(dmg)
 		player.sneaking = false
 		Fx.burst(self, chest, 40, Color(0.6, 0.04, 0.07), 5.0, 2.0, 10.0, 0.7, 2.2)
 		Blood.spray(self, chest, att.forward() + Vector3(0, 0.3, 0), 30, 0.8)
@@ -1000,7 +1037,7 @@ func _hit_enemy(def: Dictionary, target: Fighter, chest: Vector3) -> void:
 		mult *= 2.0
 		parry_bonus = 0.0
 		hud.callout("L'Œil unique", Hud.GOLD)
-	var dmg: float = def.dmg * k.dmg * mult
+	var dmg: float = def.dmg * k.dmg * mult * condition.blade_factor() * condition.arm_factor()
 	target.hp -= dmg
 	target.posture += def.get("posture", def.dmg) * k.posture
 	var aura_c: Color = k.aura if k.aura != null else Color(1.0, 0.88, 0.7)
@@ -1019,6 +1056,9 @@ func _hit_enemy(def: Dictionary, target: Fighter, chest: Vector3) -> void:
 	# les pouvoirs des lames
 	if k.effect in ["burn", "moon"]:
 		burning[target] = 3.0
+		# un coup lourd d'une lame qui brûle met le feu à l'herbe sous les pieds
+		if def.get("heavy", false):
+			fire.ignite(Vector3(target.global_position.x, terrain_height(target.global_position), target.global_position.z), 1.0, 6.0, 2)
 	if k.effect in ["drain", "moon"]:
 		player.hp = minf(player.max_hp, player.hp + dmg * 0.12)
 	if k.effect == "bleed":
@@ -1145,10 +1185,16 @@ func _burns(dt: float) -> void:
 		if not is_instance_valid(e) or not e.alive:
 			burning.erase(e)
 			continue
-		burning[e] -= dt
+		burning[e] -= dt * (1.0 + weather.rain * 2.5)
 		e.hp -= 5.0 * dt
 		if randf() < dt * 14.0:
 			Fx.burst(self, e.global_position + Vector3(randf_range(-0.3, 0.3), randf_range(0.4, 1.7), randf_range(-0.3, 0.3)), 3, Color(1.0, 0.4, 0.1), 1.0, 2.5, 0.0, 0.5, 3.0)
+		# celui qui brûle met le feu à l'herbe où il court
+		if randf() < dt * 0.45:
+			fire.ignite(Vector3(e.global_position.x, terrain_height(e.global_position), e.global_position.z), 0.9, 6.0, 3)
+		if e.faction != "damnes" and not e.has_meta("cried"):
+			e.set_meta("cried", true)
+			bark(e, ["Au feu ! Au feu !", "Je brûle !", "De l'eau ! De l'eau !"].pick_random())
 		if e.hp <= 0.0:
 			_enemy_dead(e)
 		if burning.has(e) and burning[e] <= 0.0:
@@ -1415,10 +1461,34 @@ func _pickups() -> void:
 	for p in pickups.duplicate():
 		var n: Node3D = p.node
 		n.position.y = p.pos.y + sin(time * 2.5) * 0.12
-		if n.global_position.distance_to(player.global_position + Vector3(0, 0.8, 0)) < 1.6:
+		var d := n.global_position.distance_to(player.global_position + Vector3(0, 0.8, 0))
+		# ce qu'on vient de poser ne revient dans le sac qu'une fois qu'on s'en est éloigné
+		if p.get("wait", false):
+			if d > 3.0:
+				p.wait = false
+			continue
+		if d < 1.6:
 			_gain(p.items, p.katana, p.get("ryo", 0))
 			n.queue_free()
 			pickups.erase(p)
+
+
+## Poser au sol un objet ou une lame : on porte moins lourd, on pourra revenir les chercher.
+func _drop_owned(id: String, is_katana: bool) -> void:
+	var at := player.global_position + player.forward() * 1.2
+	if is_katana:
+		if not id in arsenal.katanas or id == arsenal.equipped:
+			return
+		arsenal.katanas.erase(id)
+		_drop(at, {}, id)
+	else:
+		if arsenal.items.get(id, 0) <= 0:
+			return
+		arsenal.items[id] -= 1
+		_drop(at, {id: 1}, "")
+	pickups[-1].wait = true
+	Audio.sfx("objet", null, -8.0)
+	hud.set_arsenal(arsenal)
 
 
 func _gain(items: Dictionary, katana: String, ryo := 0) -> void:
@@ -1478,6 +1548,13 @@ func _interact() -> void:
 			_gain({}, r.katana)
 		"cage":
 			_free_prisoners(target.cage)
+		"lamp":
+			_snuff(target.lamp)
+		"fill":
+			arsenal.items["gourde"] = Arsenal.GOURDE_MAX
+			Audio.sfx("eclaboussure", player.global_position, -4.0)
+			hud.toast("Gourde remplie", Color(0.6, 0.75, 0.9))
+			hud.set_arsenal(arsenal)
 		"bell":
 			landmarks.bell.cut = true
 			var rope: Node3D = landmarks.bell.rope
@@ -1488,6 +1565,7 @@ func _interact() -> void:
 		"shrine":
 			player.hp = player.max_hp
 			stamina = 100.0
+			condition.heal_all()
 			respawn = target.shrine.pos
 			var saved := SaveGame.write(self)
 			hud.toast("Tu te recueilles. Vie rendue, autel retenu%s." % (", partie sauvegardée" if saved else ""), Hud.GOLD)
@@ -1545,6 +1623,18 @@ func _interactable() -> Dictionary:
 	for s in landmarks.shrines:
 		if player.global_position.distance_to(s.pos) < 3.0:
 			return {"kind": "shrine", "shrine": s, "text": "%s · Se recueillir (et sauvegarder)" % key}
+	# une lanterne allumée, à portée de souffle
+	for l in landmarks.lamps:
+		if l.lit and Vector2(l.pos.x - player.global_position.x, l.pos.z - player.global_position.z).length() < 1.7 and absf(l.pos.y - player.global_position.y) < 2.6:
+			return {"kind": "lamp", "lamp": l, "text": "%s · Souffler la lanterne" % key}
+	# de l'eau : le lac, le puits, le bassin
+	if arsenal.items.get("gourde", 0) < Arsenal.GOURDE_MAX:
+		var near_water := water_depth(player.global_position + player.forward() * 1.2) > 0.05
+		for w in landmarks.wells:
+			if player.global_position.distance_to(w) < 2.6:
+				near_water = true
+		if near_water:
+			return {"kind": "fill", "text": "%s · Remplir la gourde" % key}
 	return {}
 
 
@@ -1575,25 +1665,62 @@ func _free_prisoners(c: Dictionary) -> void:
 
 func _use_item(id: String) -> void:
 	if arsenal.items.get(id, 0) <= 0 or not player.alive:
+		if id == "gourde":
+			hud.callout("Gourde vide", Hud.MUTED)
 		return
 	var it: Dictionary = Arsenal.ITEMS[id]
-	arsenal.items[id] -= 1
+	if it.get("sharpen", false):
+		_sharpen()
+		return
+	if not it.get("keep", false):
+		arsenal.items[id] -= 1
 	if it.has("heal"):
 		player.hp = minf(player.max_hp, player.hp + it.heal)
 	if it.get("stamina", false):
 		stamina = 100.0
 	if it.has("buff"):
 		arsenal.buffs[it.buff] = it.duration
+	if it.get("stops_bleed", false):
+		if condition.bleed > 0.0:
+			hud.callout("Plaie bandée", Color(0.9, 0.88, 0.8))
+		condition.bleed = 0.0
+	if it.get("drink", false):
+		stamina = 100.0
+		if condition.burn > 0.0:
+			condition.burn = 0.0
+			hud.callout("Éteint", Color(0.6, 0.75, 0.9))
 	if it.get("smoke", false):
 		_smoke(player.global_position)
 	if it.get("throw", false):
-		_throw_pebble()
+		_throw(id)
 	else:
-		Audio.sfx("boire" if id in ["sake", "the"] else "objet", null, -4.0)
+		Audio.sfx("boire" if id in ["sake", "the", "gourde"] else "objet", null, -4.0)
 	hud.toast(it.name, it.color)
 	if not it.get("throw", false) and not it.get("smoke", false):
 		Fx.burst(self, player.global_position + Vector3(0, 1.0, 0), 24, it.color, 1.5, 2.5, -1.0, 0.9, 2.0)
 	hud.set_arsenal(arsenal)
+
+
+## La pierre à aiguiser : quelques secondes à genoux, vulnérable ; la lame en sort propre et tranchante.
+func _sharpen() -> void:
+	if not player.action.is_empty() and not player.action.def.get("gesture", false):
+		return
+	for e in enemies:
+		if e.alive and e.aggro and e.hostile and e.flat_distance(player) < 15.0:
+			hud.callout("Pas en plein combat", Hud.MUTED)
+			return
+	player.play("genoux")
+	player.action.def = player.action.def.duplicate()
+	player.action.def.hold = false
+	player.action.def.dur = 3.2
+	Audio.sfx("aiguiser", player.global_position)
+	get_tree().create_timer(1.6, false).timeout.connect(func(): Audio.sfx("aiguiser", player.global_position, -2.0, 0.1))
+	get_tree().create_timer(3.2, false).timeout.connect(func():
+		if not player.alive:
+			return
+		player.rig.set_meta("blood", 0.0)
+		condition.sharp = 120.0
+		hud.toast("Lame affûtée : +15 % pendant deux minutes", Color(0.85, 0.88, 0.95)))
 
 
 ## La bombe fumigène : un nuage où personne ne te voit ; les ennemis tout près titubent.
@@ -1647,17 +1774,23 @@ func _smoke(at: Vector3) -> void:
 			e.last_seen = at + Vector3(randf_range(-6, 6), 0, randf_range(-6, 6))
 
 
-## Le caillou : il tombe plus loin et attire les gardes qui l'entendent.
-func _throw_pebble() -> void:
+## Lancer : le caillou attire les gardes là où il tombe ; la fiole d'huile s'y brise et prend feu.
+func _throw(id: String) -> void:
 	var f := Vector3(sin(cam_yaw), 0, cos(cam_yaw))
-	var to := player.global_position + f * 12.0
+	var to := player.global_position + f * (12.0 if id == "caillou" else 10.0)
 	to.y = terrain.height_at(to.x, to.z)
 	var hit := get_world_3d().direct_space_state.intersect_ray(PhysicsRayQueryParameters3D.create(player.global_position + Vector3(0, 1.4, 0), to + Vector3(0, 0.3, 0), 1 | Landmarks.WALL_LAYER))
 	if not hit.is_empty():
 		to = hit.position
 	var rock := MeshInstance3D.new()
-	var s := SphereMesh.new(); s.radius = 0.06; s.height = 0.1
+	var s := SphereMesh.new()
+	s.radius = 0.06 if id == "caillou" else 0.1
+	s.height = s.radius * 2.0
 	rock.mesh = s
+	if id == "huile":
+		var m := StandardMaterial3D.new()
+		m.albedo_color = Color(0.35, 0.2, 0.1)
+		rock.material_override = m
 	add_child(rock)
 	var from := player.global_position + Vector3(0, 1.5, 0)
 	rock.global_position = from
@@ -1666,15 +1799,85 @@ func _throw_pebble() -> void:
 	tw.tween_method(func(u: float):
 		rock.global_position = from.lerp(to, u) + Vector3(0, sin(u * PI) * 3.0, 0), 0.0, 1.0, 0.7)
 	tw.tween_callback(func():
+		rock.queue_free()
+		if id == "huile":
+			Audio.sfx("verre", to, 2.0)
+			if not fire.ignite(to, 2.1, 14.0, 0, "huile"):
+				hud.toast("L'huile se répand, mais rien ne prend.", Hud.MUTED)
+			make_noise(to, 14.0)
+			return
 		Audio.sfx("reception", to, 4.0, 0.2)
-		for e in enemies:
-			if stealth.watched(e) and e.alive and e.alert in ["calme", "doute"] and e.global_position.distance_to(to) < 15.0:
-				e.alert = "doute"
-				e.suspicion = maxf(e.suspicion, 0.45)
-				e.last_seen = to
-				e.wait_t = 0.0
-				bark(e, "Hein ? Ça venait de là-bas…")
-		rock.queue_free())
+		make_noise(to, 15.0))
+
+
+## Un bruit : les gardes d'Akagane qui l'entendent viennent voir d'où il vient.
+func make_noise(at: Vector3, radius: float) -> void:
+	radius *= weather.noise_factor()
+	for e in enemies:
+		if stealth.watched(e) and e.alive and e.alert in ["calme", "doute"] and e.global_position.distance_to(at) < radius:
+			e.alert = "doute"
+			e.suspicion = maxf(e.suspicion, 0.45)
+			e.last_seen = at
+			e.wait_t = 0.0
+			bark(e, ["Hein ? Ça venait de là-bas…", "Qu'est-ce que c'était ?", "Tu as entendu ?"].pick_random())
+
+
+## La profondeur d'eau en un point (le lac).
+func water_depth(at: Vector3) -> float:
+	return maxf(0.0, Terrain.WATER_LEVEL - terrain.height_at(at.x, at.z))
+
+
+## Vers la rive : là où le fond remonte.
+func shore_direction(at: Vector3) -> Vector3:
+	var best := Vector3.ZERO
+	var hi := -1e9
+	for i in 8:
+		var a := float(i) / 8.0 * TAU
+		var d := Vector3(sin(a), 0, cos(a))
+		var h := terrain.height_at(at.x + d.x * 3.0, at.z + d.z * 3.0)
+		if h > hi:
+			hi = h
+			best = d
+	return best
+
+
+## Souffler une lanterne : la nuit reprend sa place ; un garde qui le voit vient voir.
+func _snuff(lamp: Dictionary) -> void:
+	if not landmarks.snuff(lamp):
+		return
+	Audio.sfx("souffle", lamp.pos, -2.0)
+	for e in enemies:
+		if stealth.watched(e) and e.alive and e.alert == "calme" and e.global_position.distance_to(lamp.pos) < 14.0:
+			e.alert = "doute"
+			e.suspicion = maxf(e.suspicion, 0.4)
+			e.last_seen = lamp.pos
+			e.wait_t = 0.0
+			bark(e, "Qui a éteint cette lanterne ?")
+			break
+
+
+## Une lanterne de papier frappée par la lame tombe et met le feu là où elle s'écrase.
+func _strike_lamps() -> void:
+	if not player.striking():
+		return
+	var tip := player.blade_tip()
+	for l in landmarks.lamps:
+		if l.kind != "papier" or l.get("down", false):
+			continue
+		if tip.distance_to(l.pos) < 0.7 or player.rig.blade_base.global_position.lerp(tip, 0.5).distance_to(l.pos) < 0.6:
+			l.down = true
+			var was_lit: bool = l.lit
+			landmarks.snuff(l)
+			var ground := Vector3(l.pos.x, terrain_height(l.pos), l.pos.z)
+			var ball: Node3D = l.flames[0]
+			ball.visible = true
+			var tw := create_tween()
+			tw.tween_property(ball, "global_position", ground + Vector3(0, 0.2, 0), 0.45).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+			tw.tween_callback(func():
+				ball.visible = false
+				if was_lit:
+					fire.ignite(ground, 1.0, 8.0, 1, "lanterne"))
+			Audio.sfx("verre", l.pos, -10.0, 0.2)
 
 
 # ---------- Parler, commercer, défier ----------

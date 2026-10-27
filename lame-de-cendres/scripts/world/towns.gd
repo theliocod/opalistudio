@@ -70,11 +70,17 @@ func _folk(kind: String, role: String, faction: String, pos: Vector3, yaw: float
 ## Une lanterne de papier rouge suspendue, avec sa lumière.
 func _chochin(parent: Node3D, pos: Vector3, light := true) -> void:
 	var s := SphereMesh.new(); s.radius = 0.22; s.height = 0.52; s.radial_segments = 10; s.rings = 6
-	_place(parent, s, mats.chochin, pos)
-	_cyl(parent, pos + Vector3(0, 0.3, 0), 0.12, 0.12, 0.06, mats.fer, false)
-	_cyl(parent, pos - Vector3(0, 0.3, 0), 0.12, 0.12, 0.06, mats.fer, false)
+	var ball := _place(parent, s, mats.chochin, pos)
+	ball.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+	var top := _cyl(parent, pos + Vector3(0, 0.3, 0), 0.12, 0.12, 0.06, mats.fer, false)
+	var bottom := _cyl(parent, pos - Vector3(0, 0.3, 0), 0.12, 0.12, 0.06, mats.fer, false)
+	for part in [ball, top, bottom]:
+		part.layers = LAMP_LAYER
+	var l: OmniLight3D = null
 	if light:
-		_light(parent, pos, Color(1.0, 0.35, 0.12), 1.6, 7.0)
+		l = _light(parent, pos - Vector3(0, 0.15, 0), Color(1.0, 0.35, 0.12), 1.25, 6.5)
+		l.omni_attenuation = 2.0
+	lamps.append({"pos": ball.global_position, "light": l, "flames": [ball, top, bottom], "kind": "papier", "lit": true})
 
 
 ## Une bannière nobori : un mât et une longue toile que le vent agite.
@@ -133,7 +139,8 @@ func _machiya(parent: Node3D, pos: Vector3, rot_y: float, w: float, d: float, op
 	for i in 3:
 		_box(g, Vector3(-0.42 + i * 0.42, 0.4 + 2.05, front + 0.22), Vector3(0.38, 0.75, 0.02), nm, Vector3.ZERO, false)
 	if opts.get("lantern", true):
-		_chochin(g, Vector3(w / 2 - 0.5, 0.4 + 2.2, front + 0.45), opts.get("light", true))
+		# accrochée sous l'auvent, assez loin des tuiles pour ne pas les brûler de lumière
+		_chochin(g, Vector3(w / 2 - 0.5, 0.4 + h * 0.62 - 0.36, front + 1.15), opts.get("light", true))
 	return g
 
 
@@ -259,6 +266,25 @@ func _rack(parent: Node3D, pos: Vector3, rot_y: float, colors: Array, katana := 
 		_box(blades, Vector3(-0.6, y + 0.03, 0), Vector3(0.28, 0.035, 0.035), mats.rouge, Vector3.ZERO, false)
 	if katana != "":
 		racks.append({"pos": g.global_position, "katana": katana, "blades": blades, "taken": false})
+
+
+## Une meule de paille : elle prend feu au moindre tison.
+func _meule(parent: Node3D, pos: Vector3) -> void:
+	var m := CylinderMesh.new()
+	m.top_radius = 0.5
+	m.bottom_radius = 1.1
+	m.height = 1.8
+	m.radial_segments = 10
+	var mi := _place(parent, m, mats.paille, pos + Vector3(0, 0.9, 0))
+	var s := CylinderShape3D.new()
+	s.radius = 1.0
+	s.height = 1.8
+	var cs := _collide(s, parent.global_transform * mi.transform)
+	var cap := SphereMesh.new()
+	cap.radius = 0.55
+	cap.height = 0.6
+	_place(mi, cap, mats.paille, Vector3(0, 0.9, 0))
+	flammables.append({"pos": mi.global_position - Vector3(0, 0.9, 0), "r": 1.3, "node": mi, "shape": cs, "kind": "paille", "burnt": false})
 
 
 # ---------- Hōjō-machi, la ville libre ----------
@@ -418,6 +444,9 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 			var t := (float(i) + 0.5) / 8.0
 			_box(g, pond + Vector3(-5.6 + t * 11.2, 1.1 + sin(t * PI) * 0.9, s * 0.95), Vector3(1.45, 0.06, 0.06), mats.rouge, Vector3(0, 0, -cos(t * PI) * 0.28), false)
 	spots.pont = g.global_transform * (pond + Vector3(0, 1.2, 0))
+	for k in 6:
+		var a := float(k) / 6.0 * TAU
+		wells.append(g.global_transform * (pond + Vector3(sin(a) * 5.6, 0, cos(a) * 5.6)))
 	spots.bassin = g.global_transform * (pond + Vector3(4.0, 0, 5.2))
 	_folk("moine", "samurai", "hojo", spots.pont, PI / 2, {"idle": "guet", "id": "benkei", "name": "Musashibō Benkei"})
 	_folk("kojiro", "samurai", "hojo", g.global_transform * (pond + Vector3(3.6, 0, 6.0)), PI + 0.5, {"idle": "seiza", "id": "kojiro", "name": "Sasaki Kojirō"})
@@ -431,7 +460,11 @@ func _hojo(c: Vector3, p: Dictionary) -> void:
 			_cyl(g, bed + Vector3(-2.5 + x, 0.45, 0), 0.0, 0.18, 0.4, _plain(Color(0.16, 0.26, 0.1), 1.0), false)
 	_folk("paysan", "civil", "hojo", _at(c, 17.5, 4.6), PI, {"idle": "cueillir", "name": "Un maraîcher", "armed": false})
 	_folk("villageoise", "civil", "hojo", _at(c, 20.5, 7.8), PI, {"idle": "cueillir", "name": "Une jardinière", "armed": false})
+	# des meules de paille, près des jardins : elles flambent comme des torches
+	for mp in [Vector2(23.5, -3.0), Vector2(24.0, 12.5)]:
+		_meule(g, _at(c, mp.x, mp.y) - c)
 	var well := _at(c, 3.0, 25.0) - c
+	wells.append(g.global_transform * well)
 	_cyl(g, well + Vector3(0, 0.5, 0), 0.9, 1.0, 1.0, mats.pierre)
 	_box(g, well + Vector3(0, 2.0, 0), Vector3(2.2, 0.1, 0.2), mats.bois, Vector3.ZERO, false)
 	for x in [-1.0, 1.0]:
@@ -573,9 +606,13 @@ func _akagane(c: Vector3, p: Dictionary) -> void:
 		var at := _at(c, tp.x, tp.y) - c
 		var tent := _roof(g, at + Vector3(0, 1.4, 0), 3.6, 4.6, 2.8, mats.toile_sombre, Vector3(0, _rng.randf() * TAU, 0))
 		var s := BoxShape3D.new(); s.size = Vector3(3.2, 2.6, 4.2)
-		_collide(s, g.global_transform * tent.transform)
+		var cs := _collide(s, g.global_transform * tent.transform)
+		flammables.append({"pos": tent.global_position - Vector3(0, 1.2, 0), "r": 2.2, "node": tent, "shape": cs, "kind": "tente", "burnt": false})
 	for b in [Vector2(-8.0, 20.0), Vector2(8.0, 20.0), Vector2(0.0, -6.0)]:
 		_nobori(g, _at(c, b.x, b.y) - c, Color(0.6, 0.07, 0.05))
+	# la paille des chevaux, contre la palissade
+	for mp in [Vector2(-19.5, 2.0), Vector2(19.0, 18.5), Vector2(-3.0, -19.5)]:
+		_meule(g, _at(c, mp.x, mp.y) - c)
 	var cage := _at(c, 15.0, 3.0) - c
 	for i in 10:
 		var a := float(i) / 10.0 * TAU
@@ -658,7 +695,7 @@ func _cimetiere(c: Vector3, p: Dictionary) -> void:
 	ghost.light_volumetric_fog_energy = 0.4
 	g.add_child(ghost)
 	ghost.position = _at(c, 0, 0) - c + Vector3(0, 3.5, 0)
-	lights.append({"light": ghost, "base": 2.2, "seed": 3.0})
+	lights.append({"light": ghost, "base": 2.2, "seed": 3.0, "on": true})
 	var wisps := CPUParticles3D.new()
 	wisps.amount = 40
 	wisps.lifetime = 4.0
