@@ -480,6 +480,7 @@ var _inv_techs: VBoxContainer
 var _inv_detail: Label
 var on_use: Callable
 var on_equip: Callable
+var on_wear: Callable
 
 
 func _build_inventory() -> void:
@@ -580,6 +581,19 @@ func show_inventory(a: Arsenal) -> void:
 				on_drop.call(id, true)
 				show_inventory(a))
 		_inv_katanas.add_child(b)
+	# les tenues que l'on possède : un clic pour la revêtir
+	_inv_katanas.add_child(_label("TENUES", 16, GOLD, serif, 6))
+	for id in Arsenal.OUTFITS:
+		if not a.outfits.has(id):
+			continue
+		var o: Dictionary = Arsenal.OUTFITS[id]
+		var tb := Button.new()
+		tb.text = "%s%s   (%.0f kg)\n%s" % ["◆ " if id == a.outfit else "", o.name, o.kg, o.desc]
+		tb.alignment = HORIZONTAL_ALIGNMENT_LEFT
+		tb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		tb.add_theme_color_override("font_color", GOLD if id == a.outfit else PAPER)
+		tb.pressed.connect(func(): on_wear.call(id); show_inventory(a))
+		_inv_katanas.add_child(tb)
 	_inv_detail.text = a.katana().desc
 	_inv_techs.add_child(_label("TECHNIQUES · %d âmes" % a.souls, 16, GOLD, serif, 6))
 	for id in Arsenal.TECHNIQUES:
@@ -594,6 +608,16 @@ func show_inventory(a: Arsenal) -> void:
 		var d := _label(t.desc, 13, MUTED)
 		d.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		_inv_techs.add_child(d)
+	# les charmes d'Inari, et ce que l'on porte au carquois
+	_inv_techs.add_child(_label("CHARMES · flèches %d, enflammées %d" % [a.ammo.get("fleche", 0), a.ammo.get("feu", 0)], 16, GOLD, serif, 6))
+	if a.charms.is_empty():
+		_inv_techs.add_child(_label("Suis les renards : ils mènent aux sanctuaires d'Inari.", 13, MUTED))
+	for id in a.charms:
+		var ch: Dictionary = Decouvertes.CHARMES.get(id, {})
+		_inv_techs.add_child(_label(ch.get("name", id), 15, PAPER, serif))
+		var cd := _label(ch.get("desc", ""), 13, MUTED)
+		cd.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		_inv_techs.add_child(cd)
 	inv.visible = true
 
 

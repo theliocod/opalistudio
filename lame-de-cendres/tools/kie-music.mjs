@@ -17,6 +17,8 @@ const TRACKS = {
   ville: { title: 'Hōjō aux lanternes', style: `calm town music at night, warm koto and shamisen melody, soft shinobue flute, gentle hand drums, distant festival, peaceful but melancholic, ${BASE}` },
   infiltration: { title: 'Ombres', style: `tense stealth music, minimal, low drones, sparse koto plucks, muted taiko heartbeat, suspense, quiet, ${BASE}` },
   boss: { title: "L'Oni de la Lune Rouge", style: `epic boss battle, huge taiko and odaiko drums, distorted biwa, ominous low brass, dissonant strings, demonic, relentless, ${BASE}` },
+  jour: { title: 'Les champs dorés', style: `serene daytime exploration score, wide open fields at golden hour, lyrical solo shakuhachi melody, warm koto arpeggios, soft strings swelling, gentle wind, hopeful and nostalgic, cinematic, ${BASE.replace('dark fantasy', 'samurai epic')}` },
+  affrontement: { title: "L'affrontement", style: `samurai standoff tension, near silence, single deep taiko hits far apart, low string drone, shakuhachi breath, rising suspense, slow, ${BASE}` },
 };
 
 const key = process.env.KIE_API_KEY;

@@ -10,7 +10,7 @@ const VERMILION := Color(0.66, 0.15, 0.1)
 const PAPER := Color(0.9, 0.85, 0.74)
 const GOLD := Color(0.78, 0.56, 0.16)
 ## Lieu → icône peinte (assets/kie/carte-icones-*.png)
-const ICONS := {"autel": 0, "village": 1, "camp": 2, "croisee": 3, "sanctuaire": 4, "temple": 5, "hojo": 6, "akagane": 2, "cimetiere": 3, "bambous": 4, "ville": 6, "marchand": 7, "samourai": 8}
+const ICONS := {"autel": 0, "village": 1, "camp": 2, "croisee": 3, "sanctuaire": 4, "temple": 5, "hojo": 6, "akagane": 2, "cimetiere": 3, "bambous": 4, "poste_col": 2, "poste_gue": 2, "ville": 6, "marchand": 7, "samourai": 8}
 const DESCRIPTIONS := {
 	"autel": "Un autel de pierre sous un petit torii. On s'y recueille, et l'on y revient après une mort.",
 	"village": "Les maisons éventrées d'un village de forgerons. Des ronins y ont pris leurs quartiers.",

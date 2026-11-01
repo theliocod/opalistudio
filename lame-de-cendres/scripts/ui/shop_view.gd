@@ -86,6 +86,19 @@ func _refresh() -> void:
 		var price := r.price(Arsenal.PRICES[id])
 		var label: String = "%s   (tu en as %d)" % [it.name, a.items.get(id, 0)]
 		_list.add_child(_row(Hud.item_icon(id), Vector2(60, 60), label, it.desc, price, false, func(): _buy_item(id, price), it.color))
+	# l'armure du clan, pour qui peut la porter
+	if not a.outfits.has("clan"):
+		var o: Dictionary = Arsenal.OUTFITS.clan
+		var price := r.price(650)
+		_list.add_child(_row(null, Vector2(60, 60), o.name, o.desc, price, false, func(): _buy_outfit("clan", price), Color(0.9, 0.55, 0.45)))
+	# les flèches, par paquets
+	for pack in [["fleche", 10, 20, "Dix flèches", "Pour l'arc (B). Une flèche à la tête tue net.", Color(0.75, 0.65, 0.5)],
+			["feu", 3, 45, "Trois flèches enflammées", "Imbibées d'huile : elles mettent le feu là où elles se plantent.", Color(1.0, 0.55, 0.2)],
+			["kunai", 4, 30, "Quatre kunai", "Lancés (U), ils coupent l'élan d'un coup qui se prépare.", Color(0.6, 0.6, 0.65)]]:
+		var kind: String = pack[0]
+		var cost := r.price(pack[2])
+		var title := "%s   (tu en as %d)" % [pack[3], a.ammo.get(kind, 0)]
+		_list.add_child(_row(null, Vector2(60, 60), title, pack[4], cost, false, func(): _buy_ammo(kind, pack[1], cost), pack[5]))
 	# il rachète aussi : au tiers de la valeur pour une lame, un peu mieux si tu es célèbre
 	var sell := []
 	for id in a.katanas:
@@ -155,6 +168,30 @@ func _buy_item(id: String, price: int) -> void:
 		return
 	a.ryo -= price
 	a.add_item(id)
+	Audio.sfx("pieces", null, -4.0)
+	game.hud.set_arsenal(a)
+	_refresh()
+
+
+func _buy_outfit(id: String, price: int) -> void:
+	var a: Arsenal = game.arsenal
+	if a.ryo < price:
+		return
+	a.ryo -= price
+	a.outfits.append(id)
+	game.wear(id)
+	Audio.sfx("pieces", null, -4.0)
+	game.hud.toast("%s revêtue." % Arsenal.OUTFITS[id].name, Hud.GOLD)
+	game.hud.set_arsenal(a)
+	_refresh()
+
+
+func _buy_ammo(kind: String, n: int, price: int) -> void:
+	var a: Arsenal = game.arsenal
+	if a.ryo < price or int(a.ammo.get(kind, 0)) >= Arsenal.AMMO_MAX[kind]:
+		return
+	a.ryo -= price
+	a.ammo[kind] = mini(Arsenal.AMMO_MAX[kind], int(a.ammo.get(kind, 0)) + n)
 	Audio.sfx("pieces", null, -4.0)
 	game.hud.set_arsenal(a)
 	_refresh()

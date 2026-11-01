@@ -43,7 +43,7 @@ func sight(f: Fighter) -> float:
 		r *= 1.25
 	# dans l'ombre on se fond ; sous une lanterne, on se voit de loin. La pluie brouille tout.
 	var lit := clampf(0.15 + game.exposure * 1.2, 0.0, 1.0)
-	r *= lerpf(0.6, 1.3, lit) * game.weather.sight_factor()
+	r *= lerpf(0.6, 1.3, lit) * game.weather.sight_factor() * (0.85 if game.arsenal.charms.has("kitsune") else 1.0) * (0.75 if game.arsenal.outfit == "fantome" else 1.0)
 	if game.smoke_t > 0.0 and game.player.global_position.distance_to(game.smoke_at) < 6.0:
 		r = 0.0
 	return r

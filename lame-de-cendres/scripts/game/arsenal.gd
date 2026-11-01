@@ -22,7 +22,13 @@ const WEIGHTS := {"sake": 0.8, "onigiri": 0.2, "the": 0.3, "encens": 0.4, "fumig
 	"huile": 0.9, "bandage": 0.1, "pierre": 0.6, "gourde": 0.35}
 const RYO_WEIGHT := 0.004
 ## Les flèches : ce qu'on en porte au plus, ce qu'elles pèsent
-const AMMO_MAX := {"fleche": 30, "feu": 10}
+const AMMO_MAX := {"fleche": 30, "feu": 10, "kunai": 8}
+## Les tenues : ce qu'elles pèsent, ce qu'elles changent, leur teinte
+const OUTFITS := {
+	"voyageur": {"name": "Tenue du voyageur", "desc": "Légère et discrète, rien de plus.", "kg": 3.0, "tint": Color(1, 1, 1)},
+	"clan": {"name": "Armure du clan Hōjō", "desc": "Plaques laquées : un quart des coups en moins. Mais elle pèse 9 kg de plus.", "kg": 12.0, "tint": Color(1.08, 0.86, 0.78)},
+	"fantome": {"name": "Tenue du Fantôme", "desc": "Noire comme la nuit : les gardes te voient de 25 % moins loin, chaque assassinat rend de la vie.", "kg": 4.0, "tint": Color(0.42, 0.42, 0.5)},
+}
 const AMMO_WEIGHT := 0.05
 const GOURDE_MAX := 3
 ## Ce que vaut une lame chez le marchand (il en rachète au tiers)
@@ -88,7 +94,10 @@ const TECHNIQUES := {
 
 var items := {"sake": 2, "onigiri": 1, "the": 0, "encens": 0, "fumigene": 1, "caillou": 3, "huile": 1, "bandage": 2, "pierre": 1, "gourde": 3}
 var ryo := 40
-var ammo := {"fleche": 20, "feu": 3}
+var ammo := {"fleche": 20, "feu": 3, "kunai": 4}
+var outfits: Array = ["voyageur"]
+var outfit := "voyageur"
+var charms: Array = []          # les charmes reçus aux sanctuaires d'Inari
 var katanas := ["ronin"]
 var equipped := "ronin"
 var souls := 0
@@ -102,7 +111,7 @@ func katana() -> Dictionary:
 
 ## Ce que tu portes, en kg : objets, lames, et le poids de ta bourse.
 func load_kg() -> float:
-	var kg := ryo * RYO_WEIGHT
+	var kg := ryo * RYO_WEIGHT + float(OUTFITS[outfit].kg)
 	for id in ammo:
 		kg += AMMO_WEIGHT * float(ammo[id])
 	for id in items:

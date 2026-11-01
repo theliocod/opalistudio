@@ -16,7 +16,7 @@ const SFX := {
 	"eclat": 1, "eclat-rouge": 1, "posture": 1, "tambour": 1, "fleche": 2, "impact-fleche": 2, "arc": 1,
 	"sabot": 4, "sifflet": 1, "hennissement": 1,
 }
-const MOODS := ["exploration", "ville", "infiltration", "combat", "boss"]
+const MOODS := ["exploration", "jour", "ville", "infiltration", "combat", "boss", "affrontement"]
 
 static var me: Audio
 

@@ -19,7 +19,7 @@ const ACTIONS := [
 	["objet1", "Saké"], ["objet2", "Onigiri"], ["objet3", "Thé"], ["objet4", "Encens"], ["objet5", "Bombe fumigène"], ["objet6", "Caillou"],
 	["objet7", "Fiole d'huile"], ["objet8", "Bandage"], ["objet9", "Pierre à aiguiser"], ["objet10", "Gourde"],
 	["postures", "Roue des postures (maintenir)"], ["posture1", "Posture de la Pierre"], ["posture2", "Posture de l'Eau"],
-	["posture3", "Posture du Vent"], ["posture4", "Posture de la Lune"], ["soin", "Se ressaisir (soin)"], ["arc", "Sortir ou ranger l'arc"], ["cheval", "Siffler le cheval"],
+	["posture3", "Posture du Vent"], ["posture4", "Posture de la Lune"], ["soin", "Se ressaisir (soin)"], ["arc", "Sortir ou ranger l'arc"], ["cheval", "Siffler le cheval"], ["kunai", "Lancer un kunai"],
 	["inventaire", "Inventaire"], ["carte", "Carte"], ["pause", "Menu"],
 ]
 const DEFAULTS := {

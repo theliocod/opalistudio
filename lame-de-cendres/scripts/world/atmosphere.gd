@@ -139,11 +139,11 @@ func _apply(sky_too: bool) -> void:
 	env.ambient_light_energy = lerpf(1.0, 0.9, day) + pulse * 1.5
 	# la brume prend la couleur de l'heure
 	var fog_night := Color(0.11, 0.05, 0.06)
-	var fog_day := Color(0.6, 0.62, 0.66).lerp(Color(0.82, 0.58, 0.4), golden).lerp(Color(0.45, 0.47, 0.5), rain)
+	var fog_day := Color(0.62, 0.66, 0.72).lerp(Color(0.8, 0.64, 0.5), golden).lerp(Color(0.45, 0.47, 0.5), rain)
 	env.fog_light_color = fog_night.lerp(fog_day, day)
-	env.fog_density = lerpf(0.003, 0.0016, day) + rain * 0.006
-	env.volumetric_fog_albedo = Color(0.42, 0.36, 0.4).lerp(Color(0.85, 0.78, 0.7), day)
-	env.volumetric_fog_density = lerpf(0.0045, 0.0022, day) + rain * 0.004
+	env.fog_density = lerpf(0.003, 0.0011, day) + rain * 0.006
+	env.volumetric_fog_albedo = Color(0.42, 0.36, 0.4).lerp(Color(0.8, 0.78, 0.76), day)
+	env.volumetric_fog_density = lerpf(0.0045, 0.0014, day) + rain * 0.004
 	env.adjustment_saturation = lerpf(0.92, 1.05, day) - rain * 0.2
 	if sky_too:
 		sky_mat.set_shader_parameter("sun_dir", _sun_dir)

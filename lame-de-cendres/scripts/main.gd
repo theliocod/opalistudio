@@ -14,6 +14,8 @@ var places := [
 	{"id": "akagane", "name": "Fort d'Akagane", "pos": Vector2(130, -105), "radius": 33.0},
 	{"id": "cimetiere", "name": "Cimetière des Lames", "pos": Vector2(-55, -95), "radius": 15.0},
 	{"id": "bambous", "name": "Bosquet de bambous", "pos": Vector2(40, 22), "radius": 12.0},
+	{"id": "poste_col", "name": "Poste du Col", "pos": Vector2(5, -60), "radius": 16.0},
+	{"id": "poste_gue", "name": "Poste du Gué", "pos": Vector2(182, 58), "radius": 16.0},
 ]
 var paths := [
 	[Vector2(-120, 150), Vector2(-75, 105)], [Vector2(-75, 105), Vector2(-35, 55)],
@@ -36,6 +38,8 @@ const CHEST_LOOT := {
 	"akagane_kura": {"items": {"fumigene": 2, "caillou": 4}, "ryo": 420},
 	"cimetiere": {"items": {"encens": 2, "sake": 1}, "ryo": 180},
 	"bambous": {"items": {"the": 2, "onigiri": 2}, "ryo": 30},
+	"poste_col": {"items": {"sake": 2, "huile": 2, "bandage": 2}, "ryo": 160, "tenue": "fantome"},
+	"poste_gue": {"katana": "kazekiri", "items": {"sake": 1, "huile": 1}, "ryo": 140},
 }
 const SOULS := {"ronin": 1, "chef": 3, "oni": 8, "garde": 1}
 ## Ce que coûtent les techniques, en segments de Détermination
@@ -55,6 +59,7 @@ var combat: Combat
 var archery: Archery
 var cavalier: Cavalier
 var kurosawa: CanvasLayer
+var decouvertes: Decouvertes
 var fire: FireSystem
 var weather: Weather
 var condition: Condition
@@ -174,6 +179,9 @@ func _ready() -> void:
 	kurosawa.add_child(film)
 	kurosawa.visible = false
 	add_child(kurosawa)
+	decouvertes = Decouvertes.new(self)
+	add_child(decouvertes)
+	decouvertes.build()
 	# le crépitement des feux de camp
 	var fires: Array = landmarks.fires.duplicate()
 	for p in places:
@@ -207,6 +215,7 @@ func _ready() -> void:
 	add_child(hud)
 	hud.on_use = _use_item
 	hud.on_equip = _equip
+	hud.on_wear = wear
 	hud.on_drop = _drop_owned
 	fog_image = Image.create(128, 128, false, Image.FORMAT_L8)
 	fog_texture = ImageTexture.create_from_image(fog_image)
@@ -259,7 +268,7 @@ func _inputs() -> void:
 		"rapide": [KEY_J], "lourd": [KEY_K], "pied": [KEY_F], "tournoyant": [KEY_G], "esquive": [KEY_SPACE], "garde": [KEY_SHIFT, KEY_L],
 		"action": [KEY_E], "tech1": [KEY_R], "tech2": [KEY_T], "tech3": [KEY_Q], "tech4": [KEY_V], "tech5": [KEY_X],
 		"accroupi": [KEY_C, KEY_CTRL], "inventaire": [KEY_I],
-		"postures": [KEY_TAB], "soin": [KEY_H], "arc": [KEY_B], "cheval": [KEY_N], "posture1": [KEY_F1], "posture2": [KEY_F2], "posture3": [KEY_F3], "posture4": [KEY_F4], "carte": [KEY_M], "recentrer": [KEY_C], "pause": [KEY_ESCAPE, KEY_P],
+		"postures": [KEY_TAB], "soin": [KEY_H], "arc": [KEY_B], "cheval": [KEY_N], "kunai": [KEY_U], "posture1": [KEY_F1], "posture2": [KEY_F2], "posture3": [KEY_F3], "posture4": [KEY_F4], "carte": [KEY_M], "recentrer": [KEY_C], "pause": [KEY_ESCAPE, KEY_P],
 		"objet1": [KEY_1], "objet2": [KEY_2], "objet3": [KEY_3], "objet4": [KEY_4], "objet5": [KEY_5], "objet6": [KEY_6],
 		"objet7": [KEY_7], "objet8": [KEY_8], "objet9": [KEY_9], "objet10": [KEY_0],
 	}
@@ -455,6 +464,8 @@ func _discover(p: Dictionary) -> void:
 # ---------- Les entrées ----------
 
 func _unhandled_input(ev: InputEvent) -> void:
+	if state == "qte":
+		return
 	if ev is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var sens: float = Settings.value("jeu", "sensibilite")
 		var inv := -1.0 if Settings.value("jeu", "inverser") else 1.0
@@ -529,6 +540,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 		_interact()
 	elif ev.is_action_pressed("accroupi"):
 		player.sneaking = not player.sneaking
+	elif ev.is_action_pressed("kunai"):
+		_kunai()
 	for i in 10:
 		if ev.is_action_pressed("objet%d" % (i + 1)):
 			for id in Arsenal.ITEMS:
@@ -579,6 +592,7 @@ func _physics_process(dt: float) -> void:
 			Folk.think(e, self, dt)
 	combat.step(dt)
 	archery.step(dt)
+	decouvertes.step(dt)
 	atmosphere.step(dt)
 	landmarks.set_night(atmosphere.night())
 	if not cine.busy(player):
@@ -669,6 +683,7 @@ func _process(delta: float) -> void:
 		if has_waypoint:
 			var d := Vector2(player.global_position.x, player.global_position.z).distance_to(Vector2(waypoint.x, waypoint.z))
 			marks.append({"name": "◆ %d m" % d, "pos": waypoint, "color": Hud.GOLD})
+		marks.append_array(decouvertes.markers(player.global_position))
 		hud.set_compass(cam_yaw, player.global_position, marks)
 		hud.set_sneak(player.sneaking, _watchers(), exposure)
 		hud.set_vignette(condition, player, time)
@@ -698,7 +713,8 @@ func _watchers() -> float:
 
 ## La musique suit ce qui se passe : la ville, l'infiltration, le combat, le boss.
 func _music(real: float) -> void:
-	var m := "exploration"
+	# de jour, les champs dorés ; la nuit, la vallée des cendres
+	var m := "jour" if atmosphere.day > 0.55 and weather.rain < 0.4 else "exploration"
 	if zone.get("id", "") == "hojo" and not renown.hojo_hostile():
 		m = "ville"
 	if (zone.get("id", "") == "akagane" and not renown.fort_free) or player.sneaking:
@@ -715,6 +731,8 @@ func _music(real: float) -> void:
 	var boss := _boss()
 	if (boss and boss.flat_distance(player) < 40.0) or (not duel.is_empty() and duel.phase == "fight"):
 		m = "boss"
+	if combat.active_standoff():
+		m = "affrontement"
 	audio.set_mood(m)
 
 
@@ -1038,7 +1056,7 @@ func _hit_player(att: Fighter, def: Dictionary, chest: Vector3) -> void:
 	if def.get("bash", false):
 		player.knock += att.forward() * 9.0
 	var power: float = Renown.SAMURAI[att.npc_id].power if Renown.SAMURAI.has(att.npc_id) else 1.0
-	var dmg: float = def.dmg * (1.4 if att.kind == "oni" else 1.0) * power * (0.6 if arsenal.buffs.has("encens") else 1.0)
+	var dmg: float = def.dmg * (1.4 if att.kind == "oni" else 1.0) * power * (0.6 if arsenal.buffs.has("encens") else 1.0) * (0.75 if arsenal.outfit == "clan" else 1.0)
 	if unblockable:
 		hud.callout("Imparable !", Color(1.0, 0.3, 0.23))
 		player.knock += att.forward() * 7.0
@@ -1147,7 +1165,7 @@ func _hit_enemy(def: Dictionary, target: Fighter, chest: Vector3) -> void:
 	var strong := combat.strong_vs(target)
 	if strong:
 		mult *= 1.3
-	var dmg: float = def.dmg * k.dmg * mult * condition.blade_factor() * condition.arm_factor()
+	var dmg: float = def.dmg * k.dmg * mult * condition.blade_factor() * condition.arm_factor() * (1.1 if arsenal.charms.has("hachiman") else 1.0)
 	target.hp -= dmg
 	target.posture += def.get("posture", def.dmg) * k.posture * (2.4 if strong else 1.0)
 	if def.has("knock"):
@@ -1345,6 +1363,18 @@ func _kill(f: Fighter, anim := "dying", silent := false) -> void:
 	if anim != "":
 		f.play(anim)
 	dead_ids[f.get_meta("sid", "")] = true
+	# le dernier défenseur d'un poste tombe : le poste est libéré
+	if f.place.begins_with("poste"):
+		var left := false
+		for o in enemies:
+			if o != f and o.alive and o.place == f.place:
+				left = true
+		if not left:
+			for p in places:
+				if p.id == f.place:
+					hud.banner("%s est libéré" % p.name, "Les bannières de l'Oni tombent. La vallée respire un peu mieux.")
+					_fame(15, "")
+					combat.gain(1.0)
 	Audio.sfx("chute", f.global_position, -4.0)
 	if not silent:
 		_noise(f.global_position)
@@ -1366,6 +1396,8 @@ func _kill(f: Fighter, anim := "dying", silent := false) -> void:
 		stamina = minf(100.0, stamina + 30.0)
 	if f.hostile:
 		combat.gain(0.5 if silent else 0.35)
+		if silent and arsenal.outfit == "fantome":
+			player.hp = minf(player.max_hp, player.hp + 15.0)
 		# le dernier du groupe tombe : un ralenti, le silence revient
 		var left := false
 		for o in enemies:
@@ -1381,6 +1413,9 @@ func _kill(f: Fighter, anim := "dying", silent := false) -> void:
 		hud.banner("Technique apprise", "%s%s — %s" % [t.name, " [%s]" % Settings.key_name("tech1" if id == "tourbillon" else "tech2") if t.key != "" else "", t.desc])
 		Audio.sfx("technique", null, -2.0, 0.0)
 	_fame({"ronin": 1, "chef": 8, "oni": 30, "garde": 1}.get(f.kind, 1), "")
+	# un archer abattu laisse ses flèches
+	if f.arch == "archer":
+		arsenal.ammo.fleche = mini(Arsenal.AMMO_MAX.fleche, int(arsenal.ammo.get("fleche", 0)) + 3)
 	# le butin, et des ryō
 	var drop := Arsenal.roll_loot(f.kind != "ronin" and f.kind != "garde")
 	var katana := ""
@@ -1554,6 +1589,8 @@ func _crescent(at: Vector3, dir: Vector3) -> void:
 # ---------- Le butin, les coffres, les autels ----------
 
 func _drop(at: Vector3, items: Dictionary, katana: String, ryo := 0) -> void:
+	if arsenal.charms.has("inari"):
+		ryo = int(ryo * 1.25)
 	var orb := MeshInstance3D.new()
 	var s := SphereMesh.new()
 	s.radius = 0.16 if katana == "" else 0.24
@@ -1647,6 +1684,8 @@ func _interact() -> void:
 			combat.start_standoff(target.enemy)
 		"monter":
 			cavalier.mount()
+		"decouverte":
+			decouvertes.interact(target.spot)
 		"descendre":
 			cavalier.dismount()
 		"finisher":
@@ -1671,6 +1710,10 @@ func _interact() -> void:
 			Audio.sfx("coffre", c.pos)
 			var loot: Dictionary = CHEST_LOOT.get(c.place, {"items": {"sake": 1}})
 			_gain(loot.get("items", {}), loot.get("katana", ""), loot.get("ryo", 0))
+			if loot.has("tenue") and not arsenal.outfits.has(loot.tenue):
+				arsenal.outfits.append(loot.tenue)
+				var o: Dictionary = Arsenal.OUTFITS[loot.tenue]
+				hud.banner(o.name, o.desc + "\n%s pour la revêtir." % Settings.key_name("inventaire"))
 			Fx.burst(self, c.pos + Vector3(0, 0.9, 0), 50, Hud.GOLD, 3.0, 3.0, 2.0, 1.0, 3.0)
 		"rack":
 			var r: Dictionary = target.rack
@@ -1712,6 +1755,9 @@ func _interactable() -> Dictionary:
 		return {"kind": "descendre", "text": "%s · Descendre de cheval" % key}
 	if cavalier.near_player():
 		return {"kind": "monter", "text": "%s · Monter %s" % [key, Cavalier.NAME]}
+	var found := decouvertes.interactable(player)
+	if not found.is_empty():
+		return found
 	var ready: bool = player.action.is_empty() or player.action.def.has("combo") or player.action.def.get("gesture", false)
 	if ready:
 		for e in enemies:
@@ -2257,6 +2303,59 @@ func _make_aura() -> void:
 	player.rig.sword.add_child(aura)
 
 
+## Revêtir une tenue : sa teinte sur le modèle, son poids, ses effets.
+func wear(id: String) -> void:
+	if not Arsenal.OUTFITS.has(id):
+		id = "voyageur"
+	arsenal.outfit = id
+	if player == null:
+		return
+	var c: Color = Arsenal.OUTFITS[id].tint
+	for mi in player.find_children("*", "MeshInstance3D", true, false):
+		if player.rig.sword.is_ancestor_of(mi):
+			continue
+		var m: MeshInstance3D = mi
+		for i in m.get_surface_override_material_count():
+			if not m.has_meta("base%d" % i):
+				m.set_meta("base%d" % i, m.get_active_material(i))
+			var base = m.get_meta("base%d" % i)
+			if base is StandardMaterial3D:
+				var dup: StandardMaterial3D = base.duplicate()
+				dup.albedo_color = dup.albedo_color * c
+				m.set_surface_override_material(i, dup)
+
+
+## Un kunai lancé vers l'ennemi le plus proche devant soi : il coupe l'élan d'un coup qui part.
+func _kunai() -> void:
+	if int(arsenal.ammo.get("kunai", 0)) <= 0:
+		hud.callout("Plus de kunai", Hud.MUTED)
+		return
+	var f := Vector3(sin(cam_yaw), 0, cos(cam_yaw))
+	var best: Fighter = null
+	var bs := 0.0
+	for e in enemies:
+		if not e.alive or not (e.hostile or e.aggro):
+			continue
+		var to: Vector3 = (e.global_position - player.global_position) * Vector3(1, 0, 1)
+		var d := to.length()
+		if d < 0.5 or d > 22.0 or f.dot(to / d) < 0.6:
+			continue
+		var score := f.dot(to / d) - d * 0.02
+		if score > bs:
+			bs = score
+			best = e
+	if best == null:
+		hud.callout("Aucune cible", Hud.MUTED)
+		return
+	arsenal.ammo.kunai = int(arsenal.ammo.kunai) - 1
+	var to := best.global_position - player.global_position
+	player.yaw = atan2(to.x, to.z)
+	player.play("decocher")
+	var from := player.global_position + Vector3(0, 1.4, 0) + player.forward() * 0.4
+	combat.shoot(from, best.global_position + Vector3(0, 1.3 * best.rig.body_scale, 0), player, 14.0, false, 40.0, true, true)
+	Audio.sfx("fleche", from, -6.0)
+
+
 func _equip(id: String) -> void:
 	if not id in arsenal.katanas:
 		return
@@ -2345,6 +2444,9 @@ func _apply_save(d: Dictionary) -> void:
 	arsenal.souls = int(a.get("souls", 0))
 	arsenal.learned.assign(a.get("learned", []))
 	arsenal.ryo = int(a.get("ryo", 0))
+	arsenal.charms.assign(a.get("charms", []))
+	arsenal.outfits.assign(a.get("outfits", ["voyageur"]))
+	wear(a.get("outfit", "voyageur"))
 	for k in a.get("ammo", {}):
 		arsenal.ammo[k] = int(a.ammo[k])
 	_equip(a.get("equipped", "ronin"))
@@ -2352,6 +2454,7 @@ func _apply_save(d: Dictionary) -> void:
 	combat.load_save(d.get("combat", {}))
 	atmosphere.load_save(d.get("ciel", {}))
 	cavalier.load_save(d.get("cheval", {}))
+	decouvertes.load_save(d.get("decouvertes", {}))
 	for id in d.get("discovered", []):
 		discovered[id] = true
 	if d.has("fog"):

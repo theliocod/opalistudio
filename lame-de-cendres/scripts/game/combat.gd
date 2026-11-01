@@ -350,7 +350,7 @@ func _make_glint() -> Texture2D:
 
 ## Une flèche part de from vers to. exact : elle monte juste ce qu'il faut pour
 ## atteindre to (les archers ennemis) ; sinon elle part droit et retombe (le joueur).
-func shoot(from: Vector3, to: Vector3, owner: Fighter, dmg: float, fire := false, speed := ARROW_SPEED, exact := true) -> void:
+func shoot(from: Vector3, to: Vector3, owner: Fighter, dmg: float, fire := false, speed := ARROW_SPEED, exact := true, kunai := false) -> void:
 	var d := to - from
 	var vel := d.normalized() * speed
 	if exact:
@@ -358,10 +358,10 @@ func shoot(from: Vector3, to: Vector3, owner: Fighter, dmg: float, fire := false
 		var t := flat / speed
 		vel = Vector3(d.x / maxf(t, 0.01), 0, d.z / maxf(t, 0.01))
 		vel.y = d.y / maxf(t, 0.01) + 0.5 * 9.8 * t
-	var n := _arrow_node(fire)
+	var n := _kunai_node() if kunai else _arrow_node(fire)
 	game.add_child(n)
 	n.global_position = from
-	arrows.append({"node": n, "pos": from, "vel": vel, "from": owner, "dmg": dmg, "fire": fire, "life": 6.0, "stuck": false})
+	arrows.append({"node": n, "pos": from, "vel": vel, "from": owner, "dmg": dmg, "fire": fire, "life": 6.0, "stuck": false, "kunai": kunai})
 	Audio.sfx("fleche", from, -4.0)
 
 
@@ -394,6 +394,18 @@ func _arrow_node(fire: bool) -> Node3D:
 		l.light_energy = 1.2
 		l.omni_range = 3.5
 		n.add_child(l)
+	return n
+
+
+## Un kunai : une petite lame noire à anneau.
+func _kunai_node() -> Node3D:
+	var n := Node3D.new()
+	var blade := BoxMesh.new(); blade.size = Vector3(0.01, 0.04, 0.16)
+	_mesh(n, blade, _mat(Color(0.15, 0.15, 0.17), 0.3, 0.9), Vector3(0, 0, 0.06))
+	var grip := CylinderMesh.new(); grip.top_radius = 0.008; grip.bottom_radius = 0.008; grip.height = 0.1
+	_mesh(n, grip, _mat(Color(0.3, 0.1, 0.08), 0.8), Vector3(0, 0, -0.07), Vector3(PI / 2, 0, 0))
+	var ring := TorusMesh.new(); ring.inner_radius = 0.012; ring.outer_radius = 0.02
+	_mesh(n, ring, _mat(Color(0.15, 0.15, 0.17), 0.3, 0.9), Vector3(0, 0, -0.13), Vector3(0, 0, PI / 2))
 	return n
 
 
@@ -514,7 +526,12 @@ func _arrow_hit(ar: Dictionary, f: Fighter, at: Vector3) -> void:
 	var headshot := at.y > head - 0.18 and f.kind != "oni"
 	var dmg: float = ar.dmg * (4.0 if headshot else 1.0)
 	f.hp -= dmg
-	f.posture += 18.0
+	f.posture += 35.0 if ar.get("kunai", false) else 18.0
+	# le kunai coupe l'élan d'un coup qui se prépare
+	if ar.get("kunai", false) and not f.action.is_empty() and f.action.def.has("windup") and f.kind != "oni":
+		f.action = {}
+		f.play("hit")
+		game.hud.callout("Interrompu", Hud.GOLD)
 	Blood.spray(game, at, ar.vel.normalized(), 30 if headshot else 16, 0.8)
 	Audio.sfx("chair", at, -3.0)
 	if headshot:

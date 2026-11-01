@@ -15,6 +15,9 @@ func _initialize() -> void:
 	Settings.apply(main)
 	main._start({})
 	await process_frame
+	if OS.get_environment("HOUR") != "":
+		main.atmosphere.hour = float(OS.get_environment("HOUR"))
+		main.atmosphere.mode = 0
 	var centre := func(id: String) -> Vector3:
 		for p in main.places:
 			if p.id == id:

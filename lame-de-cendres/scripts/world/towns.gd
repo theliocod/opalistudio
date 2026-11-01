@@ -36,6 +36,7 @@ func build(t: Terrain, places: Array) -> void:
 			"akagane": _akagane(c, p)
 			"cimetiere": _cimetiere(c, p)
 			"bambous": _bambous(c, p)
+			"poste_col", "poste_gue": _poste(c, p)
 
 
 # ---------- Petits éléments ----------
@@ -726,6 +727,57 @@ func _akagane(c: Vector3, p: Dictionary) -> void:
 	_folk("garde", "guard", "akagane", _at(c, -0.8, 7.2), PI / 2 + 0.6, {"post": true, "idle": "repos", "tint": red, "name": "Un soldat"})
 	_folk("ronin", "guard", "akagane", _at(c, -7.2, 10.6), -PI / 2 - 0.6, {"post": true, "idle": "guet", "tint": ash, "name": "Un rōnin"})
 	_folk("garde", "guard", "akagane", _at(c, 12.0, -1.8), PI, {"post": true, "idle": "repos", "tint": red, "name": "Un soldat"})
+
+
+# ---------- Les postes d'Akagane, à libérer ----------
+
+## Un poste avancé des gens de l'Oni : une palissade de rondins ouverte d'un
+## côté, une tour de guet et son archer, des tentes, un feu, une garnison
+## mêlée (épéistes, boucliers, lanciers, un colosse), un coffre à prendre.
+func _poste(c: Vector3, p: Dictionary) -> void:
+	var g := _group(c)
+	var red := Color(1.0, 0.55, 0.5)
+	zones.append({"id": p.id, "center": Vector2(c.x, c.z), "size": Vector2(14, 14), "kind": "fort"})
+	var pal := _chantier()
+	var corners := []
+	for i in 4:
+		var a := float(i) / 4.0 * TAU + PI / 4
+		var at := g.global_transform * Vector3(sin(a) * 13.0, 0, cos(a) * 13.0)
+		corners.append(Vector2(at.x, at.z))
+	# trois côtés fermés, le quatrième ouvert sur le chemin
+	for i in 3:
+		_palisade(pal, corners[i], corners[i + 1], 3.6)
+	pal.build(self, "Palissade du %s" % p.name)
+	var tw := _at(c, -6.5, -6.5) - c
+	_yagura(g, tw)
+	_chochin(g, tw + Vector3(1.0, 7.25, 1.0))
+	_folk("garde", "guard", "akagane", g.global_transform * (tw + Vector3(0, 6.2, 0)), 0.0, {"post": true, "lookout": true, "tint": red, "name": "Un guetteur", "place": p.id})
+	for t in [Vector3(5.5, 0, -5.0), Vector3(-6.0, 0, 4.5), Vector3(6.5, 0, 4.0)]:
+		var at := _ground(g.global_transform * t) - c
+		var tent := _roof(g, at + Vector3(0, 1.4, 0), 3.4, 4.2, 2.6, mats.toile, Vector3(0, _rng.randf() * TAU, 0))
+		var s := BoxShape3D.new(); s.size = Vector3(3.0, 2.4, 4.0)
+		var cs := _collide(s, g.global_transform * tent.transform)
+		flammables.append({"pos": tent.global_position - Vector3(0, 1.2, 0), "r": 2.1, "node": tent, "shape": cs, "kind": "tente", "burnt": false})
+	var fire_at := _ground(c) - c
+	for i in 8:
+		var a := float(i) / 8.0 * TAU
+		_box(g, fire_at + Vector3(sin(a) * 0.9, 0.15, cos(a) * 0.9), Vector3(0.35, 0.3, 0.3), mats.pierre, Vector3(0, a, 0), false)
+	_light(g, fire_at + Vector3(0, 1.0, 0), Color(1.0, 0.42, 0.14), 4.0, 12.0)
+	_fire(g, fire_at + Vector3(0, 0.3, 0))
+	fires.append(g.global_transform * fire_at)
+	for b in [Vector3(-2.5, 0, 9.0), Vector3(2.5, 0, 9.0)]:
+		_nobori(g, _ground(g.global_transform * b) - c, Color(0.6, 0.07, 0.05))
+	_chest(g, _ground(g.global_transform * Vector3(0, 0, -8.0)) - c, 0.0, p.id)
+	var archs := ["epeiste", "bouclier", "lancier", "epeiste", "brute"]
+	for i in archs.size():
+		var a := float(i) / archs.size() * TAU + 0.4
+		var at := g.global_transform * Vector3(sin(a) * 3.2, 0, cos(a) * 3.2)
+		at.y = terrain.height_at(at.x, at.z)
+		_folk("garde" if i % 2 == 0 else "ronin", "guard", "akagane", at, a + PI, {"post": true, "idle": "repos", "tint": red, "arch": archs[i], "name": "Un soldat d'Akagane", "place": p.id})
+	var ronde := [g.global_transform * Vector3(-10, 0, 10), g.global_transform * Vector3(10, 0, 10), g.global_transform * Vector3(10, 0, -10)]
+	for i in ronde.size():
+		ronde[i].y = terrain.height_at(ronde[i].x, ronde[i].z)
+	_folk("garde", "guard", "akagane", ronde[0], 0.0, {"route": ronde, "tint": red, "arch": "lancier", "name": "Une ronde", "place": p.id})
 
 
 # ---------- Le cimetière des Lames ----------
