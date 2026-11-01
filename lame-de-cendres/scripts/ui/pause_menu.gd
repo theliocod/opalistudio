@@ -178,6 +178,8 @@ func _show_settings(tab: int) -> void:
 		["case", "jeu", "sang", "Sang"],
 		["choix", "jeu", "cones", "Cônes de vision des gardes", ["Toujours", "Accroupi seulement", "Jamais"]],
 		["case", "jeu", "aide", "Aides à l'écran (touches)"],
+		["case", "jeu", "kurosawa", "Mode Kurosawa (noir et blanc, grain de pellicule)"],
+		["choix", "jeu", "temps", "Le temps qui passe", ["Le jour et la nuit", "Toujours le jour", "Toujours la nuit"]],
 	]))
 	_tabs.add_child(_page("Son", [
 		["glisse", "audio", "general", "Volume général", 0.0, 1.0, 0.05, true],

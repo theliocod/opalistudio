@@ -13,6 +13,7 @@ var leaves: CPUParticles3D
 var petals: CPUParticles3D
 var emitters: Array = []        # d'autres particules que le vent emporte (les sakuras)
 var storm := 0.0                # la pluie forcit le vent
+var guide := Vector3.ZERO       # le vent guide : il souffle vers le repère posé sur la carte
 
 
 func _ready() -> void:
@@ -54,8 +55,14 @@ func _drift(c: Color, size: Vector2, n: int) -> CPUParticles3D:
 ## focus : autour de qui voler ; blossoms : sous les sakuras de Hōjō.
 func step(dt: float, focus: Vector3, blossoms := false) -> void:
 	_t += dt
-	angle = 0.7 + _noise.get_noise_1d(_t * 0.02) * 2.2
+	var free_angle := 0.7 + _noise.get_noise_1d(_t * 0.02) * 2.2
 	var gust := clampf(0.3 + _noise.get_noise_1d(_t * 0.35 + 50.0) * 1.1 + maxf(0.0, _noise.get_noise_1d(_t * 1.3 + 9.0)) * 0.5, 0.05, 1.0)
+	if guide.length_squared() > 4.0:
+		# il se range dans la direction du but, et forcit un peu pour qu'on le voie
+		angle = lerp_angle(angle, atan2(guide.z, guide.x), minf(1.0, dt * 2.0))
+		gust = maxf(gust, 0.55)
+	else:
+		angle = lerp_angle(angle, free_angle, minf(1.0, dt * 0.5))
 	strength = lerpf(strength, clampf(gust + storm * 0.35, 0.0, 1.0), minf(1.0, dt * 1.2))
 	var dir := Vector2(cos(angle), sin(angle))
 	RenderingServer.global_shader_parameter_set("wind", Vector4(dir.x, dir.y, strength, _t))

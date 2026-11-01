@@ -116,6 +116,20 @@ horizontal board with a thick carved frame, stacked one above the other in four 
 them, seen straight on, on a plain pure white background (#FFFFFF), no shadows. Row 1: dark weathered wood, gold brush
 calligraphy 道場. Row 2: black lacquer, white calligraphy 北條. Row 3: blood red lacquer, black calligraphy 赤金.
 Row 4: black lacquer with a gold frame, gold calligraphy 月光寺. Painterly but realistic, aged, slightly cracked.` },
+  cheval: { kind: 'feuillage', size: '1:1', prompt: `A realistic Japanese samurai war horse seen exactly from the side,
+standing still and square on all four legs, the four legs clearly separated with space between them, head held up
+and facing right, dark bay coat with a glossy sheen, long black mane and black tail, a traditional black lacquered
+samurai saddle with red tassels, stirrups and a red breast strap, bridle and reins. Full body in frame, from hooves
+to ears. Photorealistic, soft even studio light. ${CUTOUT}` },
+  renard: { kind: 'feuillage', size: '1:1', prompt: `A realistic red fox seen exactly from the side, standing still on all
+four legs clearly separated, bushy tail held out behind, head up facing right, ears up, rich orange red fur with
+white chest and black socks. Full body in frame. Photorealistic, soft even studio light. ${CUTOUT}` },
+  'ciel-jour': { kind: 'pano', size: '16:9', prompt: `A very wide painted panorama of the mountains of a Japanese island in late
+afternoon golden light, in the style of a realistic matte painting: the lower third shows layered ridges of forested
+mountains, blue green near, fading into warm golden haze in the distance; above them a luminous sky going from pale
+gold and soft peach near the horizon to gentle blue at the top, with a few long soft clouds lit gold from below. No sun
+disc, no buildings, no people, no birds, no text, no frame. The left and right edges must continue each other
+seamlessly.` },
 };
 
 const args = process.argv.slice(2);

@@ -18,11 +18,13 @@ const ACTIONS := [
 	["tech1", "Tourbillon de cendres"], ["tech2", "Iai : Éclair pourpre"], ["tech3", "Retour de l'Hirondelle"], ["tech4", "Pas du Vent"], ["tech5", "Mille Pétales"],
 	["objet1", "Saké"], ["objet2", "Onigiri"], ["objet3", "Thé"], ["objet4", "Encens"], ["objet5", "Bombe fumigène"], ["objet6", "Caillou"],
 	["objet7", "Fiole d'huile"], ["objet8", "Bandage"], ["objet9", "Pierre à aiguiser"], ["objet10", "Gourde"],
+	["postures", "Roue des postures (maintenir)"], ["posture1", "Posture de la Pierre"], ["posture2", "Posture de l'Eau"],
+	["posture3", "Posture du Vent"], ["posture4", "Posture de la Lune"], ["soin", "Se ressaisir (soin)"], ["arc", "Sortir ou ranger l'arc"], ["cheval", "Siffler le cheval"],
 	["inventaire", "Inventaire"], ["carte", "Carte"], ["pause", "Menu"],
 ]
 const DEFAULTS := {
 	"affichage": {"mode": 0, "vsync": true, "fps": 0, "echelle": 1.0, "qualite": 2, "aa": 2, "fov": 58.0, "luminosite": 1.1, "herbe": 1.0},
-	"jeu": {"sensibilite": 1.0, "inverser": false, "secousses": 1.0, "sang": true, "cones": 1, "aide": true},
+	"jeu": {"sensibilite": 1.0, "inverser": false, "secousses": 1.0, "sang": true, "cones": 1, "aide": true, "kurosawa": false, "temps": 0},
 	"audio": {"general": 0.9, "musique": 0.65, "effets": 0.9, "ambiance": 0.8},
 }
 
@@ -151,8 +153,8 @@ static func apply(game) -> void:
 		env.volumetric_fog_enabled = q >= 2
 		env.glow_enabled = true
 		env.tonemap_exposure = float(value("affichage", "luminosite"))
-		game.atmosphere.moon.shadow_enabled = true
 		game.atmosphere.moon.directional_shadow_max_distance = [40.0, 70.0, 90.0, 140.0][q]
+		game.atmosphere.sun.directional_shadow_max_distance = [40.0, 70.0, 90.0, 140.0][q]
 	RenderingServer.directional_shadow_atlas_set_size([1024, 2048, 4096, 8192][q], true)
 	vp.positional_shadow_atlas_size = [1024, 2048, 4096, 8192][q]
 	if game.landmarks:
@@ -169,4 +171,8 @@ static func apply(game) -> void:
 	Blood.enabled = bool(value("jeu", "sang"))
 	if game.stealth:
 		game.stealth.show_cones = CONES[int(value("jeu", "cones"))]
+	if game.get("atmosphere"):
+		game.atmosphere.mode = int(value("jeu", "temps"))
+	if game.get("kurosawa"):
+		game.kurosawa.visible = bool(value("jeu", "kurosawa"))
 	_apply_keys()

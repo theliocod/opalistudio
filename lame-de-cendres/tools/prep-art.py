@@ -7,6 +7,7 @@ Usage : python3 tools/prep-art.py <nom> <brut> <genre>
   texture   : raccord invisible dans les deux sens → assets/kie/<nom>.jpg + <nom>-n.jpg
   colonnes  : quatre objets debout sur fond blanc → assets/kie/<nom>-0..3.png, détourés
   rangees   : quatre objets couchés, l'un au-dessus de l'autre, sur fond blanc → idem
+  pano      : un panorama qui se raccorde de gauche à droite → assets/<nom>.jpg (2560 × 1120)
 """
 import sys
 from pathlib import Path
@@ -126,6 +127,10 @@ def main():
                 out = out.transpose(Image.Transpose.ROTATE_270)
             out.thumbnail((768, 256) if kind == 'rangees' else (256, 768), Image.LANCZOS)
             out.save(OUT / f'{name}-{i}.png', optimize=True)
+    elif kind == 'pano':
+        img = img.resize((2560, 1120), Image.LANCZOS)
+        a = tile_axis(np.asarray(img, dtype=np.float32), 1)
+        Image.fromarray(np.clip(a, 0, 255).astype(np.uint8)).save(OUT.parent / f'{name}.jpg', quality=88)
     elif kind == 'feuillage':
         img = square(img).resize((1024, 1024), Image.LANCZOS)
         a = np.asarray(img, dtype=np.float32)

@@ -9,6 +9,7 @@ rythme. Koto : une corde pincée de Karplus-Strong. Taiko : une membrane qui
 descend en hauteur. Vent et feu : des boucles qui se raccordent.
 """
 import subprocess
+import sys
 import tempfile
 import wave
 from pathlib import Path
@@ -312,6 +313,89 @@ def main():
         out[at:at + len(exhale)] += exhale + rasp
         save(f'halete-{i + 1}', out, 0.45)
 
+    combat()
+    cheval()
+
+
+def combat():
+    """Les sons du combat des postures : éclats, tambour, flèches, arc."""
+    # l'éclat bleu : un tintement de lame, clair et bref, un peu de brillance
+    d = 0.9
+    ting = partials(d, 3150, [1, 1.51, 2.37, 3.1], [0.18, 0.12, 0.07, 0.05], [1, 0.55, 0.35, 0.2])
+    shimmer = biquad(noise(d), 'hp', 6000) * env(d, 0.001, 0.05) * 0.25
+    save('eclat', reverb(ting + shimmer, 1.0, 0.35, 7000), 0.7)
+    # l'éclat rouge : un grondement qui enfle, un souffle métallique, la menace
+    d = 1.0
+    t = t_axis(d)
+    growl = np.sin(2 * np.pi * np.cumsum(np.linspace(70, 140, len(t))) / SR) * env(d, 0.25, 0.4)
+    metal = partials(d, 980, [1, 1.33, 2.1], [0.4, 0.3, 0.2], [0.5, 0.3, 0.2]) * env(d, 0.08, 0.4)
+    swell = whoosh(d, 300, 1800, 1.0, 0.3, 0.3)
+    save('eclat-rouge', reverb(growl * 0.9 + metal + swell * 0.6, 1.2, 0.3), 0.75)
+    # changer de posture : un souffle et une note de cloche
+    d = 0.8
+    bell = partials(d, 880, [1, 2.0, 2.76], [0.4, 0.25, 0.15], [0.5, 0.25, 0.15])
+    save('posture', mix(whoosh(0.5, 400, 2200, 1.0, 0.06, 0.12) * 0.7, delay(bell, 0.08)), 0.6)
+    # le tambour de l'affrontement : deux coups de taiko, lourds
+    save('tambour', reverb(mix(taiko(1.4, 90, 44), delay(taiko(1.2, 80, 40) * 0.7, 0.42)), 1.8, 0.35, 2500), 0.85)
+    # la flèche qui part : la corde claque, l'air siffle
+    for i in range(2):
+        d = 0.6
+        snap = biquad(noise(0.05), 'bp', 1800 + i * 300, 2) * env(0.05, 0.0005, 0.01) * 2
+        whiz = whoosh(d, 3200 - i * 400, 900, 3.0, 0.03, 0.18) * 0.6
+        save(f'fleche-{i + 1}', mix(snap, delay(whiz, 0.02)), 0.6)
+    # la flèche qui se plante : un choc sec et sourd, une vibration
+    for i in range(2):
+        d = 0.45
+        thunk = mix(thump(0.2, 260 + i * 40, 110) * 0.8, biquad(noise(0.04), 'bp', 900, 1.5) * env(0.04, 0.0005, 0.01))
+        twang = partials(d, 190 + i * 30, [1, 2.03], [0.12, 0.08], [0.25, 0.1])
+        save(f'impact-fleche-{i + 1}', mix(thunk, twang), 0.65)
+    # l'arc qu'on bande : le bois qui craque, la corde qui se tend
+    d = 1.0
+    t = t_axis(d)
+    creak = biquad(noise(d), 'bp', 420 + 260 * t, 6) * (0.3 + 0.7 * t) * env(d, 0.3, 2.0)
+    clicks = np.zeros(len(t))
+    for k in range(9):
+        at = int(rng.uniform(0.05, 0.9) * SR)
+        c = biquad(noise(0.02), 'bp', rng.uniform(700, 1400), 4) * env(0.02, 0.0005, 0.004)
+        clicks[at:at + len(c)] += c * 0.6
+    save('arc', creak + clicks, 0.45)
+
+
+
+def cheval():
+    """Le cheval : les sabots sur la terre, le sifflement du cavalier, le hennissement."""
+    # les sabots : un choc mat de corne sur la terre, un peu de terre qui gicle
+    for i in range(4):
+        d = 0.32
+        f0 = 190 + i * 22
+        body = thump(0.22, f0 * 1.8, f0) * 0.9
+        click = biquad(noise(0.03), 'bp', 1400 + i * 160, 2.2) * env(0.03, 0.0004, 0.006) * 1.4
+        dirt = biquad(noise(d), 'bp', 2600, 0.8) * env(d, 0.002, 0.05) * 0.25
+        save(f'sabot-{i + 1}', mix(body, click, dirt), 0.7)
+    # le sifflement : deux notes qui montent, un souffle
+    d = 0.95
+    t = t_axis(d)
+    f = np.where(t < 0.35, np.interp(t, [0, 0.35], [1700, 2350]), np.interp(t, [0.35, 0.45, 0.95], [2350, 1900, 2650]))
+    gate = np.clip(np.minimum(t / 0.03, (d - t) / 0.08), 0, 1) * np.where((t > 0.33) & (t < 0.42), 0.25, 1.0)
+    tone = np.sin(2 * np.pi * np.cumsum(f) / SR) * gate
+    breath = biquad(noise(d), 'bp', f, 6) * gate * 0.25
+    save('sifflet', reverb(tone + breath, 0.8, 0.25), 0.55)
+    # le hennissement : une voix nasale qui tremble et descend, un souffle par les naseaux
+    d = 1.6
+    t = t_axis(d)
+    pitch = np.interp(t, [0, 0.12, 0.7, 1.2], [620, 980, 760, 430])
+    trem = 1.0 + 0.09 * np.sin(2 * np.pi * np.interp(t, [0, 1.2], [9, 15]) * t)
+    phase = 2 * np.pi * np.cumsum(pitch * trem) / SR
+    voice = sum(np.sin(k * phase) / k ** 0.8 for k in range(1, 9))
+    amp = np.clip(t / 0.05, 0, 1) * np.clip((1.25 - t) / 0.25, 0, 1) * (0.8 + 0.2 * np.sin(2 * np.pi * 13 * t))
+    voice = voice * amp
+    voice = biquad(voice, 'bp', 1150, 1.2) * 1.6 + biquad(voice, 'bp', 2500, 2.0) * 0.6
+    snort = biquad(noise(0.35), 'bp', 700, 1.4) * env(0.35, 0.01, 0.12)
+    save('hennissement', reverb(mix(voice, delay(snort, 1.22)), 1.4, 0.3, 3500), 0.6)
+
 
 if __name__ == '__main__':
-    main()
+    if len(sys.argv) > 1:
+        globals()[sys.argv[1]]()
+    else:
+        main()

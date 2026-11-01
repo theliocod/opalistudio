@@ -31,6 +31,14 @@ const P := {
 		"hipL": [0.3, 0, 0.2], "knL": [0.5, 0, 0]},
 	"stagger2": {"chest": [-0.4, -0.2, 0], "head": [-0.5, 0, 0], "shR": [0.2, 0, -1.0], "elR": [-0.3, 0, 0], "shL": [0.2, 0, 1.0], "hipsY": -0.25,
 		"hipL": [0.3, 0, 0.2], "knL": [0.5, 0, 0]},
+	# l'arc : le bras gauche tendu vers la cible, la corde tirée jusqu'à la joue
+	"aim": {"chest": [0, 0.9, 0], "neck": [0, -0.55, 0], "head": [0, -0.3, 0], "shL": [-1.55, -0.85, 0], "elL": [-0.05, 0, 0],
+		"shR": [-1.45, -0.35, 0.35], "elR": [-2.35, 0, 0], "wrR": [0.3, 0, 0], "hipsY": -0.05, "hipL": [-0.15, 0, 0.1], "hipR": [0.15, 0, -0.1]},
+	"aim_rel": {"chest": [0, 0.9, 0], "neck": [0, -0.55, 0], "head": [0, -0.3, 0], "shL": [-1.55, -0.85, 0], "elL": [-0.05, 0, 0],
+		"shR": [-1.1, -0.2, 0.6], "elR": [-0.9, 0, 0], "wrR": [0.2, 0, 0], "hipsY": -0.05, "hipL": [-0.15, 0, 0.1], "hipR": [0.15, 0, -0.1]},
+	# en selle : les cuisses écartées autour du cheval, les genoux pliés, le buste droit
+	"monte": {"hipsY": 0.0, "hipL": [-1.25, 0, 0.62], "knL": [1.45, 0, 0], "hipR": [-1.25, 0, -0.62], "knR": [1.45, 0, 0],
+		"spine": [0.08, 0, 0], "chest": [0.06, 0, 0]},
 	"dead": {"hipsY": -0.55, "chest": [0.6, 0, 0], "head": [0.6, 0, 0], "shR": [0.2, 0, -0.6], "shL": [0.2, 0, 0.6],
 		"hipL": [-1.4, 0, 0], "knL": [2.2, 0, 0], "hipR": [-1.3, 0, 0], "knR": [2.2, 0, 0]},
 }
@@ -94,6 +102,39 @@ static var ACTIONS := {
 		"lunge": [0.0, 1.3, 2.2], "arc": 1.6, "keys": [[0, {}], [0.07, P.wind1], [0.17, P.end1], [0.29, P.wind2], [0.39, P.end2], [0.51, P.wind3], [0.61, P.end3],
 		[0.73, P.wind1], [0.83, P.end1], [0.95, P.wind2], [1.05, P.end2], [1.18, P.windH], [1.32, P.endH], [1.55, {}]]},
 	"hirondelle": {"dur": 0.9, "projectile_at": 0.36, "keys": [[0, {}], [0.3, P.windH], [0.42, P.endH], [0.9, {}]]},
+	# Les postures du joueur : chaque posture a ses enchaînements et son coup lourd
+	"eau_flot": {"dur": 0.5, "active": [0.12, 0.27], "combo": 0.27, "dmg": 16, "posture": 20, "cost": 10, "arc": 2.4, "lunge": [0.04, 0.22, 4.0],
+		"keys": [[0, P.end2], [0.1, P.wind3], [0.27, P.end3], [0.5, {}]]},
+	"eau_lourd": {"dur": 0.95, "multi": [[0.1, 0.18], [0.3, 0.38], [0.52, 0.62]], "dmg": 15, "posture": 34, "cost": 26, "heavy": true, "breaker": true,
+		"lunge": [0.0, 0.62, 3.0], "arc": 1.6, "keys": [[0, {}], [0.08, P.wind1], [0.18, P.end1], [0.28, P.wind2], [0.38, P.end2], [0.5, P.wind3], [0.62, P.end3], [0.95, {}]]},
+	"vent_pied": {"clip": "pied-direct", "from": 0.45, "to": 1.85, "speed": 1.6, "active": [0.33, 0.62], "dmg": 8, "posture": 34, "kick": true, "push": 14.0,
+		"cost": 10, "lunge": [0.2, 0.42, 3.5], "combo": 0.62},
+	"vent_lourd": {"dur": 0.85, "active": [0.3, 0.45], "combo": 0.7, "dmg": 30, "posture": 60, "cost": 26, "heavy": true, "lunge": [0.18, 0.42, 13.0],
+		"arc": 1.0, "reach": 3.0, "keys": [[0, {}], [0.26, P.windT], [0.45, P.endT], [0.85, {}]]},
+	"lune1": {"dur": 0.6, "active": [0.18, 0.32], "combo": 0.34, "dmg": 22, "posture": 26, "cost": 14, "arc": 2.3, "knock": 5.0, "lunge": [0.1, 0.28, 3.0],
+		"keys": [[0, {}], [0.16, P.wind3], [0.32, P.end3], [0.6, {}]]},
+	"lune2": {"dur": 0.62, "active": [0.18, 0.33], "combo": 0.35, "dmg": 22, "posture": 26, "cost": 14, "arc": 2.3, "knock": 5.0, "lunge": [0.1, 0.28, 3.0],
+		"keys": [[0, P.end3], [0.16, P.wind2], [0.33, P.end2], [0.62, {}]]},
+	"lune3": {"dur": 0.8, "active": [0.28, 0.44], "combo": 0.6, "dmg": 30, "posture": 40, "cost": 18, "arc": 2.6, "knock": 8.0, "heavy": true,
+		"lunge": [0.2, 0.4, 5.0], "keys": [[0, P.end2], [0.24, P.windH], [0.44, P.endH], [0.8, {}]]},
+	"lune_lourd": {"clip": "tourbillon", "from": 0.45, "to": 2.0, "speed": 1.15, "active": [0.4, 0.8], "dmg": 36, "posture": 70, "arc": 3.2, "reach": 3.0,
+		"cost": 30, "heavy": true, "knock": 9.0},
+	# Les armes des ennemis : la lance porte loin, le colosse écrase, le bouclier pousse.
+	# unblockable : un éclair rouge, ni la garde ni la parade ne l'arrêtent, il faut esquiver
+	"yari_pique": {"dur": 1.3, "windup": 0.62, "active": [0.64, 0.8], "dmg": 22, "lunge": [0.58, 0.8, 9], "arc": 0.6, "reach": 3.5,
+		"keys": [[0, {}], [0.58, P.windT], [0.8, P.endT], [1.3, {}]]},
+	"yari_fauche": {"dur": 1.55, "windup": 0.85, "active": [0.86, 1.04], "dmg": 30, "arc": 2.6, "reach": 3.3, "unblockable": true,
+		"keys": [[0, {}], [0.82, P.wind3], [1.04, P.end3], [1.55, {}]]},
+	"brute_ecrase": {"dur": 1.8, "windup": 1.05, "active": [1.06, 1.2], "dmg": 44, "heavy": true, "unblockable": true, "lunge": [0.95, 1.15, 5], "reach": 2.9,
+		"keys": [[0, {}], [1.0, P.windH], [1.2, P.endH], [1.8, {}]]},
+	"brute_balaye": {"dur": 1.45, "windup": 0.78, "active": [0.8, 0.98], "dmg": 30, "heavy": true, "arc": 2.5, "reach": 2.9,
+		"keys": [[0, {}], [0.76, P.wind3], [0.98, P.end3], [1.45, {}]]},
+	"bouclier_coup": {"dur": 0.95, "windup": 0.46, "active": [0.48, 0.6], "dmg": 9, "bash": true, "reach": 1.9, "lunge": [0.4, 0.6, 7],
+		"keys": [[0, {}], [0.44, P.parry], [0.6, P.endT], [0.95, {}]]},
+	"tir": {"dur": 1.75, "windup": 1.25, "shoot_at": 1.3, "ranged": true, "keys": [[0, {}], [0.45, P.aim], [1.3, P.aim], [1.42, P.aim_rel], [1.75, {}]]},
+	# l'arc du joueur : bander (tenu), décocher
+	"bander": {"dur": 0.5, "hold": true, "keys": [[0, {}], [0.4, P.aim], [0.5, P.aim]]},
+	"decocher": {"dur": 0.38, "combo": 0.18, "keys": [[0, P.aim], [0.06, P.aim_rel], [0.38, P.aim_rel]]},
 	# l'exécution du dégainé : on traverse, on s'arrête, on rengaine lentement
 	"iai_exec": {"dur": 2.6, "lunge": [0.08, 0.3, 24], "iframes": [0.0, 2.6], "keys": [
 		[0, {}], [0.07, P.windT], [0.3, P.end1], [0.9, P.end1],
@@ -180,6 +221,8 @@ var yielded := false
 var fear_t := 0.0
 var parry_chance := 0.0
 var action_speed := 1.0        # les coups du joueur, plus vifs avec Kazekiri
+var arch := ""                  # épéiste, bouclier, lancier, brute, archer : sa façon de se battre
+var mounted := false            # en selle : les jambes enserrent le cheval
 
 
 static func load_clips() -> void:
@@ -456,6 +499,10 @@ func _loco(dt: float, time: float) -> Dictionary:
 	if blocking:
 		for j in ["chest", "shR", "elR", "wrR", "shL", "elL"]:
 			body[j] = eq(P.parry[j])
+	if mounted:
+		for j in ["hipL", "knL", "hipR", "knR", "spine"]:
+			body[j] = eq(P.monte[j])
+		body.hipsY = 0.0
 	return body
 
 
@@ -624,12 +671,16 @@ func fight(player: Fighter, others: Array, dt: float, token: Dictionary, watch :
 		speed *= 0.85
 		return
 
+	if arch == "archer" and _archer(player, dt, token, d):
+		return
 	var reach := 2.2 * rig.body_scale
+	if arch == "lancier":
+		reach = 3.0
 	turn_towards(player.global_position, 5.0, dt)
 	var mv := Vector3.ZERO
 	var to_p := (player.global_position - global_position) * Vector3(1, 0, 1)
 	if d > reach + 0.4:
-		mv = to_p.normalized() * (2.4 if kind == "oni" else 2.9)
+		mv = to_p.normalized() * (2.4 if kind == "oni" else 2.0 if arch == "brute" else 2.9)
 	else:
 		# il tourne autour de sa proie en attendant son tour
 		var f := forward()
@@ -658,8 +709,42 @@ func fight(player: Fighter, others: Array, dt: float, token: Dictionary, watch :
 		if kind == "oni":
 			play("smash" if randf() < 0.45 else "slash")
 			combo = randf() < 0.6
+		elif arch == "lancier":
+			play("yari_fauche" if randf() < 0.3 else "yari_pique")
+		elif arch == "brute":
+			play("brute_ecrase" if randf() < 0.4 else "brute_balaye")
+			cd = 1.2
+		elif arch == "bouclier":
+			play("bouclier_coup" if d < 2.2 and randf() < 0.55 else "slash")
 		else:
 			play("thrust" if d > reach - 0.1 and randf() < 0.6 else "slash")
 			if kind == "chef":
 				combo = randf() < 0.45
 		cd = (1.4 if kind in ["oni", "chef"] else 1.8) + randf() * 1.6
+
+
+## L'archer garde ses distances : il recule si on l'approche, tire de loin,
+## et ne tire l'épée qu'au corps à corps. Vrai s'il a décidé de cette image.
+func _archer(player: Fighter, dt: float, token: Dictionary, d: float) -> bool:
+	if d < 2.6:
+		return false
+	turn_towards(player.global_position, 4.0, dt)
+	if not action.is_empty():
+		speed *= 0.85
+		return true
+	var to_p := (player.global_position - global_position) * Vector3(1, 0, 1)
+	var f := to_p.normalized()
+	var mv := Vector3.ZERO
+	if d < 8.0:
+		mv = -f * 2.6
+	elif d > 20.0:
+		mv = f * 2.6
+	else:
+		mv = Vector3(f.z, 0, -f.x) * side * 0.9
+	move = mv
+	speed = mv.length()
+	if cd <= 0.0 and d > 4.0 and d < 28.0:
+		play("tir")
+		cd = 2.4 + randf() * 2.2
+	return true
+

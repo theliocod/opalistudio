@@ -38,6 +38,8 @@ const CHEST_LOOT := {
 	"bambous": {"items": {"the": 2, "onigiri": 2}, "ryo": 30},
 }
 const SOULS := {"ronin": 1, "chef": 3, "oni": 8, "garde": 1}
+## Ce que coûtent les techniques, en segments de Détermination
+const TECH_RESOLVE := {"tourbillon": 1.0, "iai": 1.0, "hirondelle": 1.0, "pas_vent": 1.0, "petales": 2.0}
 const RYO := {"ronin": [6, 18], "chef": [90, 140], "oni": [400, 500], "garde": [10, 25]}
 
 var terrain: Terrain
@@ -49,6 +51,10 @@ var audio: Audio
 var wind: Wind
 var stealth: Stealth
 var cine: Cinematics
+var combat: Combat
+var archery: Archery
+var cavalier: Cavalier
+var kurosawa: CanvasLayer
 var fire: FireSystem
 var weather: Weather
 var condition: Condition
@@ -150,6 +156,24 @@ func _ready() -> void:
 	cine = Cinematics.new()
 	cine.game = self
 	add_child(cine)
+	combat = Combat.new(self)
+	add_child(combat)
+	archery = Archery.new(self)
+	add_child(archery)
+	cavalier = Cavalier.new(self)
+	add_child(cavalier)
+	# le mode Kurosawa : un filtre noir et blanc posé sur l'image du monde
+	kurosawa = CanvasLayer.new()
+	kurosawa.layer = 0
+	var film := ColorRect.new()
+	film.set_anchors_preset(Control.PRESET_FULL_RECT)
+	film.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var fm := ShaderMaterial.new()
+	fm.shader = load("res://scripts/ui/kurosawa.gdshader")
+	film.material = fm
+	kurosawa.add_child(film)
+	kurosawa.visible = false
+	add_child(kurosawa)
 	# le crépitement des feux de camp
 	var fires: Array = landmarks.fires.duplicate()
 	for p in places:
@@ -234,7 +258,8 @@ func _inputs() -> void:
 		"avant": [KEY_W, KEY_UP], "arriere": [KEY_S, KEY_DOWN], "gauche": [KEY_A, KEY_LEFT], "droite": [KEY_D, KEY_RIGHT],
 		"rapide": [KEY_J], "lourd": [KEY_K], "pied": [KEY_F], "tournoyant": [KEY_G], "esquive": [KEY_SPACE], "garde": [KEY_SHIFT, KEY_L],
 		"action": [KEY_E], "tech1": [KEY_R], "tech2": [KEY_T], "tech3": [KEY_Q], "tech4": [KEY_V], "tech5": [KEY_X],
-		"accroupi": [KEY_C, KEY_CTRL], "inventaire": [KEY_TAB, KEY_I], "carte": [KEY_M], "recentrer": [KEY_C], "pause": [KEY_ESCAPE, KEY_P],
+		"accroupi": [KEY_C, KEY_CTRL], "inventaire": [KEY_I],
+		"postures": [KEY_TAB], "soin": [KEY_H], "arc": [KEY_B], "cheval": [KEY_N], "posture1": [KEY_F1], "posture2": [KEY_F2], "posture3": [KEY_F3], "posture4": [KEY_F4], "carte": [KEY_M], "recentrer": [KEY_C], "pause": [KEY_ESCAPE, KEY_P],
 		"objet1": [KEY_1], "objet2": [KEY_2], "objet3": [KEY_3], "objet4": [KEY_4], "objet5": [KEY_5], "objet6": [KEY_6],
 		"objet7": [KEY_7], "objet8": [KEY_8], "objet9": [KEY_9], "objet10": [KEY_0],
 	}
@@ -282,6 +307,10 @@ func _start(save: Dictionary) -> void:
 		i += 1
 	_make_aura()
 	_equip("ronin")
+	if cavalier.horse == null:
+		cavalier.spawn(respawn + Vector3(4.0, 0, 3.0), PI * 0.8)
+	elif cavalier.mounted:
+		cavalier.dismount()
 	if not save.is_empty():
 		_apply_save(save)
 	_cam_pos = player.global_position + Vector3(0, 3, 6)
@@ -330,6 +359,7 @@ func _spawn(d: Dictionary, sid: String) -> Fighter:
 	if tint != Color(1, 1, 1):
 		e.tint.call_deferred(tint)
 	e.set_meta("sid", sid)
+	combat.assign(e, "archer" if d.get("lookout", false) else d.get("arch", ""))
 	enemies.append(e)
 	return e
 
@@ -470,6 +500,8 @@ func _unhandled_input(ev: InputEvent) -> void:
 			Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	if state != "play" or not player.alive or cine.active():
 		return
+	if archery.active and (ev.is_action("rapide") or ev.is_action("lourd")):
+		return
 	if ev.is_action_pressed("rapide"):
 		_buffer("light", 0.3)
 	elif ev.is_action_pressed("lourd"):
@@ -534,20 +566,28 @@ func _physics_process(dt: float) -> void:
 	for e in enemies:
 		if cine.busy(e) or e.is_doing(["executed", "assassine"]):
 			continue
-		# pendant une mise à mort, le temps se suspend pour les autres
-		if cine.active() and e.hostile:
+		# pendant une mise à mort ou un affrontement, le temps se suspend pour les autres
+		if (cine.active() or combat.active_standoff()) and e.hostile and e != combat.standoff.get("foe"):
 			e.move = Vector3.ZERO
 			e.speed *= 0.8
+			continue
+		if combat.active_standoff() and e == combat.standoff.get("foe"):
 			continue
 		if e.role == "enemy":
 			e.think(player, enemies, dt, token)
 		elif e.global_position.distance_to(near_folk) < 110.0:
 			Folk.think(e, self, dt)
+	combat.step(dt)
+	archery.step(dt)
+	atmosphere.step(dt)
+	landmarks.set_night(atmosphere.night())
 	if not cine.busy(player):
 		player.step(dt, time)
 	else:
 		player.step(dt, time)
-	player.physics_move(dt)
+	if not cavalier.mounted:
+		player.physics_move(dt)
+	cavalier.step(dt)
 	for e in enemies:
 		if player.global_position.distance_to(e.global_position) < 90.0 or e.aggro:
 			e.step(dt, time)
@@ -561,7 +601,8 @@ func _physics_process(dt: float) -> void:
 	fire.step(dt)
 	condition.step(dt)
 	var chest := player.global_position + Vector3(0, 1.0, 0)
-	exposure = maxf(landmarks.light_at(chest), fire.light_at(chest))
+	# en plein jour, on est vu de loin ; la nuit, l'ombre protège
+	exposure = maxf(maxf(landmarks.light_at(chest), fire.light_at(chest)), atmosphere.day * (0.75 - weather.rain * 0.3))
 	_strike_lamps()
 
 	# les coups qui partent cherchent leur cible
@@ -597,6 +638,7 @@ func _process(delta: float) -> void:
 		Engine.time_scale = 1.0
 	shake = maxf(0.0, shake - real * 1.6)
 	hud.tick(real)
+	combat.show_ui(state == "play" and hud.play_ui.visible and player != null)
 	_bark_tick(real)
 	if player == null:
 		_title_camera(real)
@@ -606,6 +648,7 @@ func _process(delta: float) -> void:
 	vegetation.follow(player.global_position)
 	landmarks.focus = player.global_position
 	wind.storm = weather.rain
+	wind.guide = (waypoint - player.global_position) * Vector3(1, 0, 1) if has_waypoint else Vector3.ZERO
 	wind.step(real, player.global_position, zone.get("id", "") == "hojo")
 	Blood.tint_blade(player.rig, real)
 	_music(real)
@@ -686,11 +729,17 @@ func _control(dt: float) -> void:
 		player.move = Vector3.ZERO
 		player.speed *= 0.8
 		return
+	if combat.active_standoff() or cavalier.mounted:
+		player.move = Vector3.ZERO
+		player.speed *= 0.8
+		return
 	var f := Vector3(sin(cam_yaw), 0, cos(cam_yaw))
 	var r := Vector3(-f.z, 0, f.x)
 	var mv := f * Input.get_axis("arriere", "avant") + r * Input.get_axis("gauche", "droite")
 	if mv.length_squared() > 1.0:
 		mv = mv.normalized()
+	if combat.wheel_open():
+		mv = Vector3.ZERO
 
 	var a := player.action
 	var busy: bool = not a.is_empty() and a.name in ["hit", "stagger", "die", "finisher", "roulade", "pas_vent", "assassinat", "iai_exec"]
@@ -703,6 +752,11 @@ func _control(dt: float) -> void:
 	if buffer in techs and not arsenal.knows(buffer):
 		if buffer != "":
 			hud.callout("Technique inconnue", Hud.MUTED)
+		buffer = ""
+		wants_blade = false
+	# les techniques se paient en Détermination
+	if buffer in techs and combat.resolve < TECH_RESOLVE.get(buffer, 1.0):
+		hud.callout("Pas assez de Détermination", Hud.MUTED)
 		buffer = ""
 		wants_blade = false
 	if wants_blade and player.sneaking:
@@ -737,7 +791,8 @@ func _control(dt: float) -> void:
 		_face_nearest(6.0 if buffer != "hirondelle" else 18.0, mv)
 		player.play(buffer)
 		player.action.start = player.global_position
-		_spend(Arsenal.TECHNIQUES[buffer].cost)
+		combat.spend(TECH_RESOLVE.get(buffer, 1.0))
+		_spend(0.0)
 		Audio.sfx("technique" if buffer in ["pas_vent", "hirondelle"] else "tourbillon", player.global_position, -8.0)
 		combo_step = 0
 	elif not busy and free and buffer in ["kick", "frontkick"] and stamina > 0.0:
@@ -754,10 +809,11 @@ func _control(dt: float) -> void:
 		if buffer == "light":
 			if time - last_light > 0.8:
 				combo_step = 0
-			name = ["light1", "light2", "light3"][combo_step]
-			combo_step = (combo_step + 1) % 3
+			name = combat.light_move(combo_step)
+			combo_step = (combo_step + 1) % combat.chain_length()
 			last_light = time
 		else:
+			name = combat.heavy_move()
 			combo_step = 0
 		_face_nearest(5.5, mv)
 		player.play(name)
@@ -775,10 +831,12 @@ func _control(dt: float) -> void:
 	player.action_speed = arsenal.katana().get("speed", 1.0 + (1.2 - arsenal.katana().get("weight", 1.2)) * 0.12) * lerpf(1.0, condition.arm_factor(), 0.75)
 	_sheath_logic(dt)
 	if player.action.is_empty() or player.action.def.get("gesture", false):
-		var spd: float = (1.8 if player.blocking else (2.3 if player.sneaking else 5.4)) * condition.speed_factor()
+		var spd: float = (1.8 if player.blocking or archery.aiming else (2.3 if player.sneaking else 5.4)) * condition.speed_factor()
 		player.move = mv * spd
 		player.speed = mv.length() * spd
-		if player.blocking:
+		if archery.aiming:
+			player.yaw = cam_yaw
+		elif player.blocking:
 			var near := _nearest(8.0)
 			if near:
 				player.turn_towards(near.global_position, 10.0, dt)
@@ -931,29 +989,60 @@ func _hit_player(att: Fighter, def: Dictionary, chest: Vector3) -> void:
 	if cine.active():
 		return
 	if _invulnerable():
-		hud.callout("Esquive", Hud.MUTED)
+		# l'esquive parfaite : on s'est jeté de côté au tout dernier instant
+		var a := player.action
+		if a.get("name", "") in ["dodge", "roulade"] and a.t < 0.24:
+			slowmo = 0.7
+			combat.counter_t = 1.4
+			combat.gain(0.25)
+			Fx.burst(self, player.global_position + Vector3(0, 1.0, 0), 30, Color(0.7, 0.85, 1.0), 4.0, 1.5, 0.0, 0.4, 3.0)
+			hud.callout("Esquive parfaite", Color(0.7, 0.85, 1.0))
+		else:
+			hud.callout("Esquive", Hud.MUTED)
 		return
 	var facing := player.angle_to(att.global_position) < 1.4
 	var window := (0.3 if arsenal.knows("garde") else 0.22) + (0.06 if arsenal.knows("oeil") else 0.0)
-	# la parade : la garde levée juste avant l'impact
-	if facing and block_press_t < window:
-		att.play("stagger")
-		att.posture = 0.0
-		Fx.burst(self, chest.lerp(att.global_position + Vector3(0, 1.4, 0), 0.5), 70, Color(1.0, 0.82, 0.48), 9.0, 3.0, 14.0, 0.45, 5.0)
-		Audio.sfx("parade", chest, 2.0)
-		hitstop = 0.11
-		slowmo = 0.8 if arsenal.knows("oeil") else 0.45
-		shake = 0.35 * _shake_scale()
+	var unblockable: bool = def.get("unblockable", false)
+	# la parade : la garde levée juste avant l'impact (un coup à l'éclair rouge ne se pare pas)
+	if facing and block_press_t < window and not unblockable:
+		var perfect := block_press_t < Combat.PERFECT + (0.04 if arsenal.knows("oeil") else 0.0)
+		Fx.burst(self, chest.lerp(att.global_position + Vector3(0, 1.4, 0), 0.5), 110 if perfect else 60, Color(1.0, 0.82, 0.48), 9.0, 3.0, 14.0, 0.45, 5.0)
+		Audio.sfx("parade", chest, 3.0 if perfect else 0.0)
+		shake = (0.4 if perfect else 0.25) * _shake_scale()
 		stamina = minf(100.0, stamina + 20.0)
+		if perfect:
+			# la parade parfaite : il chancelle, le temps se suspend, la riposte est ouverte
+			att.play("stagger")
+			att.posture = 0.0
+			hitstop = 0.14
+			slowmo = 0.9
+			combat.counter_t = 1.6
+			combat.gain(0.4)
+			Audio.sfx("eclat", chest, 0.0, 0.0)
+			hud.callout("Parade parfaite", Hud.GOLD)
+		else:
+			att.posture += 40.0
+			if att.posture >= att.max_posture:
+				att.posture = 0.0
+				att.play("stagger")
+			else:
+				att.play("hit")
+			hitstop = 0.08
+			slowmo = 0.3
+			hud.callout("Parade", Hud.GOLD)
 		if arsenal.knows("garde"):
 			player.hp = minf(player.max_hp, player.hp + 5.0)
 		if arsenal.knows("oeil"):
 			parry_bonus = 1.6
-		hud.callout("Parade", Hud.GOLD)
 		return
+	if def.get("bash", false):
+		player.knock += att.forward() * 9.0
 	var power: float = Renown.SAMURAI[att.npc_id].power if Renown.SAMURAI.has(att.npc_id) else 1.0
 	var dmg: float = def.dmg * (1.4 if att.kind == "oni" else 1.0) * power * (0.6 if arsenal.buffs.has("encens") else 1.0)
-	if facing and player.blocking and stamina > 0.0:
+	if unblockable:
+		hud.callout("Imparable !", Color(1.0, 0.3, 0.23))
+		player.knock += att.forward() * 7.0
+	if facing and player.blocking and stamina > 0.0 and not unblockable:
 		var rock: bool = arsenal.katana().effect == "rock"
 		stamina -= (45.0 if def.get("heavy", false) else 22.0) * (0.6 if rock else 1.0)
 		stamina_wait = 0.8
@@ -971,7 +1060,7 @@ func _hit_player(att: Fighter, def: Dictionary, chest: Vector3) -> void:
 			player.hp -= dmg * 0.1
 	else:
 		player.hp -= dmg
-		player.play("hit")
+		player.play("stagger" if unblockable else "hit")
 		condition.wound(dmg)
 		player.sneaking = false
 		Fx.burst(self, chest, 40, Color(0.6, 0.04, 0.07), 5.0, 2.0, 10.0, 0.7, 2.2)
@@ -1029,7 +1118,24 @@ func _hit_enemy(def: Dictionary, target: Fighter, chest: Vector3) -> void:
 			target.play("hit")
 		return
 
-	var riposte := staggered
+	# le porte-bouclier arrête les coups de face, sauf en posture de l'Eau ou d'un coup qui brise la garde
+	if target.arch == "bouclier" and not staggered and not target.striking() and target.angle_to(player.global_position) < 1.2 \
+			and not (combat.stance == "eau" and def.get("heavy", false)) and not def.get("breaker", false) and combat.counter_t <= 0.0:
+		target.posture += def.get("posture", def.dmg) * (0.9 if combat.stance == "eau" else 0.35)
+		Fx.burst(self, chest + player.forward() * -0.3, 24, Color(1.0, 0.8, 0.45), 6.0, 2.0, 12.0, 0.3, 4.0)
+		Audio.sfx("garde", chest, -2.0)
+		hitstop = 0.05
+		player.knock -= player.forward() * 3.0
+		if target.posture >= target.max_posture:
+			target.posture = 0.0
+			target.play("stagger")
+			hud.callout("Bouclier brisé", Hud.GOLD)
+		else:
+			hud.callout("Bouclier", Hud.MUTED)
+		return
+	var riposte := staggered or combat.counter_t > 0.0
+	if combat.counter_t > 0.0 and not staggered:
+		combat.counter_t = 0.0
 	var unaware := not target.aggro and target.hostile and target.alert != "alerte"
 	var mult: float = (3.5 if k.effect == "void" else 2.6) if riposte else 1.0
 	if k.effect == "shadow" and unaware:
@@ -1038,9 +1144,14 @@ func _hit_enemy(def: Dictionary, target: Fighter, chest: Vector3) -> void:
 		mult *= 2.0
 		parry_bonus = 0.0
 		hud.callout("L'Œil unique", Hud.GOLD)
+	var strong := combat.strong_vs(target)
+	if strong:
+		mult *= 1.3
 	var dmg: float = def.dmg * k.dmg * mult * condition.blade_factor() * condition.arm_factor()
 	target.hp -= dmg
-	target.posture += def.get("posture", def.dmg) * k.posture
+	target.posture += def.get("posture", def.dmg) * k.posture * (2.4 if strong else 1.0)
+	if def.has("knock"):
+		target.knock += away * float(def.knock) / target.rig.body_scale
 	var aura_c: Color = k.aura if k.aura != null else Color(1.0, 0.88, 0.7)
 	Fx.burst(self, chest, 90 if riposte else 34, Color(0.6, 0.04, 0.07), 8.0 if riposte else 5.0, 2.0, 10.0, 0.8, 2.4)
 	Fx.burst(self, chest, 16, aura_c, 7.0, 1.0, 14.0, 0.25, 4.0)
@@ -1090,7 +1201,8 @@ func _hit_enemy(def: Dictionary, target: Fighter, chest: Vector3) -> void:
 				break
 	if _enemy_dead(target):
 		return
-	var super_armor := target.striking()
+	# le colosse ne bronche pas sous les petits coups, sauf face à la posture de la Lune
+	var super_armor: bool = target.striking() or (target.arch == "brute" and not def.get("heavy", false) and not strong)
 	if target.posture >= target.max_posture:
 		target.posture = 0.0
 		target.play("stagger")
@@ -1252,6 +1364,16 @@ func _kill(f: Fighter, anim := "dying", silent := false) -> void:
 	if arsenal.katana().effect == "honor":
 		player.hp = minf(player.max_hp, player.hp + 12.0)
 		stamina = minf(100.0, stamina + 30.0)
+	if f.hostile:
+		combat.gain(0.5 if silent else 0.35)
+		# le dernier du groupe tombe : un ralenti, le silence revient
+		var left := false
+		for o in enemies:
+			if o != f and o.alive and o.hostile and o.aggro and o.global_position.distance_to(f.global_position) < 26.0:
+				left = true
+		if not left and not silent and not combat.active_standoff():
+			slowmo = maxf(slowmo, 1.1)
+			shake = maxf(shake, 0.2)
 	# les âmes, et peut-être une technique
 	var fresh := arsenal.add_souls(SOULS.get(f.kind, 1))
 	for id in fresh:
@@ -1516,8 +1638,17 @@ func _interact() -> void:
 		return
 	match target.kind:
 		"assassinat":
+			if combat.chain_t > 0.0:
+				combat.chain_t = 0.0
+				Fx.burst(self, player.global_position + Vector3(0, 1.0, 0), 40, Color(0.2, 0.2, 0.25), 6.0, 1.5, 0.0, 0.5, 1.5)
 			cine.assassinate(target.enemy)
 			Audio.sfx("lame", player.global_position, -10.0)
+		"standoff":
+			combat.start_standoff(target.enemy)
+		"monter":
+			cavalier.mount()
+		"descendre":
+			cavalier.dismount()
 		"finisher":
 			cine.execute(target.enemy)
 		"talk":
@@ -1577,6 +1708,10 @@ func _interact() -> void:
 ## Ce qui est à portée de la touche d'action, le plus important d'abord.
 func _interactable() -> Dictionary:
 	var key := Settings.key_name("action")
+	if cavalier.mounted:
+		return {"kind": "descendre", "text": "%s · Descendre de cheval" % key}
+	if cavalier.near_player():
+		return {"kind": "monter", "text": "%s · Monter %s" % [key, Cavalier.NAME]}
 	var ready: bool = player.action.is_empty() or player.action.def.has("combo") or player.action.def.get("gesture", false)
 	if ready:
 		for e in enemies:
@@ -1587,11 +1722,16 @@ func _interactable() -> Dictionary:
 			if not e.alive or not e.hostile or e.duel or e.kind == "oni" or e.npc_id == "gonryu" or e.alert == "alerte" or e.aggro:
 				continue
 			var d: float = e.flat_distance(player)
-			if d > 2.1:
+			# juste après un assassinat, le suivant peut être un peu plus loin
+			if d > (7.0 if combat.chain_t > 0.0 else 2.1):
 				continue
 			var behind: float = e.forward().angle_to((player.global_position - e.global_position) * Vector3(1, 0, 1))
-			if behind > 1.9 or (player.sneaking and behind > 1.3):
-				return {"kind": "assassinat", "enemy": e, "text": "%s · Assassiner" % key}
+			if combat.chain_t > 0.0 or behind > 1.9 or (player.sneaking and behind > 1.3):
+				return {"kind": "assassinat", "enemy": e, "text": "%s · %s" % [key, "Assassinat en chaîne" if combat.chain_t > 0.0 else "Assassiner"]}
+	if ready and not player.sneaking:
+		var foe := combat.standoff_target()
+		if foe:
+			return {"kind": "standoff", "enemy": foe, "text": "%s · Défier en affrontement" % key}
 	for c in landmarks.cages:
 		if not c.open and player.global_position.distance_to(c.pos) < 2.6:
 			return {"kind": "cage", "cage": c, "text": "%s · Briser la cage" % key}
@@ -2205,8 +2345,13 @@ func _apply_save(d: Dictionary) -> void:
 	arsenal.souls = int(a.get("souls", 0))
 	arsenal.learned.assign(a.get("learned", []))
 	arsenal.ryo = int(a.get("ryo", 0))
+	for k in a.get("ammo", {}):
+		arsenal.ammo[k] = int(a.ammo[k])
 	_equip(a.get("equipped", "ronin"))
 	renown.from_dict(d.get("renown", {}))
+	combat.load_save(d.get("combat", {}))
+	atmosphere.load_save(d.get("ciel", {}))
+	cavalier.load_save(d.get("cheval", {}))
 	for id in d.get("discovered", []):
 		discovered[id] = true
 	if d.has("fog"):
@@ -2249,6 +2394,10 @@ func _apply_save(d: Dictionary) -> void:
 func _camera(real: float) -> void:
 	if cine.camera(real):
 		return
+	if combat.camera(real):
+		return
+	if archery.camera(real):
+		return
 	if state == "talk" and is_instance_valid(talking_to):
 		# le dialogue : par-dessus l'épaule, sur le visage de celui qui parle
 		var n := talking_to
@@ -2267,9 +2416,9 @@ func _camera(real: float) -> void:
 		camera.global_position = _cam_pos
 		camera.look_at(_cam_look)
 		return
-	var dist := 5.4 if not player.sneaking else 4.4
+	var dist := 7.6 if cavalier.mounted else (5.4 if not player.sneaking else 4.4)
 	var f := Vector3(sin(cam_yaw), 0, cos(cam_yaw))
-	var target := player.global_position + Vector3(0, 1.4 if not player.sneaking else 1.05, 0)
+	var target := player.global_position + Vector3(0, 1.75 if cavalier.mounted else (1.4 if not player.sneaking else 1.05), 0)
 	var want := player.global_position - f * dist * cos(cam_pitch) + Vector3(0, 1.5 + dist * sin(cam_pitch), 0)
 	# la caméra ne traverse ni le sol ni les murs
 	var space := get_world_3d().direct_space_state

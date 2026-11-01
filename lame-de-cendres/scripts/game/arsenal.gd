@@ -21,6 +21,9 @@ const ITEMS := {
 const WEIGHTS := {"sake": 0.8, "onigiri": 0.2, "the": 0.3, "encens": 0.4, "fumigene": 0.5, "caillou": 0.3,
 	"huile": 0.9, "bandage": 0.1, "pierre": 0.6, "gourde": 0.35}
 const RYO_WEIGHT := 0.004
+## Les flèches : ce qu'on en porte au plus, ce qu'elles pèsent
+const AMMO_MAX := {"fleche": 30, "feu": 10}
+const AMMO_WEIGHT := 0.05
 const GOURDE_MAX := 3
 ## Ce que vaut une lame chez le marchand (il en rachète au tiers)
 const VALUES := {"ronin": 60, "kurenai": 700, "shiranui": 700, "raijin": 1000, "yamikaze": 1000, "tsukuyomi": 1800,
@@ -85,6 +88,7 @@ const TECHNIQUES := {
 
 var items := {"sake": 2, "onigiri": 1, "the": 0, "encens": 0, "fumigene": 1, "caillou": 3, "huile": 1, "bandage": 2, "pierre": 1, "gourde": 3}
 var ryo := 40
+var ammo := {"fleche": 20, "feu": 3}
 var katanas := ["ronin"]
 var equipped := "ronin"
 var souls := 0
@@ -99,6 +103,8 @@ func katana() -> Dictionary:
 ## Ce que tu portes, en kg : objets, lames, et le poids de ta bourse.
 func load_kg() -> float:
 	var kg := ryo * RYO_WEIGHT
+	for id in ammo:
+		kg += AMMO_WEIGHT * float(ammo[id])
 	for id in items:
 		kg += WEIGHTS.get(id, 0.3) * items[id]
 	for k in katanas:

@@ -179,6 +179,13 @@ func _end() -> void:
 	var v = scene.get("victim")
 	if is_instance_valid(v):
 		v.remove_meta("cine")
+	# après un assassinat, un instant suspendu pour enchaîner sur le suivant
+	if scene.kind == "assassinat":
+		for e in game.enemies:
+			if e.alive and e.hostile and not e.aggro and e.alert != "alerte" and e.kind != "oni" and e.flat_distance(game.player) < 7.0:
+				game.combat.chain_t = 1.8
+				game.slowmo = maxf(game.slowmo, 1.2)
+				break
 	var p: Fighter = game.player
 	p.collision_mask = 1 | 2 | Landmarks.WALL_LAYER
 	scene = {}

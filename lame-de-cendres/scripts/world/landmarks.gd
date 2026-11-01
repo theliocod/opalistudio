@@ -22,6 +22,8 @@ var wells: Array = []         # là où l'on remplit sa gourde
 var focus := Vector3.ZERO     # autour de qui les lumières projettent des ombres (le joueur)
 var max_shadows := 5          # combien de lumières proches projettent des ombres (les réglages)
 var _shadow_t := 0.0
+var night := 1.0              # 0 le jour, 1 la nuit : les lanternes ne brillent que le soir
+var glowing: Array = []       # les matières qui luisent la nuit (papier, lanternes) : [matière, intensité]
 var _body: StaticBody3D
 var _rng := RandomNumberGenerator.new()
 
@@ -65,11 +67,21 @@ func _process(dt: float) -> void:
 		if not l.on:
 			continue
 		var f: float = 0.85 + sin(t * 9.0 + l.seed) * 0.08 + sin(t * 23.0 + l.seed * 3.0) * 0.06
-		l.light.light_energy = l.base * f
+		l.light.light_energy = l.base * f * (0.12 + 0.88 * night)
 	_shadow_t -= dt
 	if _shadow_t <= 0.0:
 		_shadow_t = 0.35
 		_shadows()
+
+
+## Le jour se lève ou tombe : les lanternes et le papier éclairé suivent.
+func set_night(n: float) -> void:
+	if absf(n - night) < 0.01:
+		return
+	night = n
+	for g in glowing:
+		var m: StandardMaterial3D = g[0]
+		m.emission_energy_multiplier = float(g[1]) * (0.1 + 0.9 * n)
 
 
 ## Seules les lumières les plus proches du joueur projettent des ombres :

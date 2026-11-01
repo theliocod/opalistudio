@@ -16,7 +16,6 @@ var drops: CPUParticles3D
 var splashes: CPUParticles3D
 var sound: AudioStreamPlayer
 var _drop_mat: StandardMaterial3D
-var _base_fog := -1.0
 
 
 func setup(g) -> void:
@@ -103,11 +102,8 @@ func step(dt: float, focus: Vector3) -> void:
 		drops.gravity = Vector3(0, -30, 0) + wind_dir * (2.0 + game.wind.strength * 7.0)
 		splashes.global_position = Vector3(focus.x, game.terrain.height_at(focus.x, focus.z) + 0.05, focus.z)
 	sound.volume_db = linear_to_db(maxf(rain, 0.0001)) - 4.0
-	# la brume s'épaissit sous la pluie
-	var env: Environment = game.atmosphere.env
-	if _base_fog < 0.0:
-		_base_fog = env.fog_density
-	env.fog_density = _base_fog + rain * 0.006
+	# la brume s'épaissit sous la pluie, le ciel se couvre (l'atmosphère s'en charge)
+	game.atmosphere.rain = rain
 	# l'orage
 	if rain > 0.5:
 		_thunder_t -= dt
@@ -117,13 +113,8 @@ func step(dt: float, focus: Vector3) -> void:
 			var far := randf_range(0.6, 3.0)
 			get_tree().create_timer(far, false).timeout.connect(func(): Audio.sfx("tonnerre", null, -2.0 - far * 2.0, 0.05))
 	if _flash > 0.0:
-		_flash -= dt
-		var pulse := 1.0 if fmod(_flash, 0.12) > 0.05 else 0.3
-		game.atmosphere.moon.light_energy = 1.3 + pulse * 5.0 * clampf(_flash * 4.0, 0.0, 1.0)
-		env.ambient_light_energy = 1.0 + pulse * 1.5 * clampf(_flash * 4.0, 0.0, 1.0)
-		if _flash <= 0.0:
-			game.atmosphere.moon.light_energy = 1.3
-			env.ambient_light_energy = 1.0
+		_flash = maxf(0.0, _flash - dt)
+	game.atmosphere.flash = _flash
 
 
 ## La pluie cache un peu : les gardes voient moins loin, entendent moins.

@@ -13,6 +13,8 @@ const SFX := {
 	"porte": 1, "coffre": 1, "pieces": 1, "objet": 1, "boire": 1, "decouverte": 1, "technique": 1,
 	"alerte": 1, "grace": 1, "oni": 1, "ui-clic": 1, "ui-papier": 1,
 	"tonnerre": 2, "eclaboussure": 3, "souffle": 1, "embrasement": 1, "verre": 1, "aiguiser": 1, "coeur": 1, "halete": 2,
+	"eclat": 1, "eclat-rouge": 1, "posture": 1, "tambour": 1, "fleche": 2, "impact-fleche": 2, "arc": 1,
+	"sabot": 4, "sifflet": 1, "hennissement": 1,
 }
 const MOODS := ["exploration", "ville", "infiltration", "combat", "boss"]
 

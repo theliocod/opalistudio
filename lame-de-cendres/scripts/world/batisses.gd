@@ -65,6 +65,8 @@ func _k() -> Dictionary:
 	mats.chochin.emission_enabled = true
 	mats.chochin.emission = Color(1.0, 0.25, 0.08)
 	mats.chochin.emission_energy_multiplier = 1.6
+	for m in [kit.lueur, kit.shoji, mats.chochin]:
+		glowing.append([m, (m as StandardMaterial3D).emission_energy_multiplier])
 	mats.platre = kit.platre
 	mats.fer = kit.fer
 	mats.paille = _plain(Color(0.42, 0.34, 0.18), 1.0)
