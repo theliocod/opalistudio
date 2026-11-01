@@ -6,7 +6,7 @@ func _initialize() -> void:
 	var main = load("res://main.tscn").instantiate()
 	root.add_child(main)
 	await process_frame
-	main._start()
+	main._start({})
 	var p: Fighter = main.player
 	# le chemin de l'autel au village, puis au camp
 	var route := [Vector2(-120, 150), Vector2(-98, 128), Vector2(-75, 105), Vector2(-55, 80), Vector2(-35, 55), Vector2(-5, 70), Vector2(30, 85), Vector2(60, 95), Vector2(85, 105)]

@@ -13,7 +13,7 @@ func _initialize() -> void:
 	root.add_child(main)
 	await frames(3)
 	await shot("titre")
-	main._start()
+	main._start({})
 	await frames(20)
 	var p: Fighter = main.player
 	note("départ", "vie %d, skin %s, ennemis %d, coffres %d" % [p.hp, p.skin != null, main.enemies.size(), main.landmarks.chests.size()])

@@ -93,7 +93,8 @@ func _arm(e: Fighter) -> void:
 				sh.name = "Bouclier"
 				wl.add_child(sh)
 				sh.position = Vector3(0.0, -0.08, 0.06)
-				sh.rotation = Vector3(0.0, 0.0, 0.0)
+				# mesuré sur la garde : ainsi tourné, le bouclier se dresse face à l'adversaire
+				sh.rotation = Vector3(0.72, 1.83, 1.65)
 				_box(sh, Vector3(0.5, 0.78, 0.05), lacquer, Vector3.ZERO)
 				_box(sh, Vector3(0.54, 0.05, 0.06), iron, Vector3(0, 0.38, 0))
 				_box(sh, Vector3(0.54, 0.05, 0.06), iron, Vector3(0, -0.38, 0))
@@ -103,7 +104,7 @@ func _arm(e: Fighter) -> void:
 				_mesh(sh, boss, _mat(Color(0.75, 0.6, 0.3), 0.35, 1.0), Vector3(0, 0, 0.04), Vector3(PI / 2, 0, 0))
 		"lancier":
 			# la lance (yari) remplace le sabre : une longue hampe, un fer en losange
-			r.sword.visible = false
+			e.hide_blade = true
 			var sp := Node3D.new()
 			sp.name = "Yari"
 			r.joints.wrR.add_child(sp)
@@ -115,7 +116,7 @@ func _arm(e: Fighter) -> void:
 			_tip(r, sp, Vector3(0, 0, 2.08))
 		"brute":
 			# le kanabō : une massue de chêne cerclée de fer, hérissée de clous
-			r.sword.visible = false
+			e.hide_blade = true
 			var cl := Node3D.new()
 			cl.name = "Kanabo"
 			r.joints.wrR.add_child(cl)
@@ -299,7 +300,7 @@ func glint(e: Fighter, red: bool) -> void:
 	var c := Color(1.0, 0.18, 0.08) if red else Color(0.55, 0.78, 1.0)
 	var mi := MeshInstance3D.new()
 	var q := QuadMesh.new()
-	q.size = Vector2(1.5, 1.5)
+	q.size = Vector2(1.1, 1.1)
 	mi.mesh = q
 	mi.material_override = _glint_mat(c)
 	mi.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -325,7 +326,7 @@ func _glint_mat(c: Color) -> StandardMaterial3D:
 		m.billboard_mode = BaseMaterial3D.BILLBOARD_ENABLED
 		m.no_depth_test = true
 		m.albedo_texture = _glint_tex
-		m.albedo_color = Color(c.r * 2.2, c.g * 2.2, c.b * 2.2, 1.0)
+		m.albedo_color = Color(c.r * 1.7, c.g * 1.7, c.b * 1.7, 1.0)
 		_glint_mats[key] = m
 	return _glint_mats[key]
 
@@ -339,8 +340,13 @@ func _make_glint() -> Texture2D:
 			var u := (x - n / 2.0) / (n / 2.0)
 			var v := (y - n / 2.0) / (n / 2.0)
 			var r := sqrt(u * u + v * v)
-			var star := maxf(exp(-absf(u) * 26.0) * maxf(0.0, 1.0 - absf(v)), exp(-absf(v) * 26.0) * maxf(0.0, 1.0 - absf(u)))
-			var halo := exp(-r * r * 9.0) * 0.6
+			# quatre rais fins qui s'effilent, deux plus courts en croix de Saint-André,
+			# un cœur net et un halo serré : un éclat, pas une boule de lumière
+			var star := maxf(exp(-absf(u) * 40.0) * pow(maxf(0.0, 1.0 - absf(v)), 1.6), exp(-absf(v) * 40.0) * pow(maxf(0.0, 1.0 - absf(u)), 1.6))
+			var du := (u + v) * 0.7071
+			var dv := (u - v) * 0.7071
+			star = maxf(star, 0.55 * maxf(exp(-absf(du) * 46.0) * pow(maxf(0.0, 1.0 - absf(dv) * 1.8), 2.0), exp(-absf(dv) * 46.0) * pow(maxf(0.0, 1.0 - absf(du) * 1.8), 2.0)))
+			var halo := exp(-r * r * 30.0) * 0.45 + exp(-r * r * 400.0) * 0.6
 			var a := clampf(star + halo, 0.0, 1.0)
 			img.set_pixel(x, y, Color(1, 1, 1, a))
 	return ImageTexture.create_from_image(img)

@@ -113,6 +113,29 @@ func height_at(x: float, z: float) -> float:
 	return lerpf(lerpf(a, b, u), lerpf(c, d, u), v)
 
 
+## Fauche l'herbe autour d'un lieu (le sol reste foulé, la terre paraît).
+## Penser à appeler refresh_mask() une fois toutes les clairières faites.
+func clear_grass(at: Vector2, radius: float) -> void:
+	var r := int(ceil(radius * 1.6 / CELL)) + 1
+	var ci := int(round((at.x + SIZE / 2) / CELL))
+	var cj := int(round((at.y + SIZE / 2) / CELL))
+	for j in range(cj - r, cj + r + 1):
+		for i in range(ci - r, ci + r + 1):
+			if i < 0 or j < 0 or i >= RES or j >= RES:
+				continue
+			var d := Vector2(-SIZE / 2 + i * CELL, -SIZE / 2 + j * CELL).distance_to(at)
+			var k := smoothstep(radius, radius * 1.6, d)
+			var c := mask_image.get_pixel(i, j)
+			if k < 1.0:
+				c.g *= k
+				c.r = maxf(c.r, (1.0 - k) * 0.55)
+				mask_image.set_pixel(i, j, c)
+
+
+func refresh_mask() -> void:
+	mask_texture.update(mask_image)
+
+
 func mask_at(x: float, z: float) -> Color:
 	var i := clampi(int((x + SIZE / 2) / CELL), 0, RES - 1)
 	var j := clampi(int((z + SIZE / 2) / CELL), 0, RES - 1)

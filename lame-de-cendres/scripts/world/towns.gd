@@ -861,6 +861,49 @@ func _cimetiere(c: Vector3, p: Dictionary) -> void:
 # ---------- Le bosquet de bambous ----------
 
 ## Une forêt de bambous, une cabane de thé, et l'ermite qui y vit.
+## Les bandes d'une tige de bambou, répétées le long de la hauteur : l'entre-nœud
+## qui s'éclaircit, puis le nœud, un bourrelet sombre et sa lisière claire.
+func _bamboo_bands() -> ImageTexture:
+	var img := Image.create(4, 64, false, Image.FORMAT_RGBA8)
+	for y in 64:
+		var t := float(y) / 63.0
+		var c := Color(0.36, 0.48, 0.18).lerp(Color(0.52, 0.6, 0.26), t)
+		if y >= 60:
+			c = Color(0.25, 0.3, 0.12)
+		elif y >= 57:
+			c = Color(0.62, 0.66, 0.36)
+		for x in 4:
+			img.set_pixel(x, 63 - y, c)
+	img.generate_mipmaps()
+	return ImageTexture.create_from_image(img)
+
+
+## Un bouquet de feuilles pour le haut d'une tige (le pivot est la cime).
+func _bamboo_leaves() -> ArrayMesh:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var r := RandomNumberGenerator.new(); r.seed = 77
+	for k in 16:
+		var y := -r.randf_range(0.0, 4.0)
+		var a := r.randf() * TAU
+		var reach := r.randf_range(0.15, 0.6)
+		var base := Vector3(sin(a) * reach, y, cos(a) * reach)
+		var dir := Vector3(sin(a), 0, cos(a))
+		for f in 6:
+			var fd := (dir.rotated(Vector3.UP, (f - 2.5) * 0.32) + Vector3(0, -0.3 - r.randf() * 0.4, 0)).normalized()
+			var len := r.randf_range(0.3, 0.48)
+			var side := fd.cross(Vector3.UP).normalized() * 0.04
+			var tip := base + fd * len
+			var mid := base + fd * len * 0.45
+			var nrm := fd.cross(side).normalized()
+			if nrm.y < 0.0:
+				nrm = -nrm
+			for v in [base, mid + side, tip, base, tip, mid - side]:
+				st.set_normal(nrm.lerp(Vector3.UP, 0.4).normalized())
+				st.add_vertex(v)
+	return st.commit()
+
+
 func _bambous(c: Vector3, p: Dictionary) -> void:
 	var g := _group(c)
 	var stalk := CylinderMesh.new()
@@ -869,13 +912,18 @@ func _bambous(c: Vector3, p: Dictionary) -> void:
 	stalk.height = 1.0
 	stalk.radial_segments = 6
 	stalk.rings = 1
-	var green := _plain(Color(0.22, 0.32, 0.12), 0.6)
-	var leaves := SphereMesh.new()
-	leaves.radius = 0.9
-	leaves.height = 0.5
-	leaves.radial_segments = 6
-	leaves.rings = 3
-	var lm := _plain(Color(0.12, 0.2, 0.07), 1.0)
+	# la tige : un vert qui jaunit, un nœud sombre tous les quarante centimètres
+	var green := _plain(Color(1, 1, 1), 0.4)
+	green.albedo_texture = _bamboo_bands()
+	green.uv1_scale = Vector3(1, 48, 1)   # le flanc du cylindre n'occupe que la moitié de la texture
+	green.rim_enabled = true
+	green.rim = 0.2
+	# les feuilles : des bouquets de lames étroites tout le long du haut de la tige
+	var leaves := _bamboo_leaves()
+	var lm := _plain(Color(0.28, 0.4, 0.13), 0.6)
+	lm.cull_mode = BaseMaterial3D.CULL_DISABLED
+	lm.backlight_enabled = true
+	lm.backlight = Color(0.22, 0.32, 0.05)
 	var ms := MultiMesh.new()
 	ms.transform_format = MultiMesh.TRANSFORM_3D
 	ms.mesh = stalk

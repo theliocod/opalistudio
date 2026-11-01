@@ -6,7 +6,7 @@ func _initialize() -> void:
 	var main = load("res://main.tscn").instantiate()
 	root.add_child(main)
 	await process_frame
-	main._start()
+	main._start({})
 	main.hud.play_ui.visible = false
 	var p: Fighter = main.player
 	var at := Vector3(-95, 0, 118)

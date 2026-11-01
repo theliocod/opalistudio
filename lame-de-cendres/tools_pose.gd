@@ -7,7 +7,7 @@ func _initialize() -> void:
 	var main = load("res://main.tscn").instantiate()
 	root.add_child(main)
 	await process_frame
-	main._start()
+	main._start({})
 	for i in 10:
 		await process_frame
 	var p: Fighter = main.player

@@ -1,7 +1,9 @@
 # Lame de Cendres, monde ouvert (Godot 4.7)
 
-Un samouraï seul dans une vallée maudite, sous une lune rouge. Version PC du
-jeu, en monde ouvert. Le prototype navigateur reste dans `../samourai/`.
+Un samouraï seul dans une vallée maudite, sous une lune rouge le soir et un
+soleil doré le jour. Version PC du jeu, en monde ouvert, dans l'esprit de
+Ghost of Tsushima : postures de sabre, affrontements, arc, cheval, champs de
+fleurs, sources chaudes et sanctuaires. Le prototype navigateur reste dans `../samourai/`.
 
 ## Jouer
 
@@ -10,6 +12,10 @@ jeu, en monde ouvert. Le prototype navigateur reste dans `../samourai/`.
 3. Lance le jeu : **F5** sur Windows et Linux, **Cmd + B** sur Mac (ou le bouton ▶ en haut à droite).
 
 Le premier lancement prend une minute : Godot prépare les textures et les modèles.
+
+Sur Mac, le jeu utilise le moteur de rendu « Compatibilité » (OpenGL) : le
+moteur Vulkan fait planter les cartes graphiques AMD des Mac Intel. Le rendu
+reste quasiment le même. Ailleurs, c'est le moteur Forward+.
 
 ### Faire un .exe pour Windows
 
@@ -26,8 +32,10 @@ QWERTY. Toutes se réassignent dans **Échap → Commandes**.
 |---|---|
 | ZQSD ou WASD | se déplacer |
 | Souris | caméra |
-| Clic gauche ou J | coup rapide, trois à la suite |
-| Clic droit ou K | coup lourd |
+| Clic gauche ou J | coup rapide, enchaîné selon la posture |
+| Clic droit ou K | coup lourd de la posture |
+| Tab maintenu + Z/Q/S/D | roue des postures : Pierre, Eau, Vent, Lune (ou molette, ou F1 à F4) |
+| H | se ressaisir : un segment de Détermination soigne |
 | F ou clic molette | coup de pied direct · enfoncer une porte |
 | G | coup de pied tournoyant : brise la garde |
 | Espace | roulade en mouvement, pas en arrière à l'arrêt · enjamber un muret |
@@ -37,13 +45,40 @@ QWERTY. Toutes se réassignent dans **Échap → Commandes**.
 | R, T, A (Q), V, X | techniques : Tourbillon, Iai, Retour de l'Hirondelle, Pas du Vent, Mille Pétales |
 | 1 à 6 | saké, onigiri, thé, encens, bombe fumigène, caillou |
 | 7 à 0 | fiole d'huile, bandage, pierre à aiguiser, gourde |
-| Tab ou I | inventaire (clic droit : jeter un objet ou une lame) |
+| B | sortir ou ranger l'arc (clic droit : viser, clic gauche : décocher, molette : flèches enflammées) |
+| U | lancer un kunai : il coupe l'élan d'un coup qui se prépare |
+| N | siffler Nagi, le cheval ; E pour monter ou descendre ; en selle, Maj pour galoper |
+| I | inventaire (clic droit : jeter un objet ou une lame ; les tenues se revêtent ici) |
 | M | carte |
 | Échap | menu : sauvegarder, charger, réglages, commandes |
 
+## Le combat
+
+- **Les postures** : la Pierre brise les épéistes, l'Eau les porte-boucliers,
+  le Vent les lanciers, la Lune les colosses. Chacune a ses enchaînements et
+  son coup lourd ; contre le bon ennemi, la posture brise sa garde trois fois
+  plus vite. Les grands caractères 石 水 風 月 s'affichent en haut.
+- **Les ennemis** : épéistes, porte-boucliers (ils arrêtent les coups de face),
+  lanciers (ils frappent de loin), colosses à la massue cloutée (les petits coups
+  ne les font pas broncher), archers (ils tirent de loin et reculent).
+- **Les éclairs** : un éclair **bleu** annonce un coup que l'on peut parer ;
+  un éclair **rouge**, un coup imparable qu'il faut esquiver.
+- **La parade et l'esquive parfaites** : au tout dernier instant, le temps
+  ralentit, l'ennemi chancelle, la riposte est ouverte.
+- **La Détermination** (les losanges dorés) : gagnée en combattant, elle
+  soigne (H) et paie les techniques.
+- **L'affrontement** : face à un groupe qui ne t'a pas encore attaqué, E pour
+  défier. Maintiens le coup rapide et relâche-le à l'instant où il frappe
+  (méfie-toi des feintes). Un autre peut suivre : enchaîne.
+- **L'assassinat en chaîne** : juste après un assassinat, le garde suivant
+  peut tomber aussi, s'il est à quelques pas.
+- **L'arc** : les flèches retombent avec la distance, à la tête elles tuent
+  (sans un bruit si le garde ne se doutait de rien), enflammées elles mettent
+  le feu. Une parade parfaite dévie les flèches ennemies.
+
 ## Le monde
 
-Dix lieux à découvrir. L'**Autel des Cendres** (départ), le **Village de
+Douze lieux à découvrir. L'**Autel des Cendres** (départ), le **Village de
 Kurogane**, le **Camp des Ronins**, la **Croisée des Pendus**, le **Sanctuaire
 noyé**, le **Temple de la Lune Rouge** où attend l'Oni, et :
 
@@ -59,6 +94,28 @@ noyé**, le **Temple de la Lune Rouge** où attend l'Oni, et :
   brèche s'ouvre au nord-ouest, un muret effondré à l'est.
 - **Le Cimetière des Lames**, des centaines de sabres plantés et leurs âmes bleues.
 - **Le Bosquet de bambous**, où un vieil ermite boit son thé.
+- **Le Poste du Col** et **le Poste du Gué**, tenus par les gens de l'Oni : une
+  palissade, une tour et son archer, une garnison mêlée. Abats-les tous, le
+  poste est libéré.
+
+### Le temps qui passe et les découvertes
+
+Une heure de jeu passe en une minute : l'aube, le plein jour, l'heure dorée,
+puis la nuit et sa lune rouge. De jour, on est vu de loin ; la nuit, l'ombre
+protège, et les lanternes s'allument. Le vent souffle vers le repère posé sur
+la carte. Les réglages peuvent figer le jour ou la nuit, et le **mode
+Kurosawa** passe tout en noir et blanc, avec le grain de la pellicule.
+
+- **Les sources chaudes** : un bain, la vie maximale monte de 10.
+- **Les bambous** : une suite de cinq touches sans faute, un segment de
+  Détermination de plus.
+- **Les renards** : approche-toi, suis-les ; ils mènent à un sanctuaire
+  d'Inari et à son charme (plus de ryō, moins visible, des coups plus forts).
+- **Les tenues** : l'armure du clan Hōjō, vendue par Daikoku (un quart des
+  coups en moins, mais 9 kg de plus) ; la tenue du Fantôme, cachée dans un
+  poste (moins visible, chaque assassinat soigne).
+- **Nagi**, le cheval : il accourt au sifflement, galope, et renverse ceux
+  qu'il charge.
 
 ### Les bâtiments
 
@@ -180,6 +237,12 @@ sauvegarde à chaque autel et depuis le menu ; **Continuer** la reprend.
 | `scripts/game/fire.gd` | le feu qui prend, se propage avec le vent et noircit le sol |
 | `scripts/game/weather.gd` | la pluie, l'orage, le sol mouillé |
 | `scripts/game/condition.gd` | le corps du samouraï : charge, plaies, flammes, eau, chutes, lame |
+| `scripts/game/combat.gd` | postures, éclairs, parades parfaites, Détermination, flèches, affrontements |
+| `scripts/game/archery.gd` | l'arc du samouraï : visée, tension, tir |
+| `scripts/game/cavalier.gd` | Nagi : l'appel, la monte, le galop, la charge |
+| `scripts/actors/quadrupede.gd` | les animaux : squelette posé d'après la forme, démarche calculée |
+| `scripts/world/decouvertes.gd` | sources chaudes, bambous, renards et sanctuaires d'Inari |
+| `scripts/actors/marque.gd` | les marques au sol (ombre, sang, suie), en décal ou à plat selon le moteur |
 | `scripts/game/settings.gd`, `savegame.gd` | réglages et sauvegarde |
 | `scripts/actors/fighter.gd` | un combattant : actions, gestes, animations Mixamo, IA des damnés |
 | `scripts/actors/folk.gd` | les gens des villes : promeneurs, gardes, samouraïs |
@@ -194,7 +257,9 @@ sauvegarde à chaque autel et depuis le menu ; **Continuer** la reprend.
 Les images (`assets/*.jpg`, `assets/kie/`) et les portraits sont peints par
 kie.ai (`tools/kie-art.mjs`, `tools/kie-portraits.mjs`), les personnages
 (`assets/modeles/`) sculptés par Meshy à partir des planches de
-`../samourai/assets/modeles/`, la musique composée par Suno (`tools/kie-music.mjs`)
+`../samourai/assets/modeles/`, le cheval et le renard sculptés par Meshy
+(`tools/meshy-objet.mjs`) d'après des images kie.ai puis dotés d'un squelette
+par le jeu lui-même, la musique composée par Suno (`tools/kie-music.mjs`)
 et les bruitages synthétisés (`tools/synth-sfx.py`). Les animations Mixamo sont
 converties par `../samourai/tools/bake-mixamo.mjs` puis copiées dans `anims/`.
 

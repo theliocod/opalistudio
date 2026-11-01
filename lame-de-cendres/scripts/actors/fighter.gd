@@ -202,6 +202,7 @@ var role := "enemy"            # player | enemy | guard | civil | merchant | sam
 var faction := "damnes"        # damnes | hojo | akagane
 var hostile := true            # se bat-il contre le joueur quand il est en alerte ?
 var armed := true              # porte-t-il une lame ?
+var hide_blade := false        # une autre arme (lance, massue, arc) a pris la place du sabre
 var npc_id := ""
 var display_name := ""
 var idle_clip := "repos"
@@ -548,7 +549,11 @@ func _finish(dt: float) -> void:
 	rotation.y = yaw
 
 	# La lame des démons rougeoie pendant qu'ils préparent leur coup
-	rig.sword.visible = armed and not sheathed
+	var blade_out := armed and not sheathed and not hide_blade and not is_doing(["tir", "bander", "decocher"])
+	if arch == "archer" and kind != "player":
+		# l'archer garde le sabre au fourreau ; il ne le tire que pour frapper
+		blade_out = blade_out and not action.is_empty() and action.def.has("active")
+	rig.sword.visible = blade_out
 	if kind != "player" and hostile:
 		var target := 0.0
 		if alive:

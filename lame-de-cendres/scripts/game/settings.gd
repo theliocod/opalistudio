@@ -139,18 +139,21 @@ static func apply(game) -> void:
 	Engine.max_fps = int(value("affichage", "fps"))
 	var vp: Viewport = game.get_viewport()
 	var scale: float = value("affichage", "echelle")
-	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR2 if scale < 0.99 else Viewport.SCALING_3D_MODE_BILINEAR
+	# le rendu « Compatibility » (celui des Mac) ignore FSR, TAA, SSAO, SSIL et
+	# la brume volumétrique : on ne les lui demande pas, le débogueur reste propre
+	var fp := Marque.decals
+	vp.scaling_3d_mode = Viewport.SCALING_3D_MODE_FSR2 if scale < 0.99 and fp else Viewport.SCALING_3D_MODE_BILINEAR
 	vp.scaling_3d_scale = scale
 	var aa := int(value("affichage", "aa"))
 	vp.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X, Viewport.MSAA_DISABLED][aa]
 	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if aa == 1 else Viewport.SCREEN_SPACE_AA_DISABLED
-	vp.use_taa = aa == 4
+	vp.use_taa = aa == 4 and fp
 	var q := int(value("affichage", "qualite"))
 	if game.atmosphere and game.atmosphere.env:
 		var env: Environment = game.atmosphere.env
-		env.ssao_enabled = q >= 1
-		env.ssil_enabled = q >= 3
-		env.volumetric_fog_enabled = q >= 2
+		env.ssao_enabled = q >= 1 and fp
+		env.ssil_enabled = q >= 3 and fp
+		env.volumetric_fog_enabled = q >= 2 and fp
 		env.glow_enabled = true
 		env.tonemap_exposure = float(value("affichage", "luminosite"))
 		game.atmosphere.moon.directional_shadow_max_distance = [40.0, 70.0, 90.0, 140.0][q]

@@ -41,7 +41,7 @@ func toggle() -> void:
 	aiming = false
 	draw = 0.0
 	p.sheathed = false
-	p.rig.sword.visible = false
+	p.hide_blade = true
 	if _bow == null or not is_instance_valid(_bow):
 		_bow = game.combat._bow(game.combat._mat(Color(0.32, 0.2, 0.12), 0.6))
 		var wl: Node3D = p.rig.joints.elL.get_node_or_null("wrL")
@@ -63,7 +63,7 @@ func stow() -> void:
 	if _bow and is_instance_valid(_bow):
 		_bow.visible = false
 	if p:
-		p.rig.sword.visible = true
+		p.hide_blade = false
 		if p.is_doing(["bander", "decocher"]):
 			p.action = {}
 

@@ -80,4 +80,8 @@ void fragment() {
 	EMISSION = lily * bloom * smoothstep(0.75, 1.0, tip) * (flower < 0.3 ? 0.6 : 0.12);
 	ROUGHNESS = mix(0.8, 0.35, wetness);
 	BACKLIGHT = vec3(0.1, 0.05, 0.03) * tip;
+	// les deux faces d'un brin s'éclairent comme le sol qui le porte : sans cela,
+	// le rendu « Compatibility » (Mac) retourne la normale des faces arrière et
+	// les brins vus de dos deviennent noirs
+	NORMAL = normalize((VIEW_MATRIX * vec4(0.0, 1.0, 0.0, 0.0)).xyz);
 }

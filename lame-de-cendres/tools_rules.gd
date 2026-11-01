@@ -9,7 +9,7 @@ func _initialize() -> void:
 	main = load("res://main.tscn").instantiate()
 	root.add_child(main)
 	await process_frame
-	main._start()
+	main._start({})
 	var p: Fighter = main.player
 	await phys(5)
 	print("[départ] fourreau %s, lame visible %s" % [p.sheathed, p.rig.sword.visible])
@@ -45,7 +45,7 @@ func _initialize() -> void:
 		if o.kind == "ronin":
 			e = o
 			break
-	e.global_position = p.global_position + Vector3(0, 0, -2.0)
+	e.global_position = p.global_position + Vector3(0, 0, -1.6)
 	e.cd = 99.0
 	p.yaw = PI
 	var before := e.global_position

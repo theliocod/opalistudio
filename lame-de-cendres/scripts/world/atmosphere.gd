@@ -48,10 +48,10 @@ func _ready() -> void:
 	env.glow_intensity = 0.7
 	env.glow_bloom = 0.08
 	env.glow_hdr_threshold = 1.3
-	env.ssao_enabled = true
+	env.ssao_enabled = Marque.decals
 	env.ssao_intensity = 1.6
 	# La brume volumétrique : elle prend la couleur de la lumière
-	env.volumetric_fog_enabled = true
+	env.volumetric_fog_enabled = Marque.decals
 	env.volumetric_fog_density = 0.0045
 	env.volumetric_fog_albedo = Color(0.42, 0.36, 0.4)
 	env.volumetric_fog_emission = Color(0.01, 0.003, 0.005)

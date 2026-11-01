@@ -40,6 +40,11 @@ func build() -> void:
 		_bambou(_flat(p))
 	for i in INARI.size():
 		_inari(_flat(INARI[i][0]), _flat(INARI[i][1]), CHARM_ORDER[i])
+	# l'herbe haute s'écarte des lieux que l'on fréquente
+	for s in spots:
+		var r: float = {"onsen": 4.2, "bambou": 3.4, "inari": 4.0}.get(s.kind, 3.0)
+		game.terrain.clear_grass(Vector2(s.pos.x, s.pos.z), r)
+	game.terrain.refresh_mask()
 	_build_ui()
 
 
@@ -158,20 +163,122 @@ func _bambou(at: Vector3) -> void:
 	c.box(k.tatami, Vector3(0, 0.03, 1.4), Vector3(2.4, 0.06, 1.2))
 	c.build(g, "Bambous")
 	# les tiges, chacune en deux morceaux : le haut tombera, tranché
-	var green := StandardMaterial3D.new()
-	green.albedo_color = Color(0.36, 0.5, 0.2)
-	green.roughness = 0.5
 	var tops: Array = []
 	for i in 4:
 		var x := -1.2 + i * 0.8
-		var low := CylinderMesh.new(); low.top_radius = 0.06; low.bottom_radius = 0.065; low.height = 1.1
-		var lo := MeshInstance3D.new(); lo.mesh = low; lo.material_override = green
-		g.add_child(lo); lo.position = Vector3(x, 0.55, 0)
-		var top := CylinderMesh.new(); top.top_radius = 0.055; top.bottom_radius = 0.06; top.height = 1.2
-		var hi := MeshInstance3D.new(); hi.mesh = top; hi.material_override = green
-		g.add_child(hi); hi.position = Vector3(x, 1.7, 0)
+		var lo := _stalk(1.1, 0.065, 0.06, i)
+		g.add_child(lo); lo.position = Vector3(x, 0.0, 0)
+		var hi := _stalk(1.2, 0.06, 0.055, i + 7)
+		g.add_child(hi); hi.position = Vector3(x, 1.1, 0)
 		tops.append(hi)
+	# derrière, le bosquet vivant : de hautes tiges qui ploient, des feuilles
+	_grove(g, Vector3(0, 0, -3.2), 22)
 	spots.append({"kind": "bambou", "pos": at + Vector3(0, 0, 1.4), "done": false, "name": "Bambous", "tops": tops})
+
+
+## Une tige de bambou : des entre-nœuds lisses, des nœuds en bourrelet, un
+## vert qui jaunit vers le pied. Le pivot est au pied de la tige.
+func _stalk(h: float, r0: float, r1: float, seed: int) -> MeshInstance3D:
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var seg := 8
+	var nodes := maxi(2, int(h / 0.32))
+	var rr := RandomNumberGenerator.new(); rr.seed = 900 + seed
+	var ys: Array = [0.0]
+	for n in nodes:
+		ys.append(h * float(n + 1) / nodes + (rr.randf_range(-0.03, 0.03) if n < nodes - 1 else 0.0))
+	for n in ys.size() - 1:
+		var y0: float = ys[n]
+		var y1: float = ys[n + 1]
+		var ra := lerpf(r0, r1, y0 / h)
+		var rb := lerpf(r0, r1, y1 / h)
+		# l'entre-nœud, puis le bourrelet du nœud
+		var rings: Array = [[y0, ra * 1.06, 0.0], [y0 + 0.025, ra * 0.98, 0.05], [y1 - 0.02, rb, 0.95], [y1, rb * 1.1, 1.0]]
+		for k in rings.size() - 1:
+			var a: Array = rings[k]
+			var b: Array = rings[k + 1]
+			for q in seg:
+				var t0 := float(q) / seg * TAU
+				var t1 := float(q + 1) / seg * TAU
+				var n0 := Vector3(sin(t0), 0, cos(t0))
+				var n1 := Vector3(sin(t1), 0, cos(t1))
+				var shade_a := 0.8 + 0.2 * float(a[2])
+				var shade_b := 0.8 + 0.2 * float(b[2])
+				var ca := Color(shade_a, shade_a, shade_a)
+				var cb := Color(shade_b, shade_b, shade_b)
+				var v := [[n0 * a[1] + Vector3(0, a[0], 0), n0, ca], [n1 * a[1] + Vector3(0, a[0], 0), n1, ca],
+					[n1 * b[1] + Vector3(0, b[0], 0), n1, cb], [n0 * b[1] + Vector3(0, b[0], 0), n0, cb]]
+				for idx in [0, 2, 1, 0, 3, 2]:
+					st.set_color(v[idx][2])
+					st.set_normal(v[idx][1])
+					st.add_vertex(v[idx][0])
+	var mi := MeshInstance3D.new()
+	mi.mesh = st.commit()
+	mi.material_override = _bamboo_mat()
+	return mi
+
+
+var _bmat: StandardMaterial3D
+
+
+func _bamboo_mat() -> StandardMaterial3D:
+	if _bmat == null:
+		_bmat = StandardMaterial3D.new()
+		_bmat.albedo_color = Color(0.5, 0.6, 0.27)
+		_bmat.vertex_color_use_as_albedo = true
+		_bmat.roughness = 0.38
+		_bmat.metallic_specular = 0.6
+		_bmat.rim_enabled = true
+		_bmat.rim = 0.25
+	return _bmat
+
+
+## Un bosquet de bambous vivants : des tiges hautes qui se penchent, des
+## bouquets de feuilles effilées au bout des rameaux.
+func _grove(parent: Node3D, at: Vector3, n: int) -> void:
+	var leaf := StandardMaterial3D.new()
+	leaf.albedo_color = Color(0.3, 0.42, 0.14)
+	leaf.cull_mode = BaseMaterial3D.CULL_DISABLED
+	leaf.roughness = 0.6
+	leaf.backlight_enabled = true
+	leaf.backlight = Color(0.25, 0.35, 0.05)
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	var t: Terrain = game.terrain
+	for i in n:
+		var a := _rng.randf() * TAU
+		var d := _rng.randf_range(0.6, 4.5)
+		var p := at + Vector3(sin(a) * d * 1.4, 0, cos(a) * d * 0.7 - 0.6)
+		var gp: Vector3 = parent.global_position + p
+		p.y = t.height_at(gp.x, gp.z) - parent.global_position.y - 0.05
+		var h := _rng.randf_range(5.0, 8.5)
+		var s := _stalk(h, 0.06, 0.035, i + 30)
+		parent.add_child(s)
+		s.position = p
+		var lean := Vector3(_rng.randf_range(-0.12, 0.12), 0, _rng.randf_range(-0.12, 0.12))
+		s.rotation = lean
+		# les feuilles : des lames étroites groupées par cinq sur le haut de la tige
+		var b := Basis.from_euler(lean)
+		for k in 12:
+			var y := h * _rng.randf_range(0.5, 1.0)
+			var base := p + b * Vector3(0, y, 0)
+			var dir := Vector3(sin(_rng.randf() * TAU), 0, cos(_rng.randf() * TAU)).normalized()
+			for f in 5:
+				var fd := (dir.rotated(Vector3.UP, (f - 2) * 0.35) + Vector3(0, -0.35 - _rng.randf() * 0.3, 0)).normalized()
+				var len := _rng.randf_range(0.28, 0.42)
+				var side := fd.cross(Vector3.UP).normalized() * 0.035
+				var tip := base + fd * len
+				var mid := base + fd * len * 0.45
+				var nrm := fd.cross(side).normalized()
+				if nrm.y < 0.0:
+					nrm = -nrm
+				for v in [base, mid + side, tip, base, tip, mid - side]:
+					st.set_normal(nrm)
+					st.add_vertex(v)
+	var leaves := MeshInstance3D.new()
+	leaves.mesh = st.commit()
+	leaves.material_override = leaf
+	parent.add_child(leaves)
 
 
 # ---------- Le sanctuaire d'Inari et son renard ----------
@@ -351,7 +458,7 @@ func _unhandled_input(ev: InputEvent) -> void:
 	if top.rotation.z == 0.0:
 		var tw := top.create_tween()
 		tw.tween_property(top, "rotation:z", 1.4 * (1.0 if qte.i % 2 == 0 else -1.0), 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-		tw.parallel().tween_property(top, "position:y", 0.45, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		tw.parallel().tween_property(top, "position:y", 0.08, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
 	qte.i += 1
 	qte.t = maxf(0.8, 1.6 - qte.i * 0.15)
 	if qte.i >= qte.seq.size():
@@ -385,7 +492,7 @@ func _end_qte(ok: bool) -> void:
 		game.hud.toast("Le bambou résiste. Reprends ton souffle et recommence.", Hud.MUTED)
 		for t in s.tops:
 			t.rotation.z = 0.0
-			t.position.y = 1.7
+			t.position.y = 1.1
 
 
 func _build_ui() -> void:
@@ -441,7 +548,7 @@ func load_save(d: Dictionary) -> void:
 			if spots[k].kind == "bambou":
 				for t in spots[k].tops:
 					t.rotation.z = 1.4
-					t.position.y = 0.45
+					t.position.y = 0.08
 	for f in foxes:
 		if f.spot.done and is_instance_valid(f.body):
 			f.body.queue_free()
