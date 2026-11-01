@@ -255,14 +255,9 @@ func _out(f: Dictionary) -> void:
 	var node: Node3D = f.node
 	node.queue_free()
 	# la suie : le sol et l'herbe restent noircis
-	var dc := Decal.new()
-	dc.texture_albedo = _scorch_tex
-	dc.size = Vector3(f.r * 2.6, 2.0, f.r * 2.6)
-	dc.cull_mask = 1
-	dc.upper_fade = 0.3
-	dc.lower_fade = 0.3
+	var dc := Marque.make(_scorch_tex, f.r * 2.6, 2.0, Color(1, 1, 1))
 	add_child(dc)
-	dc.global_position = f.pos + Vector3(0, 0.4, 0)
+	dc.global_position = f.pos + Vector3(0, Marque.lift(2.0), 0)
 	dc.rotation.y = randf() * TAU
 	_scorches.append(dc)
 	while _scorches.size() > MAX_SCORCH:

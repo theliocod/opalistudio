@@ -146,22 +146,14 @@ static func pool(parent: Node, at: Vector3, size := 2.2) -> void:
 	if not enabled:
 		return
 	var dc := decal(parent, at, 0.3, randf() * TAU)
-	var tw := dc.create_tween()
-	tw.tween_property(dc, "size", Vector3(size, 1.5, size), 4.0).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	Marque.grow(dc, size, 4.0)
 
 
-static func decal(parent: Node, at: Vector3, size: float, rot: float) -> Decal:
+static func decal(parent: Node, at: Vector3, size: float, rot: float) -> Node3D:
 	_setup()
-	var dc := Decal.new()
-	dc.texture_albedo = _tex[randi() % _tex.size()]
-	dc.size = Vector3(size, 1.5, size)
-	dc.modulate = Color(0.85, 0.75, 0.75)
-	dc.albedo_mix = 1.0
-	dc.upper_fade = 0.15
-	dc.lower_fade = 0.3
-	dc.cull_mask = 1
+	var dc := Marque.make(_tex[randi() % _tex.size()], size, 1.5, Color(0.85, 0.75, 0.75), {"upper": 0.15, "lower": 0.3, "shaded": true})
 	parent.add_child(dc)
-	dc.global_position = at + Vector3(0, 0.3, 0)
+	dc.global_position = at + Vector3(0, Marque.lift(1.5), 0)
 	dc.rotation.y = rot
 	_decals.append(dc)
 	while _decals.size() > MAX_DECALS:

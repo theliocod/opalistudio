@@ -117,6 +117,7 @@ var _cam_look := Vector3.ZERO
 
 func _ready() -> void:
 	_inputs()
+	Marque.init()
 	Settings.load_cfg()
 	audio = Audio.new()
 	add_child(audio)

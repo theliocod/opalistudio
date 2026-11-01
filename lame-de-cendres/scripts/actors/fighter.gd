@@ -249,7 +249,7 @@ func _ready() -> void:
 ## L'ombre de contact : une tache douce sous les pieds, qui pose le personnage
 ## sur le sol même là où aucune lumière ne projette d'ombre.
 static var _blob_tex: Texture2D
-var blob: Decal
+var blob: Node3D
 
 
 func _contact_shadow() -> void:
@@ -266,19 +266,9 @@ func _contact_shadow() -> void:
 		t.width = 128
 		t.height = 128
 		_blob_tex = t
-	blob = Decal.new()
-	blob.texture_albedo = _blob_tex
-	blob.modulate = Color(0, 0, 0, 1)
-	blob.albedo_mix = 1.0
-	blob.size = Vector3(1.15, 2.4, 1.0) * rig.body_scale
-	blob.upper_fade = 0.25
-	blob.lower_fade = 0.35
-	blob.cull_mask = 1
-	blob.distance_fade_enabled = true
-	blob.distance_fade_begin = 45.0
-	blob.distance_fade_length = 15.0
+	blob = Marque.make(_blob_tex, 1.1 * rig.body_scale, 2.4 * rig.body_scale, Color(0, 0, 0, 1), {"upper": 0.25, "lower": 0.35, "fade": 45.0})
 	add_child(blob)
-	blob.position = Vector3(0, 0.6, 0)
+	blob.position = Vector3(0, 0.6 if Marque.decals else 0.035, 0)
 
 
 func forward() -> Vector3:
