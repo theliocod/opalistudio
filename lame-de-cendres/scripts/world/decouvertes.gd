@@ -21,7 +21,7 @@ const CHARMES := {
 ## Les lieux de haïku : où l'on s'assoit, vers où l'on regarde, et pour chaque
 ## vers trois façons de le dire.
 const HAIKU := [
-	{"pos": Vector2(-66, -2), "look": Vector2(-110, -40), "theme": "Le lac", "charm": "brise", "vers": [
+	{"pos": Vector2(-75, -11), "look": Vector2(-110, -40), "theme": "Le lac", "charm": "brise", "vers": [
 		["Le lac immobile", "Brume sur les eaux", "Un héron s'envole"],
 		["porte le reflet des cendres", "la lune rouge s'y noie", "mon sabre y lave son sang"],
 		["le vent se tait", "un poisson saute", "je ferme les yeux"]]},
@@ -29,7 +29,7 @@ const HAIKU := [
 		["Feuilles écarlates", "Vent d'automne", "Sous l'érable nu"],
 		["tombent sur la tombe d'un frère", "chaque feuille est un adieu", "un enfant ramasse le rouge"],
 		["la lame attend", "le ciel s'embrase", "rien ne demeure"]]},
-	{"pos": Vector2(-22, -178), "look": Vector2(-30, -260), "theme": "La montagne", "charm": "lune", "vers": [
+	{"pos": Vector2(-22, -178), "look": Vector2(10, -40), "theme": "La montagne", "charm": "lune", "vers": [
 		["Neige sur les cimes", "Le sentier se perd", "Au-dessus des nuages"],
 		["mon souffle devient fumée", "les ancêtres me regardent", "la cloche du temple au loin"],
 		["je suis si petit", "la paix, enfin", "demain, la guerre"]]},
@@ -358,7 +358,10 @@ func camera(real: float) -> bool:
 	var want := at - look * (2.6 - drift * 0.8) + side * lerpf(1.3, -0.6, drift) + Vector3(0, 1.5 + drift * 0.4, 0)
 	haiku.cam = (haiku.cam as Vector3).lerp(want, 1.0 - exp(-real * 1.6))
 	game.camera.global_position = haiku.cam
-	game.camera.look_at(at + look * 40.0 + Vector3(0, 4.0 - drift * 2.0, 0))
+	# le regard suit le relief : il plonge vers un lac en contrebas, se lève vers une cime
+	var far := at + look * 40.0
+	far.y = lerpf(game.terrain.height_at(far.x, far.z) + 3.0, at.y + 2.0, 0.5) - drift * 1.5
+	game.camera.look_at(far)
 	return true
 
 
