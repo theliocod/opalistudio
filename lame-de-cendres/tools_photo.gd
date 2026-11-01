@@ -23,6 +23,10 @@ func _initialize() -> void:
 	var cam := Camera3D.new()
 	cam.fov = 50.0
 	root.add_child(cam)
+	if OS.get_environment("ONLY") == "haiku":
+		await haiku()
+		quit()
+		return
 
 	# la rangée des ennemis, sur la place dallée de Hōjō
 	var at := Vector3(-150, 0, 66.0)
@@ -81,6 +85,36 @@ func _initialize() -> void:
 	await shot("source")
 	print("FIN")
 	quit()
+
+
+## Un lieu de haïku : assis, deux vers choisis, puis le poème.
+func haiku() -> void:
+	var p: Fighter = main.player
+	var d: Decouvertes = main.decouvertes
+	var which := int(OS.get_environment("HAIKU")) if OS.get_environment("HAIKU") != "" else 0
+	var hk: Dictionary = {}
+	var n_hk := 0
+	for s in d.spots:
+		if s.kind == "haiku":
+			if n_hk == which:
+				hk = s
+				break
+			n_hk += 1
+	p.global_position = hk.pos + Vector3(0.5, 0.4, 0.5)
+	await frames(6)
+	main._interact()
+	for i in 8:
+		await process_frame
+	await shot("haiku-assis")
+	d._pick_haiku(1)
+	d._pick_haiku(0)
+	for i in 4:
+		await process_frame
+	await shot("haiku-vers")
+	d._pick_haiku(2)
+	for i in 3:
+		await process_frame
+	await shot("haiku-poeme")
 
 
 func spawn(kind: String, pos: Vector3, arch: String) -> Fighter:

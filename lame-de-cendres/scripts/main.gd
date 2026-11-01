@@ -143,7 +143,7 @@ func _ready() -> void:
 	landmarks.build(terrain, places)
 	vegetation = Vegetation.new()
 	add_child(vegetation)
-	vegetation.build(terrain, places)
+	vegetation.build(terrain, places + Decouvertes.clearings(terrain, places))
 	wind = Wind.new()
 	add_child(wind)
 	stealth = Stealth.new()
@@ -464,7 +464,7 @@ func _discover(p: Dictionary) -> void:
 # ---------- Les entrées ----------
 
 func _unhandled_input(ev: InputEvent) -> void:
-	if state == "qte":
+	if state in ["qte", "haiku"]:
 		return
 	if ev is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
 		var sens: float = Settings.value("jeu", "sensibilite")
@@ -557,7 +557,7 @@ func _buffer(what: String, t: float) -> void:
 # ---------- La boucle ----------
 
 func _physics_process(dt: float) -> void:
-	if state not in ["play", "talk"] or player == null:
+	if state not in ["play", "talk", "haiku"] or player == null:
 		return
 	time += dt
 	arsenal.tick(dt)
@@ -871,7 +871,7 @@ func _control(dt: float) -> void:
 
 	stamina_wait -= dt
 	if stamina_wait <= 0.0:
-		var regen: float = (10.0 if player.blocking else 30.0) * (2.0 if arsenal.buffs.has("the") else 1.0) * condition.weight.regen
+		var regen: float = (10.0 if player.blocking else 30.0) * (2.0 if arsenal.buffs.has("the") else 1.0) * condition.weight.regen * (1.25 if arsenal.charms.has("ruisseau") else 1.0)
 		stamina = minf(100.0, stamina + regen * dt)
 
 
@@ -2500,6 +2500,8 @@ func _camera(real: float) -> void:
 	if combat.camera(real):
 		return
 	if archery.camera(real):
+		return
+	if decouvertes.camera(real):
 		return
 	if state == "talk" and is_instance_valid(talking_to):
 		# le dialogue : par-dessus l'épaule, sur le visage de celui qui parle

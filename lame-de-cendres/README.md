@@ -111,6 +111,11 @@ Kurosawa** passe tout en noir et blanc, avec le grain de la pellicule.
   Détermination de plus.
 - **Les renards** : approche-toi, suis-les ; ils mènent à un sanctuaire
   d'Inari et à son charme (plus de ryō, moins visible, des coups plus forts).
+- **Les haïkus** : trois lieux face au lac, aux érables et aux cimes. On
+  s'assoit, la caméra glisse sur le paysage, on choisit chaque vers parmi
+  trois (touches 1, 2, 3 ou la souris). Le poème achevé apaise l'esprit et
+  donne un charme : la Brise (Détermination plus rapide), le Ruisseau
+  (endurance plus rapide) ou la Lune (se ressaisir soigne davantage).
 - **Les tenues** : l'armure du clan Hōjō, vendue par Daikoku (un quart des
   coups en moins, mais 9 kg de plus) ; la tenue du Fantôme, cachée dans un
   poste (moins visible, chaque assassinat soigne).
@@ -241,7 +246,7 @@ sauvegarde à chaque autel et depuis le menu ; **Continuer** la reprend.
 | `scripts/game/archery.gd` | l'arc du samouraï : visée, tension, tir |
 | `scripts/game/cavalier.gd` | Nagi : l'appel, la monte, le galop, la charge |
 | `scripts/actors/quadrupede.gd` | les animaux : squelette posé d'après la forme, démarche calculée |
-| `scripts/world/decouvertes.gd` | sources chaudes, bambous, renards et sanctuaires d'Inari |
+| `scripts/world/decouvertes.gd` | sources chaudes, bambous, renards, sanctuaires d'Inari et lieux de haïku |
 | `scripts/actors/marque.gd` | les marques au sol (ombre, sang, suie), en décal ou à plat selon le moteur |
 | `scripts/game/settings.gd`, `savegame.gd` | réglages et sauvegarde |
 | `scripts/actors/fighter.gd` | un combattant : actions, gestes, animations Mixamo, IA des damnés |

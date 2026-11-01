@@ -244,6 +244,8 @@ func strong_vs(e: Fighter) -> bool:
 # ---------- La Détermination ----------
 
 func gain(n: float) -> void:
+	if game.arsenal.charms.has("brise"):
+		n *= 1.25
 	resolve = minf(resolve_max, resolve + n)
 	_refresh_resolve()
 
@@ -264,7 +266,7 @@ func heal() -> void:
 		return
 	if not spend(1.0):
 		return
-	p.hp = minf(p.max_hp, p.hp + p.max_hp * 0.45)
+	p.hp = minf(p.max_hp, p.hp + p.max_hp * (0.6 if game.arsenal.charms.has("lune") else 0.45))
 	Fx.burst(game, p.global_position + Vector3(0, 1.1, 0), 46, Color(1.0, 0.82, 0.4), 2.5, 1.2, -1.2, 0.9, 2.0)
 	Audio.sfx("souffle", p.global_position, -6.0)
 	game.hud.callout("Se ressaisir", Hud.GOLD)

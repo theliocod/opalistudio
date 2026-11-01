@@ -1,7 +1,8 @@
 ## Les découvertes de la vallée : les sources chaudes où le corps se délasse
 ## (la vie maximale monte), les bambous qu'on tranche d'un enchaînement sans
 ## faute (la Détermination grandit), et les renards qui mènent, si on les
-## suit, à un sanctuaire d'Inari où l'on reçoit un charme.
+## suit, à un sanctuaire d'Inari où l'on reçoit un charme. Et, face aux plus
+## beaux paysages, les lieux de haïku : on s'assoit, on compose trois vers.
 class_name Decouvertes
 extends Node3D
 
@@ -13,7 +14,26 @@ const CHARMES := {
 	"inari": {"name": "Charme d'Inari", "desc": "Un quart de ryō en plus dans chaque butin."},
 	"kitsune": {"name": "Charme du Renard", "desc": "Les gardes te voient de 15 % moins loin."},
 	"hachiman": {"name": "Charme de Hachiman", "desc": "Tes coups de sabre portent 10 % plus fort."},
+	"brise": {"name": "Charme de la Brise", "desc": "La Détermination se gagne un quart plus vite."},
+	"ruisseau": {"name": "Charme du Ruisseau", "desc": "L'endurance revient un quart plus vite."},
+	"lune": {"name": "Charme de la Lune", "desc": "Se ressaisir rend 60 % de la vie au lieu de 45 %."},
 }
+## Les lieux de haïku : où l'on s'assoit, vers où l'on regarde, et pour chaque
+## vers trois façons de le dire.
+const HAIKU := [
+	{"pos": Vector2(-66, -2), "look": Vector2(-110, -40), "theme": "Le lac", "charm": "brise", "vers": [
+		["Le lac immobile", "Brume sur les eaux", "Un héron s'envole"],
+		["porte le reflet des cendres", "la lune rouge s'y noie", "mon sabre y lave son sang"],
+		["le vent se tait", "un poisson saute", "je ferme les yeux"]]},
+	{"pos": Vector2(112, 38), "look": Vector2(0, 10), "theme": "Les érables", "charm": "ruisseau", "vers": [
+		["Feuilles écarlates", "Vent d'automne", "Sous l'érable nu"],
+		["tombent sur la tombe d'un frère", "chaque feuille est un adieu", "un enfant ramasse le rouge"],
+		["la lame attend", "le ciel s'embrase", "rien ne demeure"]]},
+	{"pos": Vector2(-22, -178), "look": Vector2(-30, -260), "theme": "La montagne", "charm": "lune", "vers": [
+		["Neige sur les cimes", "Le sentier se perd", "Au-dessus des nuages"],
+		["mon souffle devient fumée", "les ancêtres me regardent", "la cloche du temple au loin"],
+		["je suis si petit", "la paix, enfin", "demain, la guerre"]]},
+]
 const CHARM_ORDER := ["inari", "kitsune", "hachiman"]
 const QTE_KEYS := ["avant", "gauche", "arriere", "droite", "rapide", "lourd"]
 
@@ -21,7 +41,13 @@ var game
 var spots: Array = []           # {kind, pos, done, ...}
 var foxes: Array = []           # {body, spot, den, state}
 var qte := {}
+var haiku := {}                 # le haïku en cours : {spot, i, picks, t, phase}
 var _ui: CanvasLayer
+var _hk_ui: CanvasLayer
+var _hk_title: Label
+var _hk_lines: Label
+var _hk_opts: Array = []
+var _hk_poem: Label
 var _qte_lbl: Label
 var _qte_sub: Label
 var _rng := RandomNumberGenerator.new()
@@ -40,17 +66,25 @@ func build() -> void:
 		_bambou(_flat(p))
 	for i in INARI.size():
 		_inari(_flat(INARI[i][0]), _flat(INARI[i][1]), CHARM_ORDER[i])
+	for h in HAIKU:
+		_haiku_spot(h)
 	# l'herbe haute s'écarte des lieux que l'on fréquente
 	for s in spots:
-		var r: float = {"onsen": 4.2, "bambou": 3.4, "inari": 4.0}.get(s.kind, 3.0)
+		var r: float = {"onsen": 4.2, "bambou": 3.4, "inari": 4.0, "haiku": 2.6}.get(s.kind, 3.0)
 		game.terrain.clear_grass(Vector2(s.pos.x, s.pos.z), r)
 	game.terrain.refresh_mask()
 	_build_ui()
+	_build_haiku_ui()
 
 
 ## Le coin plat le plus proche : pas d'eau, pas de pente, loin des lieux bâtis.
 func _flat(want: Vector2) -> Vector3:
 	var t: Terrain = game.terrain
+	var best := flat_at(t, game.places, want)
+	return Vector3(best.x, t.height_at(best.x, best.y), best.y)
+
+
+static func flat_at(t: Terrain, places: Array, want: Vector2) -> Vector2:
 	var best := want
 	var score := 1e9
 	for j in range(-6, 7):
@@ -60,13 +94,30 @@ func _flat(want: Vector2) -> Vector3:
 			if h < Terrain.WATER_LEVEL + 1.0:
 				continue
 			var s := t.slope_at(p.x, p.y) * 10.0 + p.distance_to(want) * 0.02
-			for pl in game.places:
+			for pl in places:
 				if p.distance_to(pl.pos) < pl.radius + 8.0:
 					s += 100.0
 			if s < score:
 				score = s
 				best = p
-	return Vector3(best.x, t.height_at(best.x, best.y), best.y)
+	return best
+
+
+## Les clairières que les arbres doivent laisser libres : autour de chaque
+## découverte, et devant chaque lieu de haïku, la vue jusqu'au paysage.
+static func clearings(t: Terrain, places: Array) -> Array:
+	var out := []
+	for p in ONSEN + BAMBOU:
+		out.append({"pos": flat_at(t, places, p), "radius": 7.0})
+	for pair in INARI:
+		out.append({"pos": flat_at(t, places, pair[0]), "radius": 7.0})
+	for h in HAIKU:
+		var at := flat_at(t, places, h.pos)
+		var dir: Vector2 = (h.look - at).normalized()
+		out.append({"pos": at, "radius": 5.0})
+		for k in [[8.0, 4.0], [16.0, 6.0], [26.0, 8.0], [38.0, 10.0]]:
+			out.append({"pos": at + dir * k[0], "radius": k[1]})
+	return out
 
 
 # ---------- La source chaude ----------
@@ -174,6 +225,201 @@ func _bambou(at: Vector3) -> void:
 	# derrière, le bosquet vivant : de hautes tiges qui ploient, des feuilles
 	_grove(g, Vector3(0, 0, -3.2), 22)
 	spots.append({"kind": "bambou", "pos": at + Vector3(0, 0, 1.4), "done": false, "name": "Bambous", "tops": tops})
+
+
+# ---------- Les lieux de haïku ----------
+
+## Un coussin de paille face au paysage, une écritoire basse, du papier, la
+## pierre à encre, et un petit érable qui se penche au-dessus.
+func _haiku_spot(h: Dictionary) -> void:
+	var lm = game.landmarks
+	var k: Dictionary = lm._k()
+	var at := _flat(h.pos)
+	var look := Vector3(h.look.x, 0, h.look.y) - Vector3(at.x, 0, at.z)
+	var yaw := atan2(look.x, look.z)
+	var g := Node3D.new()
+	add_child(g)
+	g.global_position = at
+	g.rotation.y = yaw
+	var c: Chantier = lm._chantier()
+	c.box(k.tatami, Vector3(0, 0.03, 0), Vector3(1.0, 0.06, 1.0))
+	c.cyl(k.chaume, Vector3(0, 0.1, 0), 0.32, 0.34, 0.08, Vector3.ZERO, 12)
+	# l'écritoire, posée devant
+	c.box(k.poutre, Vector3(0, 0.22, 0.7), Vector3(0.62, 0.04, 0.34))
+	for x: float in [-0.27, 0.27]:
+		c.box(k.poutre, Vector3(x, 0.1, 0.7), Vector3(0.04, 0.2, 0.3))
+	c.box(k.blanc, Vector3(-0.06, 0.245, 0.7), Vector3(0.3, 0.005, 0.24))
+	c.box(k.sombre, Vector3(0.2, 0.25, 0.7), Vector3(0.1, 0.02, 0.14))
+	c.cyl(k.poutre, Vector3(0.12, 0.25, 0.62), 0.006, 0.006, 0.18, Vector3(0, 0, PI / 2), 5)
+	# une pierre levée, et sa corde sacrée
+	c.box(k.pierre, Vector3(-1.4, 0.55, -0.4), Vector3(0.5, 1.1, 0.35), Vector3(0, 0.3, 0.06))
+	c.box(k.vermillon, Vector3(-1.4, 0.8, -0.4), Vector3(0.54, 0.05, 0.39), Vector3(0, 0.3, 0.06))
+	c.build(g, "Haiku")
+	spots.append({"kind": "haiku", "pos": at, "done": false, "name": "Lieu de haïku · " + h.theme,
+		"look": look.normalized(), "data": h})
+
+
+func _haiku_ready() -> bool:
+	for e in game.enemies:
+		if e.alive and e.hostile and e.aggro and e.global_position.distance_to(game.player.global_position) < 45.0:
+			return false
+	return true
+
+
+func _start_haiku(s: Dictionary) -> void:
+	if not _haiku_ready():
+		game.hud.toast("Pas maintenant : le danger rôde encore.", Hud.MUTED)
+		return
+	var p: Fighter = game.player
+	p.global_position = Vector3(s.pos.x, p.global_position.y, s.pos.z)
+	p.yaw = atan2(s.look.x, s.look.z)
+	p.sheathed = true
+	p.action = {}
+	p.idle_override = "seiza"
+	haiku = {"spot": s, "i": 0, "picks": [], "t": 0.0, "phase": "assis", "cam": game.camera.global_position}
+	game.state = "haiku"
+	game.hud.letterbox(true)
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+	Audio.sfx("souffle", p.global_position, -10.0)
+	_hk_poem.modulate.a = 0.0
+	_hk_ui.visible = true
+	_hk_title.text = "Haïku · " + s.data.theme
+	_show_haiku()
+
+
+func _show_haiku() -> void:
+	var vers: Array = haiku.spot.data.vers
+	var done: String = ""
+	for line in haiku.picks:
+		done += line + "\n"
+	_hk_lines.text = done
+	var i: int = haiku.i
+	for k in 3:
+		var b: Button = _hk_opts[k]
+		b.visible = i < 3
+		if i < 3:
+			b.text = "%d · %s" % [k + 1, vers[i][k]]
+
+
+func _pick_haiku(k: int) -> void:
+	if haiku.is_empty() or haiku.phase != "assis" or haiku.i >= 3:
+		return
+	var vers: Array = haiku.spot.data.vers
+	haiku.picks.append(vers[haiku.i][k])
+	haiku.i += 1
+	Audio.sfx("ui-papier", null, -6.0)
+	_show_haiku()
+	if haiku.i >= 3:
+		haiku.phase = "poeme"
+		haiku.t = 0.0
+		for b in _hk_opts:
+			b.visible = false
+		_hk_lines.text = ""
+		_hk_poem.text = "\n".join(haiku.picks)
+		var tw := _hk_poem.create_tween()
+		tw.tween_property(_hk_poem, "modulate:a", 1.0, 1.2)
+		tw.tween_interval(3.6)
+		tw.tween_property(_hk_poem, "modulate:a", 0.0, 1.0)
+		tw.tween_callback(_end_haiku.bind(true))
+
+
+func _end_haiku(ok: bool) -> void:
+	if haiku.is_empty():
+		return
+	var s: Dictionary = haiku.spot
+	haiku = {}
+	_hk_ui.visible = false
+	game.state = "play"
+	game.hud.letterbox(false)
+	game.player.idle_override = ""
+	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
+	if not ok:
+		return
+	s.done = true
+	var id: String = s.data.charm
+	if not game.arsenal.charms.has(id):
+		game.arsenal.charms.append(id)
+	game.combat.gain(1.0)
+	Audio.sfx("grace", null, -4.0, 0.0)
+	game.hud.banner(CHARMES[id].name, "Ton haïku apaise l'esprit. " + CHARMES[id].desc)
+	game._fame(2, "")
+
+
+## La caméra du haïku : derrière l'épaule, elle glisse lentement vers le paysage.
+func camera(real: float) -> bool:
+	if haiku.is_empty():
+		return false
+	haiku.t += real
+	var s: Dictionary = haiku.spot
+	var look: Vector3 = s.look
+	var side := Vector3(look.z, 0, -look.x)
+	var drift := minf(1.0, haiku.t / 14.0)
+	var at: Vector3 = s.pos
+	var want := at - look * (2.6 - drift * 0.8) + side * lerpf(1.3, -0.6, drift) + Vector3(0, 1.5 + drift * 0.4, 0)
+	haiku.cam = (haiku.cam as Vector3).lerp(want, 1.0 - exp(-real * 1.6))
+	game.camera.global_position = haiku.cam
+	game.camera.look_at(at + look * 40.0 + Vector3(0, 4.0 - drift * 2.0, 0))
+	return true
+
+
+func _build_haiku_ui() -> void:
+	_hk_ui = CanvasLayer.new()
+	_hk_ui.layer = 3
+	add_child(_hk_ui)
+	var serif := SystemFont.new()
+	serif.font_names = PackedStringArray(["Georgia", "Times New Roman", "Noto Serif", "DejaVu Serif", "serif"])
+	var col := VBoxContainer.new()
+	col.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
+	col.position = Vector2(-330, -270)
+	col.custom_minimum_size = Vector2(660, 0)
+	col.add_theme_constant_override("separation", 8)
+	_hk_ui.add_child(col)
+	_hk_title = Label.new()
+	_hk_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hk_title.add_theme_font_override("font", serif)
+	_hk_title.add_theme_font_size_override("font_size", 22)
+	_hk_title.add_theme_color_override("font_color", Hud.GOLD)
+	col.add_child(_hk_title)
+	_hk_lines = Label.new()
+	_hk_lines.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hk_lines.add_theme_font_override("font", serif)
+	_hk_lines.add_theme_font_size_override("font_size", 20)
+	_hk_lines.add_theme_color_override("font_color", Hud.PAPER)
+	_hk_lines.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	_hk_lines.add_theme_constant_override("outline_size", 6)
+	col.add_child(_hk_lines)
+	for k in 3:
+		var b := Button.new()
+		b.flat = true
+		b.focus_mode = Control.FOCUS_NONE
+		b.add_theme_font_override("font", serif)
+		b.add_theme_font_size_override("font_size", 21)
+		b.add_theme_color_override("font_color", Hud.PAPER)
+		b.add_theme_color_override("font_hover_color", Hud.GOLD)
+		b.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.85))
+		b.add_theme_constant_override("outline_size", 6)
+		b.pressed.connect(_pick_haiku.bind(k))
+		col.add_child(b)
+		_hk_opts.append(b)
+	var hint := Label.new()
+	hint.text = "1, 2, 3 ou un clic pour choisir chaque vers · Échap pour te relever"
+	hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	hint.add_theme_font_size_override("font_size", 13)
+	hint.add_theme_color_override("font_color", Hud.MUTED)
+	col.add_child(hint)
+	# le poème achevé, au milieu de l'écran, en grand
+	_hk_poem = Label.new()
+	_hk_poem.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_hk_poem.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_hk_poem.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_hk_poem.add_theme_font_override("font", serif)
+	_hk_poem.add_theme_font_size_override("font_size", 40)
+	_hk_poem.add_theme_color_override("font_color", Color(0.96, 0.93, 0.86))
+	_hk_poem.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.75))
+	_hk_poem.add_theme_constant_override("outline_size", 10)
+	_hk_poem.add_theme_constant_override("line_spacing", 14)
+	_hk_ui.add_child(_hk_poem)
+	_hk_ui.visible = false
 
 
 ## Une tige de bambou : des entre-nœuds lisses, des nœuds en bourrelet, un
@@ -317,6 +563,10 @@ func step(dt: float) -> void:
 	var p: Fighter = game.player
 	if p == null:
 		return
+	# un ennemi survient pendant le haïku : on se relève, la main sur la poignée
+	if not haiku.is_empty() and haiku.phase == "assis" and (not p.alive or not _haiku_ready()):
+		_end_haiku(false)
+		game.hud.toast("Des pas dans l'herbe… le poème attendra.", Hud.MUTED)
 	for f in foxes:
 		var body: Quadrupede = f.body
 		if not is_instance_valid(body):
@@ -374,6 +624,8 @@ func interactable(p: Fighter) -> Dictionary:
 				return {"kind": "decouverte", "spot": s, "text": "%s · Trancher les bambous" % key}
 			"inari":
 				return {"kind": "decouverte", "spot": s, "text": "%s · Prier au sanctuaire d'Inari" % key}
+			"haiku":
+				return {"kind": "decouverte", "spot": s, "text": "%s · Composer un haïku" % key}
 	return {}
 
 
@@ -385,6 +637,8 @@ func interact(s: Dictionary) -> void:
 			_start_qte(s)
 		"inari":
 			_pray(s)
+		"haiku":
+			_start_haiku(s)
 
 
 func _bathe(s: Dictionary) -> void:
@@ -437,6 +691,18 @@ func _show_qte() -> void:
 
 
 func _unhandled_input(ev: InputEvent) -> void:
+	if game.state == "haiku" and not haiku.is_empty():
+		if ev is InputEventKey and ev.pressed and not ev.echo:
+			var k := [KEY_1, KEY_2, KEY_3].find(ev.keycode)
+			if k < 0:
+				k = [KEY_KP_1, KEY_KP_2, KEY_KP_3].find(ev.keycode)
+			if k >= 0:
+				_pick_haiku(k)
+				get_viewport().set_input_as_handled()
+			elif ev.is_action_pressed("pause") and haiku.phase == "assis":
+				_end_haiku(false)
+				get_viewport().set_input_as_handled()
+		return
 	if game.state != "qte" or qte.is_empty() or ev is InputEventMouseMotion or not ev.is_pressed() or ev.is_echo():
 		return
 	var want: String = qte.seq[qte.i]
@@ -525,7 +791,8 @@ func markers(from: Vector3) -> Array:
 	for s in spots:
 		if s.done or from.distance_to(s.pos) > 140.0:
 			continue
-		out.append({"name": s.name, "pos": s.pos, "color": Color(1.0, 0.7, 0.35) if s.kind == "inari" else Color(0.75, 0.85, 0.95)})
+		var c := Color(1.0, 0.7, 0.35) if s.kind == "inari" else (Color(0.95, 0.85, 1.0) if s.kind == "haiku" else Color(0.75, 0.85, 0.95))
+		out.append({"name": s.name, "pos": s.pos, "color": c})
 	return out
 
 

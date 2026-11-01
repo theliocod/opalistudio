@@ -96,6 +96,36 @@ func _initialize() -> void:
 	await frames(4)
 	print("[inari] charmes %s" % [main.arsenal.charms])
 
+	# un haïku : on s'assoit, on choisit trois vers, on reçoit un charme
+	var hk: Dictionary = {}
+	for s in d.spots:
+		if s.kind == "haiku":
+			hk = s
+			break
+	p.global_position = hk.pos + Vector3(0.5, 0.4, 0.5)
+	await frames(6)
+	it = main._interactable()
+	print("[haiku] invite : %s" % it.get("text", "rien"))
+	main._interact()
+	await frames(4)
+	print("[haiku] état %s, assis %s" % [main.state, p.idle_override])
+	await shot("haiku")
+	for k in 3:
+		var ev := InputEventKey.new()
+		ev.keycode = [KEY_2, KEY_1, KEY_3][k]
+		ev.pressed = true
+		Input.parse_input_event(ev)
+		await frames(3)
+	print("[haiku] vers : %s" % [d.haiku.get("picks", [])])
+	await frames(20)
+	await shot("poeme")
+	for i in 3000:
+		await process_frame
+		if main.state == "play":
+			break
+	print("[haiku] fini %s, état %s, charmes %s" % [hk.done, main.state, main.arsenal.charms])
+	main.camera.make_current()
+
 	# le poste du Col : on le voit, puis on abat la garnison
 	var poste := Vector3.ZERO
 	for pl in main.places:
